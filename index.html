@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title></title>
+        <meta charset="utf-8" />
+        <script src="cordova.js"></script>
+        <script src="kendo/js/jquery.min.js"></script>
+        <script src="kendo/js/kendo.mobile.min.js"></script>
+        <script src="http://maps.google.com/maps/api/js?sensor=true"></script>
+        <script src="scripts/calculators.js"></script>
+        <script src="scripts/hello-world.js"></script>
+
+        <link href="kendo/styles/kendo.mobile.all.min.css" rel="stylesheet" />
+        <link href="styles/main.css" rel="stylesheet" />
+    </head>
+    <body>
+        <div data-role="view" id="login">
+            <a id="carlButton" data-role="button" data-click="showFooter" href="#tabstrip-home">Carl</a>
+            <br />
+            <a id="dimitreButton" data-role="button" data-click="showFooter" href="#tabstrip-home">Dimitre</a>
+            <br />
+            <a id="mikeButton" data-role="button" data-click="showFooter" href="#tabstrip-home">Mike</a>
+        </div>
+        <div data-role="view" id="tabstrip-home" data-title="Fitness Home">
+            <h1>Home Screen</h1>
+            <p>
+                Lorem ipsum dolor sit amet, consectetur adipiscing elit. Ut euismod pharetra venenatis. 
+                Etiam ultricies mi sit amet felis dictum ac viverra elit ultricies. Etiam sem massa, facilisis a bibendum id, 
+                tincidunt id neque. Nullam ligula nisi, sodales vitae imperdiet ac, auctor at nunc. Proin semper condimentum ornare. 
+                Curabitur sed tincidunt risus. Sed sit amet dui vitae ligula cursus elementum. Fusce in metus eget lectus rhoncus ornare vel eget leo. 
+                In feugiat egestas pellentesque.
+            </p>
+        </div>
+
+        <div data-role="view" id="tabstrip-bodyfat" data-title="Body Fat Overview">
+            <a id="recordButton" data-role="button" href="#bfcalculation">Record Measurements</a>
+            <p>Your Body Fat Percentage is:</p>
+            <div id="resultArea">
+                    
+            </div>
+        </div>
+        
+        <div data-role="view" id="bfcalculation" data-title="BF Calculations">
+            <h1>BF Calculations</h1>
+            <div id='bfCalculationArea'>
+                <label for="ageInput" style="display: inline-block;">Enter Age</label>
+                <br />
+                <input type="number" id="ageInput" value="" />
+                <label for="chestInput" style="display: inline-block;">Enter Chest Values</label>
+                <input type="number" id="chestInput" value="" />
+                <label for="stomachInput" style="display: inline-block;">Enter Ab Values</label>
+                <input type="number" id="stomachInput" value="" />
+                <label for="legInput" style="display: inline-block;">Enter Thigh Values</label>
+                <input type="number" id="legInput" value="" />
+                <label for="weightInput" style="display: inline-block;">Enter Weight (Kg) </label>
+                <input type="number" id="weightInput" value="" />
+            </div>
+            <div id='helloWorldText' style="display:block;"></div>
+            <div class="buttonArea">
+                <a id="cancelButton" data-role="button" href="#tabstrip-bodyfat">Cancel</a>
+                <a id="resetButton" data-role="button" data-click="resetBF" data-icon="refresh">Reset</a>
+                <a id="calculate" data-role="button" data-click="calculateBF" data-icon="compose" href="#tabstrip-bodyfat">Calculate</a>
+            </div>
+        </div>
+
+        <div data-role="view" id="tabstrip-reporting" data-title="Reporting">
+            <h1>Reporting Screen</h1>
+            <p>
+                Lorem ipsum dolor sit amet, consectetur adipiscing elit. Ut euismod pharetra venenatis. 
+                Etiam ultricies mi sit amet felis dictum ac viverra elit ultricies. Etiam sem massa, facilisis a bibendum id, 
+                tincidunt id neque. Nullam ligula nisi, sodales vitae imperdiet ac, auctor at nunc. Proin semper condimentum ornare. 
+                Curabitur sed tincidunt risus. Sed sit amet dui vitae ligula cursus elementum. Fusce in metus eget lectus rhoncus ornare vel eget leo. 
+                In feugiat egestas pellentesque.
+             </p>
+        </div>
+
+        <div data-role="layout" data-id="mobile-tabstrip">
+            <header data-role="header">
+                <div data-role="navbar">
+                    <span data-role="view-title"></span>
+                </div>
+            </header>
+
+            <div data-role="footer" id="fitnessFooter">
+                <div data-role="tabstrip">
+                    <a href="#tabstrip-home" data-icon="home">Home</a>
+                    <a href="#tabstrip-bodyfat" data-icon="about">Body Fat</a>
+                    <a href="#tabstrip-reporting" data-icon="bookmarks">Reporting</a>
+                </div>
+            </div>
+        </div>
+        
+        <div data-role="layout" data-id="mobile-view">
+            <header data-role="header">
+                <div data-role="navbar">
+                    <a class="nav-button" data-align="left" data-role="backbutton">Back</a>
+                </div>
+            </header>
+        </div>
+
+        <script>          
+            function saveData(id, dataItem)
+            {              
+                var stringifiedData = JSON.stringify(dataItem);
+                
+                localStorage.setItem(id, stringifiedData);
+            }
+            
+            function loadData(id)
+            {
+                var storedData = localStorage.getItem(id);
+                var parsedData = JSON.parse(storedData);
+                                
+                return parsedData;
+            }
+            
+            function compareDates(firstDate, secondDate)
+            {
+                return firstDate.getFullYear() == secondDate.getFullYear()
+                        && firstDate.getMonth() == secondDate.getMonth()
+                        && firstDate.getDate() == secondDate.getDate();
+            }
+            
+            function showFooter()
+            {
+                $('#fitnessFooter').show();                
+            }
+            
+            function calculateBF()
+            {
+                var gender = "male";
+                var inputAge = parseInt($('#ageInput').val());
+                var chestMeasurement = parseInt($('#chestInput').val());
+                var abMeasurement = parseInt($('#stomachInput').val());
+                var thighMeasurement = parseInt($('#legInput').val());
+                var weight = parseInt($('#weightInput').val())
+                
+                var bodyFat = bodyFatCalculator(inputAge, gender, chestMeasurement, abMeasurement, thighMeasurement);
+                
+                var roundedBF = Math.round(bodyFat * 100) / 100;
+                
+                saveResults(bodyFat);
+                
+                $('#resultArea').html(roundedBF + '%');
+            }
+            
+            function saveResults(bodyFat)
+            {
+                
+            }
+            
+            function instantiateDB()
+            {
+                var db = window.openDatabase("Database", "1.0", "Fitness DB", 200000);
+                
+                db.transaction(populateDB, errorCB, successCB);
+            }
+            
+            function populateDB(tx)
+            {
+                tx.executeSql('DROP TABLE IF EXISTS DEMO');
+                tx.executeSql('CREATE TABLE IF NOT EXISTS DEMO (id unique, data)');
+                tx.executeSql('INSERT INTO DEMO (id, data) VALUES (1, "First row")');
+                tx.executeSql('INSERT INTO DEMO (id, data) VALUES (2, "Second row")');
+            }
+            
+            function errorCB(tx, err)
+            {
+                console.log("Error in SQL: " + err);
+            }
+            
+            function successCB()
+            {
+                console.log("Success in SQL");
+            }
+            
+            function resetBF()
+            {
+                $('#ageInput').val("");
+                $('#chestInput').val("");
+                $('#stomachInput').val("");
+                $('#legInput').val("");
+                $('#resultArea').html("");
+            }
+            
+            
+           /* formulas taken from Live Strong article:
+            * http://www.livestrong.com/article/378022-how-to-calculate-body-fat-from-caliper-measurements/
+            * This is the Jackson-Pollock formula
+            *
+            * Men:
+            * body density = 1.10938 - (0.0008267 * Sum(Chest, Abdomen, Thigh [in mm])) + (0.0000016 * Sum(Chest, Abdomen, Tigh [in mm])^2) - (0.0002574 * age)
+            * 
+            * Women:(
+            * body density = 1.0994921 - (0.0009929 * Sum(Triceps, Waist, Thigh [in mm])) + (0.0000023 * Sum(Triceps, Waist, Thigh [in mm])^2) - (0.0001392 * age)
+            *
+            * BF % using the Siri equation
+            *
+            * Men & Women :
+            * BF% =  ((4.95/bone density) - 4.5) * 100
+            */
+            function bodyFatCalculator(age, gender, firstMeasurement, secondMeasurement, thirdMeasurement)
+            {                    
+                    var userAge = age;
+                    
+                    //add all measurements together
+                    var totalMM = firstMeasurement + secondMeasurement + thirdMeasurement;
+                    
+                    var boneDensity;
+                    
+                    //calculate bone density
+                    if(gender === "male"){
+                        boneDensity = 1.10938 - (0.0008267 * totalMM) + (0.0000016 * totalMM * totalMM) - (0.0002574 * userAge);
+                        console.log(boneDensity);
+                    }
+                    else if(gender === "female"){
+                        boneDensity = 1.0994921 - (0.0009929 * totalMM) + (0.0000023 * totalMM * totalMM) - (0.0001392 * userAge)
+                    }
+                    
+                    //calculate BF%
+                    var bodyFatPercentage = ((4.95 / boneDensity) - 4.5) * 100;
+                    
+                    return bodyFatPercentage;
+            }
+            
+            $(document).ready(function(){
+                $('#fitnessFooter').hide();
+                               
+                queryDatabase();
+            });
+            
+            function queryDatabase()
+            {
+                var db = window.openDatabase("Database", "1.0", "Fitness DB", 200000);
+                db.transaction(queryDB, errorCB);
+            }
+            
+            function queryDB(tx)
+            {
+                tx.executeSql('SELECT * FROM DEMO', [], querySuccess, errorCB);
+            }
+            
+            function querySuccess(tx, results)
+            {                
+                var retLength = results.rows.length;
+                for(var i = 0; i < retLength; i++){
+                    console.log("Row: " + i + " ID: " + results.rows.item(i).id + " Data: " + results.rows.item(i).data);
+                }
+            }
+        </script>
+        
+        <script>
+            var app = new kendo.mobile.Application(document.body, { initial: "login", transition: "slide", layout: "mobile-tabstrip" });
+        </script>
+    </body>
+    
+    
+</html>
