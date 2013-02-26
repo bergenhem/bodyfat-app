@@ -1,6 +1,7 @@
+var db = require('../models/bodyfatitem');
+
 exports.addBodyFat = function(req, res){
+	console.log(db.getAll());
 	console.log(JSON.stringify(req.body));
-	console.log('req.body.testField', req.body['testField']);
-	var sample = { "sampleField" : "worked" };
 	return res.send("OK");
 }

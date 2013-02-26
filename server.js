@@ -1,5 +1,5 @@
 var express = require('express'),
-	fitness		= require('./routes/fitness');
+	fitness		= require('./controllers/fitness');
 
 var app = express();
 
