@@ -7,6 +7,7 @@ app.configure(function () {
 	app.use(express.bodyParser());
 });
 
+app.get('/bodyfat', fitness.getAllBodyFat);
 app.post('/bodyfat', fitness.addBodyFat);
 
 app.listen(3000);

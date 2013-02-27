@@ -1,14 +1,22 @@
 var bodyFatModel = require('../models/bodyfatitem');
 
-exports.addBodyFat = function(req, res){
+exports.addBodyFat = function(req, res) {
 	var itemToInsert = req.body;
 
 	var updatedItem = bodyFatModel.updateBodyFatField(itemToInsert);
 
 	bodyFatModel.saveBodyFat(updatedItem);
 
-	res.writeHead(201, "OK", {'content-type': 'application/json'});
+	res.writeHead(201, "Created", {'content-type': 'application/json'});
 	res.write(JSON.stringify(updatedItem));
+	res.end();
+}
+
+exports.getAllBodyFat = function(req, res) {
+	var itemsToReturn = bodyFatModel.getSampleData();
+	
+	res.writeHead(200, "OK", {'content-type': 'application/json'});
+	res.write(JSON.stringify(itemsToReturn));
 	res.end();
 }
 
