@@ -1,27 +1,36 @@
+var sample = [{
+	"id": "1",
+	"date": "today",
+	"gender": "male",
+	"age": "24",
+	"weight": "75",
+	"chest": "15",
+	"thigh": "5",
+	"ab": "20",
+	"bodyFat": null
+},
+{
+	"id": "2",
+	"date": "tomorrow",
+	"gender": "male",
+	"age": "24",
+	"weight": "75",
+	"chest": "15",
+	"thigh": "5",
+	"ab": "18",
+	"bodyFat": null
+}];
+
 module.exports = {
 	getSampleData: function() {
- 		var sample = [{
-  			"id": "1",
-  			"date": "today",
-  			"gender": "male",
-  			"age": "24",
-  			"weight": "75",
-  			"chest": "15",
-  			"thigh": "5",
-  			"ab": "20"
-  		},
-  		{
-  			"id": "2",
-  			"date": "tomorrow",
-  			"gender": "male",
-  			"age": "24",
-  			"weight": "75",
-  			"chest": "15",
-  			"thigh": "5",
-  			"ab": "18"
-  		}];
-
   		return sample;
+	},
+	saveBodyFat: function(bodyFatItem){
+		sample.push(bodyFatItem);
+
+		var tests = JSON.stringify(sample);
+
+		console.log("Update Sample:\n" + tests);
 	},
 	/* formulas taken from Live Strong article:
 	* http://www.livestrong.com/article/378022-how-to-calculate-body-fat-from-caliper-measurements/
@@ -50,8 +59,6 @@ module.exports = {
 		var totalMM = chest + thigh + ab;
 
 		console.log("TotalMM: " + totalMM);
-
-		//var boneDensity;
 
 		//calculate bone density
 		if(gender === "male"){
