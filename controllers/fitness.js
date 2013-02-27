@@ -22,11 +22,11 @@ exports.getAllBodyFat = function(req, res) {
 	res.end();
 }
 
-//res.writeHead(200, {'Content-Type': 'application/json'});
-//Single Object - POST - res.write(JSON.stringify({Object}));
-//Multiple Objects - GET - res.write(JSON.stringify([Object Array]));
-//res.end();
-//Alternative -> res.end(JSON.stringify({Object}));
+exports.getSingleBodyFat = function(req, res) {
+	var id = req.params.id;
+	console.log('Find Single by ID: ' + id);
 
-//res.writeHead(200, "OK", {'Content-Type': 'text/html'});
-//res.write('<html><head><title>Post Data</title></head><body>{Data}</body></html>');
+	res.writeHead(200, "OK", {'content-type': 'application/json'});
+	res.write(JSON.stringify(bodyFatModel.getSampleData()[0]));
+	res.end();
+}

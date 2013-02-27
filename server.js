@@ -8,6 +8,7 @@ app.configure(function () {
 });
 
 app.get('/bodyfat', fitness.getAllBodyFat);
+app.get('/bodyfat/:id', fitness.getSingleBodyFat);
 app.post('/bodyfat', fitness.addBodyFat);
 
 app.listen(3000);
