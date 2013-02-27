@@ -1,18 +1,17 @@
 var bodyFatModel = require('../models/bodyfatitem');
 
 exports.addBodyFat = function(req, res){
-	var test = bodyFatModel.getSampleData()[0];
-	console.log("Test Var: " + JSON.stringify(test));
-	console.log("BF%: " + bodyFatModel.calculateBodyFat(test));
-	//console.log("Body: " + JSON.stringify(req.body));
+	var itemToInsert = req.body;
 
+	var updatedItem = bodyFatModel.updateBodyFatField(itemToInsert);
 
-	console.log(req.body);
+	console.log("Updated Item\n" + JSON.stringify(updatedItem));
 
-	bodyFatModel.saveBodyFat(req.body);
+	bodyFatModel.saveBodyFat(updatedItem);
 
-
-	return res.send("OK");
+	//res.writeHead(200, "OK", {'content-type': 'application/json'});
+	//res.write(updatedItem);
+	res.end();
 }
 
 //res.writeHead(200, {'Content-Type': 'application/json'});
