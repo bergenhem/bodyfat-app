@@ -30,3 +30,11 @@ exports.getSingleBodyFat = function(req, res) {
 	res.write(JSON.stringify(bodyFatModel.getSampleData()[0]));
 	res.end();
 }
+
+exports.updateBodyFat = function(req, res) {
+	var id = req.params.id;
+	var itemToUpdate = req.body;
+
+	res.writeHead(200, "OK", {'content-type': 'application/json'});
+	res.end();
+}
