@@ -27,10 +27,6 @@ module.exports = {
 	},
 	saveBodyFat: function(bodyFatItem){
 		sample.push(bodyFatItem);
-
-		var tests = JSON.stringify(sample);
-
-		console.log("Tests:\n" + tests);
 	},
 	updateBodyFatField: function(bodyFatItem) {
 		var itemToUpdate = bodyFatItem;

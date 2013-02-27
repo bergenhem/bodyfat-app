@@ -5,12 +5,10 @@ exports.addBodyFat = function(req, res){
 
 	var updatedItem = bodyFatModel.updateBodyFatField(itemToInsert);
 
-	console.log("Updated Item\n" + JSON.stringify(updatedItem));
-
 	bodyFatModel.saveBodyFat(updatedItem);
 
-	//res.writeHead(200, "OK", {'content-type': 'application/json'});
-	//res.write(updatedItem);
+	res.writeHead(200, "OK", {'content-type': 'application/json'});
+	res.write(JSON.stringify(updatedItem));
 	res.end();
 }
 
