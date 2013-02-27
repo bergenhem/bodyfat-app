@@ -1,3 +1,15 @@
+var mongoose = require('mongoose');
+mongoose.connect('mongodb://localhost/testDB');
+
+var db = mongoose.connection;
+
+var bodyFatItemSchema = mongoose.Schema({
+	id: String,
+	gender: String
+});
+
+var BodyFatItem = mongoose.model('BodyFatItem', bodyFatItemSchema);
+
 var sample = [{
 	"id": "02242013",
 	"gender": "male",
@@ -20,6 +32,13 @@ var sample = [{
 }];
 
 module.exports = {
+	testDB: function() {
+		console.log('testDB');
+		db.on('error', console.error.bind(console, 'connection error: '));
+		db.once('open', function test() {
+			console.log("Worked!");
+		});
+	},
 	getSampleData: function() {
   		return sample;
 	},

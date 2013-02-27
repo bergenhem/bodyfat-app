@@ -1,5 +1,12 @@
 var bodyFatModel = require('../models/bodyfatitem');
 
+exports.sampleCall = function(req, res) {
+	console.log('got here');
+	bodyFatModel.testDB();
+	console.log('here too');
+	res.end();
+}
+
 exports.addBodyFat = function(req, res) {
 	var itemToInsert = req.body;
 
