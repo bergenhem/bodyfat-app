@@ -3,7 +3,9 @@ var bodyFatModel = require('../models/bodyfatitem');
 exports.addBodyFat = function(req, res) {
 	var itemToInsert = req.body;
 
-	var updatedItem = bodyFatModel.updateBodyFatField(itemToInsert);
+	var updatedItem = bodyFatModel.addId(itemToInsert);
+
+	updatedItem = bodyFatModel.updateBodyFatField(updatedItem);
 
 	bodyFatModel.saveBodyFat(updatedItem);
 

@@ -1,6 +1,5 @@
 var sample = [{
-	"id": "1",
-	"date": "today",
+	"id": "02242013",
 	"gender": "male",
 	"age": "24",
 	"weight": "75",
@@ -10,8 +9,7 @@ var sample = [{
 	"bodyFat": null
 },
 {
-	"id": "2",
-	"date": "tomorrow",
+	"id": "02252013",
 	"gender": "male",
 	"age": "24",
 	"weight": "75",
@@ -28,12 +26,38 @@ module.exports = {
 	saveBodyFat: function(bodyFatItem){
 		sample.push(bodyFatItem);
 	},
+	addId: function(bodyFatItem){
+		var itemToUpdate = bodyFatItem;
+		itemToUpdate.id = convertDateToId(new Date());
+		return itemToUpdate;
+	},
 	updateBodyFatField: function(bodyFatItem) {
 		var itemToUpdate = bodyFatItem;
 		itemToUpdate.bodyFat = calculateBodyFat(itemToUpdate);
 		return itemToUpdate;
 	}
 }
+
+function convertDateToId (date){
+	var dateToReturn;
+
+	var day = date.getDate().toString();
+	if(day.length == 1){
+		day = "0" + day;
+	}
+
+	var month = (date.getMonth() + 1).toString();
+	if(month.length == 1){
+		month = "0" + month;
+	}
+
+	var year = date.getFullYear().toString();
+
+	dateToReturn = day + month + year;
+
+	return dateToReturn;
+}
+
 /* formulas taken from Live Strong article:
 * http://www.livestrong.com/article/378022-how-to-calculate-body-fat-from-caliper-measurements/
 * This is the Jackson-Pollock formula
