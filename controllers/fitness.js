@@ -7,7 +7,7 @@ exports.addBodyFat = function(req, res){
 
 	bodyFatModel.saveBodyFat(updatedItem);
 
-	res.writeHead(200, "OK", {'content-type': 'application/json'});
+	res.writeHead(201, "OK", {'content-type': 'application/json'});
 	res.write(JSON.stringify(updatedItem));
 	res.end();
 }
