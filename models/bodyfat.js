@@ -1,7 +1,7 @@
 var mongoose = require('mongoose');
 
 var bodyFatSchema = mongoose.Schema({
-	date: String,
+	date: Date,
 	gender: String,
 	age: Number,
 	unit: { type: String, enum: ['metric', 'imperial']},
@@ -17,7 +17,7 @@ bodyFatSchema.methods.calcBodyFat = function() {
 		gender	= this.gender,
 		chest 	= this.chest,
 		thigh 	= this.thigh,
-		ab 		= this.ab,
+		ab 		= this.abs,
 		totalMM,
 		boneDensity;
 
@@ -38,11 +38,11 @@ bodyFatSchema.methods.calcBodyFat = function() {
 	//round the BF%
 	var roundedBodyFatPercentage = Math.round(bodyFatPercentage * 100) / 100;
 
-	console.log("BF : " + roundedBodyFatPercentage);
+	this.bodyFat = roundedBodyFatPercentage;
 };
 
 bodyFatSchema.methods.test = function(){
-	console.log("Test: " + this.gender);
+	console.log("Test: " + this.bodyFat);
 }
 
 module.exports = mongoose.model('BodyFat', bodyFatSchema);
