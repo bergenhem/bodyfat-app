@@ -45,4 +45,4 @@ bodyFatSchema.methods.test = function(){
 	console.log("Test: " + this.gender);
 }
 
-var BodyFat = mongoose.model('BodyFatItem', bodyFatSchema);
+module.exports = mongoose.model('BodyFat', bodyFatSchema);

@@ -1,10 +1,12 @@
 var bodyFatModel = require('../models/bodyfatitem');
-var bodyFat = require('../models/bodyfat');
+var BodyFat = require('../models/bodyfat');
 
 exports.sampleCall = function(req, res) {
 	console.log('got here');
 
 	var test = new BodyFat({ gender: 'male' });
+
+	console.log('here too')
 
 	test.test();
 
