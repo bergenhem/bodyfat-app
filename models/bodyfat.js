@@ -1,15 +1,15 @@
 var mongoose = require('mongoose');
 
 var bodyFatSchema = mongoose.Schema({
-	date: Date,
-	gender: String,
-	age: Number,
-	unit: { type: String, enum: ['metric', 'imperial']},
-	weight: Number,
-	chest: Number,
-	thigh: Number,
-	abs: Number,
-	bodyFat: Number
+	date: { type: Date, default: Date.now },
+	gender: { type: String, default: 'male' },
+	age: { type: Number, default: 0 },
+	unit: { type: String, enum: ['metric', 'imperial'], default: 'imperial'},
+	weight: { type: Number, default: 0 },
+	chest: { type: Number, default: 0 },
+	thigh: { type: Number, default: 0 },
+	abs: { type: Number, default: 0 },
+	bodyFat: { type: Number, default 0 }
 });
 
 bodyFatSchema.methods.calcBodyFat = function() {
