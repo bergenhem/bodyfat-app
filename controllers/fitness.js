@@ -3,10 +3,9 @@ var BodyFat = require('../models/bodyfat');
 exports.addBodyFat = function(req, res) {
 	var itemToInsert = req.body;
 
-	var createdBodyFat = new BodyFat({
-		date: new Date()
-	});
+	var createdBodyFat = new BodyFat();
 
+	if(itemToInsert.date) createdBodyFat.date = itemToInsert.date;
 	if(itemToInsert.gender) createdBodyFat.gender = itemToInsert.gender;
 	if(itemToInsert.age) createdBodyFat.age = itemToInsert.age;
 	if(itemToInsert.unit) createdBodyFat.unit = itemToInsert.unit;
