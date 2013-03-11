@@ -5,7 +5,7 @@ exports.addBodyFat = function(req, res) {
 
 	var createdBodyFat = new BodyFat();
 
-	if(itemToInsert.date) createdBodyFat.date = itemToInsert.date;
+	if(itemToInsert.date) createdBodyFat.date = moment(itemToInsert.date).format('YYYY-MM-DD');
 	if(itemToInsert.gender) createdBodyFat.gender = itemToInsert.gender;
 	if(itemToInsert.age) createdBodyFat.age = itemToInsert.age;
 	if(itemToInsert.unit) createdBodyFat.unit = itemToInsert.unit;

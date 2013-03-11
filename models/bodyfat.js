@@ -1,8 +1,9 @@
 var mongoose = require('mongoose');
+var moment = require('moment');
 mongoose.connect('mongodb://localhost/fitness');
 
 var bodyFatSchema = mongoose.Schema({
-	date: { type: Date, default: (Date.now).format('dd/mm/yyyy') },
+	date: { type: String, default: moment(new Date).format('YYYY-MM-DD') },
 	gender: { type: String, enum: ['male', 'female'], default: 'male' },
 	age: { type: Number, default: 0 },
 	unit: { type: String, enum: ['metric', 'imperial'], default: 'imperial'},
