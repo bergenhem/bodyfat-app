@@ -42,4 +42,4 @@ bodyFatSchema.methods.calcBodyFat = function() {
 	this.bodyFat = roundedBodyFatPercentage;
 };
 
-module.exports = mongoose.model('BodyFat', bodyFatSchema);
+module.exports = mongoose.model('BodyFat', bodyFatSchema, 'bodyfat');
