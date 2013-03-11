@@ -1,15 +1,16 @@
 var mongoose = require('mongoose');
+mongoose.connect('mongodb://localhost/fitness');
 
 var bodyFatSchema = mongoose.Schema({
 	date: { type: Date, default: Date.now },
-	gender: { type: String, default: 'male' },
+	gender: { type: String, enum: ['male', 'female'], default: 'male' },
 	age: { type: Number, default: 0 },
 	unit: { type: String, enum: ['metric', 'imperial'], default: 'imperial'},
 	weight: { type: Number, default: 0 },
 	chest: { type: Number, default: 0 },
 	thigh: { type: Number, default: 0 },
 	abs: { type: Number, default: 0 },
-	bodyFat: { type: Number, default 0 }
+	bodyFat: { type: Number, default: 0 }
 });
 
 bodyFatSchema.methods.calcBodyFat = function() {
@@ -40,9 +41,5 @@ bodyFatSchema.methods.calcBodyFat = function() {
 
 	this.bodyFat = roundedBodyFatPercentage;
 };
-
-bodyFatSchema.methods.test = function(){
-	console.log("Test: " + this.bodyFat);
-}
 
 module.exports = mongoose.model('BodyFat', bodyFatSchema);
