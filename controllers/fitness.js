@@ -35,8 +35,7 @@ exports.addBodyFat = function(req, res) {
 							res.end();
 						}
 						else {
-							res.writeHead(201, 'Created', {'content-type': 'application/json'});
-							res.write(JSON.stringify(createdBodyFat));
+							res.writeHead(201, 'Created', {'Location': '/bodyfat/' + formatString, 'Content': JSON.stringify(createdBodyFat), 'content-type': 'application/json'});
 							res.end();
 						}
 					});
