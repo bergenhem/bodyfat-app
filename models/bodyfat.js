@@ -14,6 +14,19 @@ var bodyFatSchema = mongoose.Schema({
 	bodyFat: { type: Number, default: 0 }
 });
 
+
+//Hide _id and __v when using toObject
+bodyFatSchema.options.toObject = { transform: function(doc, ret, options) {
+	delete ret._id;
+	delete ret.__v;
+}}
+
+//Hide _id and __v when using toJSON/JSON.stringify()
+bodyFatSchema.options.toJSON = { transform: function(doc, ret, options) {
+	delete ret._id;
+	delete ret.__v;
+}}
+
 bodyFatSchema.methods.calcBodyFat = function() {
 	var age 	= this.age,
 		gender	= this.gender,
