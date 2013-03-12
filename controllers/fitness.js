@@ -11,6 +11,8 @@ exports.addBodyFat = function(req, res) {
 		BodyFat.findOne({ 'date': formatString }, 'date', function(err, bodyFat) {
 			if(err) {
 				console.log('Error in query:\n' + err);
+				res.writeHead(500, 'Internal Server Error', {'content-type': 'application/json'});
+				res.end();
 			}
 			else {
 				//Did not find
@@ -29,11 +31,11 @@ exports.addBodyFat = function(req, res) {
 					createdBodyFat.save(function(err, bodyFat) {
 						if(err) {
 							console.log("Error when saving:\n" + err);
-							res.writeHead(500, "Internal Server Error", {'content-type': 'application/json'});
+							res.writeHead(500, 'Internal Server Error', {'content-type': 'application/json'});
 							res.end();
 						}
 						else {
-							res.writeHead(201, "Created", {'content-type': 'application/json'});
+							res.writeHead(201, 'Created', {'content-type': 'application/json'});
 							res.write(JSON.stringify(createdBodyFat));
 							res.end();
 						}
@@ -41,7 +43,7 @@ exports.addBodyFat = function(req, res) {
 				}
 				//Item found, return 409 to indicate it already exists
 				else {
-					res.writeHead(409, "Conflict", {'content-type': 'application/json'});
+					res.writeHead(409, 'Conflict', {'content-type': 'application/json'});
 					res.end();
 				}
 			}
@@ -50,17 +52,24 @@ exports.addBodyFat = function(req, res) {
 
 	//Invalid request - no date provided
 	else {
-		res.writeHead(500, "Internal Server Error", {'content-type': 'application/json'});
+		res.writeHead(500, 'Internal Server Error', {'content-type': 'application/json'});
 		res.end();
 	}
 }
 
 exports.getAllBodyFat = function(req, res) {
-	var itemsToReturn = bodyFatModel.getSampleData();
-	
-	res.writeHead(200, "OK", {'content-type': 'application/json'});
-	res.write(JSON.stringify(itemsToReturn));
-	res.end();
+	BodyFat.find({ 'date': /^2013/ }, function(err, bodyFat) {
+		if(err) {
+			console.log('Error in getting all items:\n' + err);
+			res.writeHead(404, 'Not Found', {'content-type': 'application/json'});
+			res.end();
+		}
+		else {
+			res.writeHead(200, 'OK', {'content-type': 'application/json'});
+			res.write(JSON.stringify(bodyFat));
+			res.end();
+		}
+	});
 }
 
 exports.getSingleBodyFat = function(req, res) {
