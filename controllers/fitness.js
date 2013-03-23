@@ -57,16 +57,22 @@ exports.addBodyFat = function(req, res) {
 }
 
 exports.getAllBodyFat = function(req, res) {
-	BodyFat.find({ 'date': /^2013/ }, function(err, bodyFat) {
+	BodyFat.find({ }, function(err, bodyFat) {
 		if(err) {
 			console.log('Error in getting all items:\n' + err);
 			res.writeHead(404, 'Not Found', {'content-type': 'application/json'});
 			res.end();
 		}
 		else {
-			res.writeHead(200, 'OK', {'content-type': 'application/json'});
-			res.write(JSON.stringify(bodyFat));
-			res.end();
+			if(bodyFat.length == 0) {
+				res.writeHead(404, 'Not Found', {'content-type': 'application/json'});
+				res.end();
+			}
+			else {
+				res.writeHead(200, 'OK', {'content-type': 'application/json'});
+				res.write(JSON.stringify(bodyFat));
+				res.end();
+			}
 		}
 	});
 }
