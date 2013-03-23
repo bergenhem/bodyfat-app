@@ -78,8 +78,12 @@ exports.getAllBodyFat = function(req, res) {
 }
 
 exports.getSingleBodyFat = function(req, res) {
+	
+	//get our date
 	var passedDate = req.params.date;
 	if(passedDate){
+
+		//format it just in case
 		var formatPassedDate = moment(passedDate).format('YYYY-MM-DD');
 		BodyFat.findOne({ 'date': formatPassedDate }, function(err, bodyFat) {
 			if(err) {
