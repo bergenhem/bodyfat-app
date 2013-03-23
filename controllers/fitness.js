@@ -72,12 +72,32 @@ exports.getAllBodyFat = function(req, res) {
 }
 
 exports.getSingleBodyFat = function(req, res) {
-	var id = req.params.id;
-	console.log('Find Single by ID: ' + id);
-
-	res.writeHead(200, "OK", {'content-type': 'application/json'});
-	res.write(JSON.stringify(bodyFatModel.getSampleData()[0]));
-	res.end();
+	var passedDate = req.params.date;
+	if(passedDate){
+		var formatPassedDate = moment(passedDate).format('YYYY-MM-DD');
+		BodyFat.findOne({ 'date': formatPassedDate }, function(err, bodyFat) {
+			if(err) {
+				console.log('Error in getting single item:\n' + err);
+				res.writeHead(404, 'Not Found', {'content-type': 'application/json'});
+				res.end();
+			}
+			else {
+				if(!bodyFat) {
+					res.writeHead(404, 'Not Found', {'content-type': 'application/json'});
+					res.end();
+				}
+				else {
+					res.writeHead(200, 'OK', {'content-type': 'application/json'});
+					res.write(JSON.stringify(bodyFat));
+					res.end();
+				}
+			}
+		});
+	}
+	else {
+		res.writeHead(404, 'Not Found', {'content-type': 'application/json'});
+		res.end();
+	}
 }
 
 exports.updateBodyFat = function(req, res) {
