@@ -26,7 +26,7 @@ exports.addBodyFat = function(req, res) {
 					if(itemToInsert.thigh) createdBodyFat.thigh = itemToInsert.thigh;
 					if(itemToInsert.abs) createdBodyFat.abs = itemToInsert.abs;
 
-					createdBodyFat.calcBodyFat();
+					createdBodyFat.calcBFValues();
 
 					createdBodyFat.save(function(err, bodyFat) {
 						if(err) {
@@ -143,7 +143,7 @@ exports.updateBodyFat = function(req, res) {
 					if(itemToUpdate.abs) bodyFat.abs = itemToUpdate.abs;
 
 					//recalculate body fat
-					bodyFat.calcBodyFat();
+					bodyFat.calcBFValues();
 
 					bodyFat.save(function(err, bodyFat) {
 						if(err) {
