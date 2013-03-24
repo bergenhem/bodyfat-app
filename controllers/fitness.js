@@ -49,7 +49,7 @@ exports.addBodyFat = function(req, res) {
 		});
 	}
 
-	//Invalid request - no date provided
+	//Invalid request - invalid date or no date provided
 	else {
 		res.writeHead(500, 'Internal Server Error', {'content-type': 'application/json'});
 		res.end();
@@ -81,7 +81,7 @@ exports.getSingleBodyFat = function(req, res) {
 	
 	//get our date
 	var passedDate = req.params.date;
-	if(passedDate){
+	if(passedDate) {
 
 		//format it just in case
 		var formatPassedDate = moment(passedDate).format('YYYY-MM-DD');
@@ -111,9 +111,60 @@ exports.getSingleBodyFat = function(req, res) {
 }
 
 exports.updateBodyFat = function(req, res) {
-	var id = req.params.id;
+
+	//get our date
+	var passedDate = req.params.date;
 	var itemToUpdate = req.body;
 
-	res.writeHead(200, "OK", {'content-type': 'application/json'});
-	res.end();
+	if(passedDate) {
+
+		//format our date just in case
+		var formatPassedDate = moment(passedDate).format('YYYY-MM-DD');
+		BodyFat.findOne({ 'date': formatPassedDate }, function(err, bodyFat) {
+			if(err) {
+				console.log('Error in updating item:\n' + err);
+				res.writeHead(404, 'Not Found', {'content-type': 'application/json'});
+				res.end();
+			}
+			else {
+				if(!bodyFat) {
+					res.writeHead(404, 'Not Found', {'content-type': 'application/json'});
+					res.end();
+				}
+				else {
+
+					//update all of our fields if they exist
+					if(itemToUpdate.gender) bodyFat.gender = itemToUpdate.gender;
+					if(itemToUpdate.age) bodyFat.age = itemToUpdate.age;
+					if(itemToUpdate.unit) bodyFat.unit = itemToUpdate.unit;
+					if(itemToUpdate.weight) bodyFat.weight = itemToUpdate.weight;
+					if(itemToUpdate.chest) bodyFat.weight = itemToUpdate.chest;
+					if(itemToUpdate.thigh) bodyFat.thigh = itemToUpdate.thigh;
+					if(itemToUpdate.abs) bodyFat.abs = itemToUpdate.abs;
+
+					//recalculate body fat
+					bodyFat.calcBodyFat();
+
+					bodyFat.save(function(err, bodyFat) {
+						if(err) {
+							console.log("Error when updating:\n" + err);
+							res.writeHead(500, 'Internal Server Error', {'content-type': 'application/json'});
+							res.end();
+						}
+						else {
+							res.writeHead(200, 'OK', {'content-type': 'application/json'});
+							res.write(JSON.stringify(bodyFat));
+							res.end();
+						}
+					});
+				}
+			}
+		});
+	}
+
+	//Invalid request - invalid date or no date provided
+	else {
+		res.writeHead(404, 'Not Found', {'content-type': 'application/json'});
+		res.end();
+	}
 }

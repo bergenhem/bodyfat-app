@@ -8,8 +8,9 @@ app.configure(function () {
 });
 
 app.get('/bodyfat', fitness.getAllBodyFat);
-app.get('/bodyfat/:date', fitness.getSingleBodyFat);
 app.post('/bodyfat', fitness.addBodyFat);
+app.get('/bodyfat/:date', fitness.getSingleBodyFat);
+app.put('/bodyfat/:date', fitness.updateBodyFat);
 
 app.listen(3000);
 console.log('Listening on port 3000...');
