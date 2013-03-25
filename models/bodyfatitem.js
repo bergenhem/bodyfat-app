@@ -1,5 +1,5 @@
 var sample = [{
-	"id": "02242013",
+	"date": "02242013",
 	"gender": "male",
 	"age": "24",
 	"weight": "75",
@@ -20,6 +20,13 @@ var sample = [{
 }];
 
 module.exports = {
+	testDB: function() {
+		console.log('testDB');
+		db.on('error', console.error.bind(console, 'connection error: '));
+		db.once('open', function test() {
+			console.log("Worked!");
+		});
+	},
 	getSampleData: function() {
   		return sample;
 	},
