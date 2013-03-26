@@ -3,10 +3,23 @@ var express = require('express'),
 
 var app = express();
 
+//configure the server
 app.configure(function () {
 	app.use(express.bodyParser());
+
+	//register ejs as .html so we can have .html pages
+	app.engine('.html', require('ejs').__express);
+
+	//define our views folder
+	app.set('views', __dirname + '/views');
+
+	//set our view engine to HTML
+	app.set('view engine', 'html');
 });
 
+app.get('/', function(req, res) {
+	res.render('index');
+});
 app.get('/bodyfat', fitness.getAllBodyFat);
 app.post('/bodyfat', fitness.addBodyFat);
 app.get('/bodyfat/:date', fitness.getSingleBodyFat);
