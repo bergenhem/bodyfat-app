@@ -2,8 +2,30 @@
 <html>
 <head>
 	<title>Sample Page</title>
+	<script src="/scripts/jquery-1.9.1.js" type="text/javascript"></script>
 </head>
 <body>
 	<p>This is a place holder for our SPA.</p>
+
+
+	<button id="test">Test</button>
+
+	<script type="text/javascript">
+		$(function() {
+			$('#test').on('click', function() {
+				console.log('clicked');
+
+				$.ajax({
+					type: "GET",
+					url: "/bodyfat"
+				}).done(function(data) {
+					console.log('success!');
+					console.log(data);
+				}).fail(function() {
+					console.log('fail :(');
+				});
+			});
+		});
+	</script>
 </body>
 </html>
