@@ -25,6 +25,7 @@ app.configure(function () {
 app.get('/', function(req, res) {
 	res.render('index');
 });
+
 app.get('/bodyfat', fitness.getAllBodyFat);
 app.post('/bodyfat', fitness.addBodyFat);
 app.get('/bodyfat/:date', fitness.getSingleBodyFat);

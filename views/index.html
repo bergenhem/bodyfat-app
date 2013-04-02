@@ -1,29 +1,58 @@
 <!doctype html>
 <html>
 <head>
-	<title>Sample Page</title>
+	<title>Calculate Body Fat</title>
 	<script src="/scripts/jquery-1.9.1.js" type="text/javascript"></script>
 </head>
 <body>
-	<p>This is a place holder for our SPA.</p>
-
+	<p>Calculate Body Fat:</p>
+	<form id="body-fat-form">
+		<label for="genderInput">Gender:</label>
+		<input type="text" name="date" id="genderInput" value="" />
+		<br />
+	  	<input type="submit" value="Get Body Fat"/>
+	</form>
 
 	<button id="test">Test</button>
 
 	<script type="text/javascript">
+
+$.fn.serializeObject = function()
+{
+   var o = {};
+   var a = this.serializeArray();
+   $.each(a, function() {
+       if (o[this.name]) {
+           if (!o[this.name].push) {
+               o[this.name] = [o[this.name]];
+           }
+           o[this.name].push(this.value || '');
+       } else {
+           o[this.name] = this.value || '';
+       }
+   });
+   return o;
+};
+
 		$(function() {
-			$('#test').on('click', function() {
-				console.log('clicked');
+			$('#body-fat-form').on('submit', function() {
+				var formData = $(this).serializeObject();
+				var serializedForm = JSON.stringify(formData);
 
 				$.ajax({
 					type: "GET",
-					url: "/bodyfat"
+					url: "/bodyfat/2013-03-08/",
+					data: serializedForm,
+					contentType: "application/json; charset=utf-8",
+					dataType: "json"
 				}).done(function(data) {
-					console.log('success!');
 					console.log(data);
-				}).fail(function() {
-					console.log('fail :(');
+				}).fail(function(error) {
+					console.log('Error in retrieving body fat:\n');
+					console.log(error);
 				});
+
+				return false; //avoid execution of actual submission
 			});
 		});
 	</script>
