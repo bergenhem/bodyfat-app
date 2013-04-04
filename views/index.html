@@ -8,8 +8,12 @@
 <body>
 	<p>Calculate Body Fat:</p>
 	<form id="body-fat-form">
-		<label for="genderInput">Gender:</label>
-		<input type="text" name="gender" id="genderInput" value="" />
+		<label>Gender:</label>
+		<br />
+		<label for="male">Male</label>
+		<input type="radio" name="genderSelect" id="male" value="male" checked="checked" />
+		<label for="female">Female</label>
+		<input type="radio" name="genderSelect" id="female" value="female" />
 		<br />
 		<label for="ageInput">Age:</label>
 		<input type="numeric" name="age" id="ageInput" value=""/> 
@@ -36,8 +40,6 @@
 	  	<input type="submit" value="Get Body Fat"/>
 	</form>
 
-	<button id="test">Test</button>
-
 	<script type="text/javascript">
 
 		//simple helper function to make an object out of our form
@@ -60,6 +62,7 @@
 
 		$(function() {
 			$('#body-fat-form').on('submit', function(e) {
+				e.preventDefault();
 				var formData = $(this).serializeObject();
 				formData.date = moment(new Date()).format('YYYY-MM-DD');
 				var serializedForm = JSON.stringify(formData);
