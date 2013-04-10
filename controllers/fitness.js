@@ -78,7 +78,9 @@ exports.getAllBodyFat = function(req, res) {
 }
 
 exports.getSingleBodyFat = function(req, res) {
-	
+	console.log('Single Body Fat Called');
+	console.log('Parameters: ' + req.params);
+	console.log('Date: '+ req.params.date);
 	//get our date
 	var passedDate = req.params.date;
 	if(passedDate) {
