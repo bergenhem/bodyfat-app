@@ -94,7 +94,7 @@ bodyFatSchema.methods.calcFat = function () {
 	this.bodyFat = fat;
 };
 
-bodyFatSchema.mehtods.calcLeanMuscle = function () {
+bodyFatSchema.methods.calcLeanMuscle = function () {
 	var muscle 	= 0,
 		fat 	= this.bodyFat,
 		weight 	= this.weight;
@@ -103,5 +103,32 @@ bodyFatSchema.mehtods.calcLeanMuscle = function () {
 
 	this.leanBodyMass = muscle;
 };
+
+//calc found at: http://scoobysworkshop.com/body-fat-calculator/
+bodyFatSchema.methods.calcFFMI = function () {
+	var ffmi 		= 0,
+		unitType 	= this.unit,
+		bodyMass 	= this.leanBodyMass,
+		height 		= this.height;
+
+	if(unitType === "imperial") {
+		height = height * 0.254;
+		bodyMass = bodyMass * 0.454;
+	}
+
+	ffmi = (bodyMass / (height * height)) + (6.1 * (1.8 - height));
+	this.ffmi = ffmi;
+
+	/*
+	* 19-20: average FFMI for college students
+	* 20-23: noticeably muscular
+	* 26: steroid user
+	* Note: FFMI measures fat free mass. At what level fat free mass someone
+	* will look muscular depends on their frame size. Someone with narrow hips,
+	* small wrists, and small knees can look very muscular at a FFMI of 20.
+	* The inverse is true also. Someone with a FFMI of 23 might not look
+	* muscular at all if they have really wide hips, big wrists, and big knees
+	*/
+}	
 
 module.exports = mongoose.model('BodyFat', bodyFatSchema, 'bodyfat');
