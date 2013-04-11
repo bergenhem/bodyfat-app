@@ -8,6 +8,7 @@ var bodyFatSchema = mongoose.Schema({
 	age: { type: Number, default: 0 },
 	unit: { type: String, enum: ['metric', 'imperial'], default: 'imperial'},
 	weight: { type: Number, default: 0 },
+	height: { type: Number, default: 0},
 	chest: { type: Number, default: 0 },
 	thigh: { type: Number, default: 0 },
 	abs: { type: Number, default: 0 },
@@ -23,13 +24,29 @@ var bodyFatSchema = mongoose.Schema({
 bodyFatSchema.options.toObject = { transform: function(doc, ret, options) {
 	delete ret._id;
 	delete ret.__v;
-}}
+}};
 
 //Hide _id and __v when using toJSON/JSON.stringify()
 bodyFatSchema.options.toJSON = { transform: function(doc, ret, options) {
 	delete ret._id;
 	delete ret.__v;
-}}
+}};
+
+bodyFatSchema.methods.calcBMI = function () {
+	var calculatedBmi 	= 0,
+		unitType 		= this.unit,
+		height 			= this.height,
+		weight			= this.weight;
+
+		if(unitType === "imperial") {
+			calculatedBmi = (weight * 703) / (height * height);
+		}
+		else if(unitType === "metric") {
+			calculatedBmi = weight / (height * height);
+		}
+
+	this.bmi = calculatedBmi;
+};
 
 bodyFatSchema.methods.calcBFValues = function() {
 	var age 	= this.age,
