@@ -14,8 +14,8 @@ var bodyFatSchema = mongoose.Schema({
 	abs: { type: Number, default: 0 },
 	bmi: { type: Number, default: 0 },
 	bodyFatPercentage: { type: Number, default: 0 },
-	leanBodyMass: { type: Number, default: 0 },
 	bodyFat: { type: Number, default: 0},
+	leanBodyMass: { type: Number, default: 0 },
 	ffmi: { type: Number, default: 0 }
 });
 
@@ -82,6 +82,16 @@ bodyFatSchema.methods.calcBFValues = function() {
 	var roundedBodyFatPercentage = Math.round(bodyFatPercentage * 100) / 100;
 
 	this.bodyFatPercentage = roundedBodyFatPercentage;
+};
+
+bodyFatSchema.methods.calcFat = function () {
+	var fat 	= 0,
+		bf 		= this.bodyFatPercentage,
+		weight 	= this.weight;
+
+	fat = weight * (bf / 100);
+
+	this.bodyFat = fat;
 };
 
 module.exports = mongoose.model('BodyFat', bodyFatSchema, 'bodyfat');
