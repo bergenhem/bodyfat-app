@@ -94,4 +94,14 @@ bodyFatSchema.methods.calcFat = function () {
 	this.bodyFat = fat;
 };
 
+bodyFatSchema.mehtods.calcLeanMuscle = function () {
+	var muscle 	= 0,
+		fat 	= this.bodyFat,
+		weight 	= this.weight;
+
+	muscle = weight - fat;
+
+	this.leanBodyMass = muscle;
+};
+
 module.exports = mongoose.model('BodyFat', bodyFatSchema, 'bodyfat');
