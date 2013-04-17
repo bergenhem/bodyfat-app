@@ -32,6 +32,7 @@ bodyFatSchema.options.toJSON = { transform: function(doc, ret, options) {
 	delete ret.__v;
 }};
 
+//calculate BMI (Body Mass Index)
 bodyFatSchema.methods.calcBMI = function () {
 	var calculatedBmi 	= 0,
 		unitType 		= this.unit,
@@ -42,10 +43,11 @@ bodyFatSchema.methods.calcBMI = function () {
 			calculatedBmi = (weight * 703) / (height * height);
 		}
 		else if(unitType === "metric") {
+			height = height / 100;
 			calculatedBmi = weight / (height * height);
 		}
 
-	this.bmi = calculatedBmi;
+	this.bmi = Math.round(calculatedBmi * 100) / 100;
 
 	/*
 	* Below 18.5 = Underweight
@@ -84,6 +86,7 @@ bodyFatSchema.methods.calcBFValues = function() {
 	this.bodyFatPercentage = roundedBodyFatPercentage;
 };
 
+//calculate total fat weight
 bodyFatSchema.methods.calcFat = function () {
 	var fat 	= 0,
 		bf 		= this.bodyFatPercentage,
@@ -91,9 +94,10 @@ bodyFatSchema.methods.calcFat = function () {
 
 	fat = weight * (bf / 100);
 
-	this.bodyFat = fat;
+	this.bodyFat = Math.round(fat * 100) / 100;
 };
 
+//calculate lean muscle weight
 bodyFatSchema.methods.calcLeanMuscle = function () {
 	var muscle 	= 0,
 		fat 	= this.bodyFat,
@@ -101,10 +105,11 @@ bodyFatSchema.methods.calcLeanMuscle = function () {
 
 	muscle = weight - fat;
 
-	this.leanBodyMass = muscle;
+	this.leanBodyMass = Math.round(muscle * 100) / 100;
 };
 
 //calc found at: http://scoobysworkshop.com/body-fat-calculator/
+//calculate FFMI (Fat Free Mass Index)
 bodyFatSchema.methods.calcFFMI = function () {
 	var ffmi 		= 0,
 		unitType 	= this.unit,
@@ -116,8 +121,11 @@ bodyFatSchema.methods.calcFFMI = function () {
 		bodyMass = bodyMass * 0.454;
 	}
 
+	//convert this to full meters
+	height = height / 100;
+
 	ffmi = (bodyMass / (height * height)) + (6.1 * (1.8 - height));
-	this.ffmi = ffmi;
+	this.ffmi = Math.round(ffmi * 100) / 100;
 
 	/*
 	* 19-20: average FFMI for college students
@@ -129,6 +137,15 @@ bodyFatSchema.methods.calcFFMI = function () {
 	* The inverse is true also. Someone with a FFMI of 23 might not look
 	* muscular at all if they have really wide hips, big wrists, and big knees
 	*/
+}
+
+//initialize all of the calculations
+bodyFatSchema.methods.initCalculations = function() {
+	this.calcBMI();
+	this.calcBFValues();
+	this.calcFat();
+	this.calcLeanMuscle();
+	this.calcFFMI();
 }	
 
 module.exports = mongoose.model('BodyFat', bodyFatSchema, 'bodyfat');

@@ -21,17 +21,14 @@ exports.addBodyFat = function(req, res) {
 					if(itemToInsert.gender) createdBodyFat.gender = itemToInsert.gender;
 					if(itemToInsert.age) createdBodyFat.age = itemToInsert.age;
 					if(itemToInsert.unit) createdBodyFat.unit = itemToInsert.unit;
-					if(itemToInsert.weight) createdBodyFat.weight = itemToInsert.chest;
+					if(itemToInsert.weight) createdBodyFat.weight = itemToInsert.weight;
 					if(itemToInsert.height) createdBodyFat.height = itemToInsert.height;
 					if(itemToInsert.chest) createdBodyFat.chest = itemToInsert.chest;
 					if(itemToInsert.thigh) createdBodyFat.thigh = itemToInsert.thigh;
 					if(itemToInsert.abs) createdBodyFat.abs = itemToInsert.abs;
 
-					//calculate BMI
-					createdBodyFat.calcBMI();
-
-					//calculate body fat
-					createdBodyFat.calcBFValues();
+					//do all the calculations
+					createdBodyFat.initCalculations();
 
 					createdBodyFat.save(function(err, bodyFat) {
 						if(err) {
@@ -150,11 +147,8 @@ exports.updateBodyFat = function(req, res) {
 					if(itemToUpdate.thigh) bodyFat.thigh = itemToUpdate.thigh;
 					if(itemToUpdate.abs) bodyFat.abs = itemToUpdate.abs;
 
-					//recalculate BMI
-					bodyFat.calcBMI();
-
-					//recalculate body fat
-					bodyFat.calcBFValues();
+					//do all the calculations
+					createdBodyFat.initCalculations();
 
 					bodyFat.save(function(err, bodyFat) {
 						if(err) {
