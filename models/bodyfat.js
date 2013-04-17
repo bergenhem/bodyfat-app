@@ -2,34 +2,61 @@ var mongoose = require('mongoose');
 var moment = require('moment');
 mongoose.connect('mongodb://localhost/fitness');
 
+//define our schema and the defaults
 var bodyFatSchema = mongoose.Schema({
 	date: { type: String, default: moment(new Date).format('YYYY-MM-DD') },
 	gender: { type: String, enum: ['male', 'female'], default: 'male' },
 	age: { type: Number, default: 0 },
 	unit: { type: String, enum: ['metric', 'imperial'], default: 'imperial'},
 	weight: { type: Number, default: 0 },
+	height: { type: Number, default: 0},
 	chest: { type: Number, default: 0 },
 	thigh: { type: Number, default: 0 },
 	abs: { type: Number, default: 0 },
 	bmi: { type: Number, default: 0 },
 	bodyFatPercentage: { type: Number, default: 0 },
-	leanBodyMass: { type: Number, default: 0 },
 	bodyFat: { type: Number, default: 0},
+	leanBodyMass: { type: Number, default: 0 },
 	ffmi: { type: Number, default: 0 }
 });
 
 
-//Hide _id and __v when using toObject
+//hide _id and __v when using toObject
 bodyFatSchema.options.toObject = { transform: function(doc, ret, options) {
 	delete ret._id;
 	delete ret.__v;
-}}
+}};
 
-//Hide _id and __v when using toJSON/JSON.stringify()
+//hide _id and __v when using toJSON/JSON.stringify()
 bodyFatSchema.options.toJSON = { transform: function(doc, ret, options) {
 	delete ret._id;
 	delete ret.__v;
-}}
+}};
+
+//calculate BMI (Body Mass Index)
+bodyFatSchema.methods.calcBMI = function () {
+	var calculatedBmi 	= 0,
+		unitType 		= this.unit,
+		height 			= this.height,
+		weight			= this.weight;
+
+	if(unitType === "imperial") {
+		height = height * 0.254;
+		bodyMass = bodyMass * 0.454;
+	}
+	
+	height = height / 100;
+	calculatedBmi = weight / (height * height);
+
+	this.bmi = Math.round(calculatedBmi * 100) / 100;
+
+	/*
+	* Below 18.5 = Underweight
+	* 18.5 - 24.9 = Normal
+	* 25 - 29.9 = Overweight
+	* 30 and above = obese
+	*/
+};
 
 bodyFatSchema.methods.calcBFValues = function() {
 	var age 	= this.age,
@@ -59,5 +86,67 @@ bodyFatSchema.methods.calcBFValues = function() {
 
 	this.bodyFatPercentage = roundedBodyFatPercentage;
 };
+
+//calculate total fat weight
+bodyFatSchema.methods.calcFat = function () {
+	var fat 	= 0,
+		bf 		= this.bodyFatPercentage,
+		weight 	= this.weight;
+
+	fat = weight * (bf / 100);
+
+	this.bodyFat = Math.round(fat * 100) / 100;
+};
+
+//calculate lean muscle weight
+bodyFatSchema.methods.calcLeanMuscle = function () {
+	var muscle 	= 0,
+		fat 	= this.bodyFat,
+		weight 	= this.weight;
+
+	muscle = weight - fat;
+
+	this.leanBodyMass = Math.round(muscle * 100) / 100;
+};
+
+//calc found at: http://scoobysworkshop.com/body-fat-calculator/
+//calculate FFMI (Fat Free Mass Index)
+bodyFatSchema.methods.calcFFMI = function () {
+	var ffmi 		= 0,
+		unitType 	= this.unit,
+		bodyMass 	= this.leanBodyMass,
+		height 		= this.height;
+
+	if(unitType === "imperial") {
+		height = height * 0.254;
+		bodyMass = bodyMass * 0.454;
+	}
+
+	//convert this to full meters
+	height = height / 100;
+
+	ffmi = (bodyMass / (height * height)) + (6.1 * (1.8 - height));
+	this.ffmi = Math.round(ffmi * 100) / 100;
+
+	/*
+	* 19-20: average FFMI for college students
+	* 20-23: noticeably muscular
+	* 26: steroid user
+	* Note: FFMI measures fat free mass. At what level fat free mass someone
+	* will look muscular depends on their frame size. Someone with narrow hips,
+	* small wrists, and small knees can look very muscular at a FFMI of 20.
+	* The inverse is true also. Someone with a FFMI of 23 might not look
+	* muscular at all if they have really wide hips, big wrists, and big knees
+	*/
+}
+
+//initialize all of the calculations
+bodyFatSchema.methods.initCalculations = function() {
+	this.calcBMI();
+	this.calcBFValues();
+	this.calcFat();
+	this.calcLeanMuscle();
+	this.calcFFMI();
+}	
 
 module.exports = mongoose.model('BodyFat', bodyFatSchema, 'bodyfat');
