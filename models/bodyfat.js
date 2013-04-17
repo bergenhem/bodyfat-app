@@ -2,6 +2,7 @@ var mongoose = require('mongoose');
 var moment = require('moment');
 mongoose.connect('mongodb://localhost/fitness');
 
+//define our schema and the defaults
 var bodyFatSchema = mongoose.Schema({
 	date: { type: String, default: moment(new Date).format('YYYY-MM-DD') },
 	gender: { type: String, enum: ['male', 'female'], default: 'male' },
@@ -20,13 +21,13 @@ var bodyFatSchema = mongoose.Schema({
 });
 
 
-//Hide _id and __v when using toObject
+//hide _id and __v when using toObject
 bodyFatSchema.options.toObject = { transform: function(doc, ret, options) {
 	delete ret._id;
 	delete ret.__v;
 }};
 
-//Hide _id and __v when using toJSON/JSON.stringify()
+//hide _id and __v when using toJSON/JSON.stringify()
 bodyFatSchema.options.toJSON = { transform: function(doc, ret, options) {
 	delete ret._id;
 	delete ret.__v;
