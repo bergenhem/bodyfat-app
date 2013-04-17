@@ -39,13 +39,13 @@ bodyFatSchema.methods.calcBMI = function () {
 		height 			= this.height,
 		weight			= this.weight;
 
-		if(unitType === "imperial") {
-			calculatedBmi = (weight * 703) / (height * height);
-		}
-		else if(unitType === "metric") {
-			height = height / 100;
-			calculatedBmi = weight / (height * height);
-		}
+	if(unitType === "imperial") {
+		height = height * 0.254;
+		bodyMass = bodyMass * 0.454;
+	}
+	
+	height = height / 100;
+	calculatedBmi = weight / (height * height);
 
 	this.bmi = Math.round(calculatedBmi * 100) / 100;
 
