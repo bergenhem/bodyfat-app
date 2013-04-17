@@ -2,44 +2,54 @@
 <html>
 <head>
 	<title>Calculate Body Fat</title>
-	<script src="/scripts/jquery-1.9.1.js" type="text/javascript"></script>
-	<script src="/scripts/moment.min.js" type="text/javascript"></script>
+	<script src="/scripts/lib/jquery-1.9.1.js" type="text/javascript"></script>
+	<script src="/scripts/lib/moment.min.js" type="text/javascript"></script>
+	<script src="/scripts/lib/kendo.web.js" type="text/javascript"></script>
+	<script src="/scripts/app.js" type="text/javascript"></script>
+
+	<link href="/styles/kendo.common.css" rel="stylesheet" />
+	<link href="/styles/kendo.default.css" rel="stylesheet" />
+	<link href="/styles/site.css" rel="stylesheet" />
 </head>
 <body>
-	<p>Calculate Body Fat:</p>
-	<form id="body-fat-form">
-		<label>Gender:</label>
-		<br />
-		<label for="male">Male</label>
-		<input type="radio" name="genderSelect" id="male" value="male" checked="checked" />
-		<label for="female">Female</label>
-		<input type="radio" name="genderSelect" id="female" value="female" />
-		<br />
-		<label for="ageInput">Age:</label>
-		<input type="numeric" name="age" id="ageInput" value=""/> 
-		<br />
-		<label>Unit:</label>
-		<br />
-		<label for="metric">Metric</label>
-		<input type="radio" name="unitSelect" id="metric" value="metric" checked="checked" />
-		<label for="imperial">Imperial</label>
-		<input type="radio" name="unitSelect" id="imperial" value="imperial" />
-		<br />
-		<label for="weightInput">Weight:</label>
-		<input type="numeric" name="weight" id="weightInput" value="" />
-		<br />
-		<label for="chestInput">Chest:</label>
-		<input type="numeric" name="chest" id="chestInput" value="" />
-		<br />
-		<label for="thighInput">Thigh:</label>
-		<input type="numeric" name="thigh" id="thighInput" value="" />
-		<br />
-		<label for="absInput">Abs:</label>
-		<input type="numeric" name="abs" id="absInput" value="" />
-		<br />
-	  	<input type="submit" value="Get Body Fat"/>
-	</form>
-
+	<header>
+	</header>
+	<section id="content">
+		<p>Calculate Body Fat:</p>
+		<form id="body-fat-form">
+			<label>Gender:</label>
+			<br />
+			<label for="male">Male</label>
+			<input type="radio" name="genderSelect" id="male" value="male" checked="checked" />
+			<label for="female">Female</label>
+			<input type="radio" name="genderSelect" id="female" value="female" />
+			<br />
+			<label for="ageInput">Age:</label>
+			<input type="numeric" name="age" id="ageInput" value=""/> 
+			<br />
+			<label>Unit:</label>
+			<br />
+			<label for="metric">Metric</label>
+			<input type="radio" name="unitSelect" id="metric" value="metric" checked="checked" />
+			<label for="imperial">Imperial</label>
+			<input type="radio" name="unitSelect" id="imperial" value="imperial" />
+			<br />
+			<label for="weightInput">Weight:</label>
+			<input type="numeric" name="weight" id="weightInput" value="" />
+			<br />
+			<label for="chestInput">Chest:</label>
+			<input type="numeric" name="chest" id="chestInput" value="" />
+			<br />
+			<label for="thighInput">Thigh:</label>
+			<input type="numeric" name="thigh" id="thighInput" value="" />
+			<br />
+			<label for="absInput">Abs:</label>
+			<input type="numeric" name="abs" id="absInput" value="" />
+			<br />
+		  	<input type="submit" value="Get Body Fat"/>
+		</form>
+	</section>
+	<footer></footer>
 	<script type="text/javascript">
 
 		//simple helper function to make an object out of our form
