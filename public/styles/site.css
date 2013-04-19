@@ -7,18 +7,21 @@ body {
 	background-color: #ebebeb;
 }
 
+header, #content, footer { position: absolute; left: 0px; width: 100%;}
+
 header {
-	margin: 0px 0px 0px 0px;
 	background-color: #242424;
 	height: 100px;
+	top: 0px;
 	border-bottom-color: #ffffff;
 	border-bottom-style: solid;
 	border-bottom-width: 1px;
 }
 
 section#content {
-
-
+	top: 100px;
+	bottom: 50px;
+	overflow: auto;
 }
 
 footer {
