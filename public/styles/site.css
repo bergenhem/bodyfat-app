@@ -1,3 +1,26 @@
+@font-face {
+    font-family: 'OpenSans';
+    src: url('fonts/OpenSans-Regular-webfont.eot');
+    src: url('fonts/OpenSans-Regular-webfont.eot?#iefix') format('embedded-opentype'),
+         url('fonts/OpenSans-Regular-webfont.woff') format('woff'),
+         url('fonts/OpenSans-Regular-webfont.ttf') format('truetype'),
+         url('fonts/OpenSans-Regular-webfont.svg#OpenSansRegular') format('svg');
+    font-weight: normal;
+    font-style: normal;
+
+}
+@font-face {
+    font-family: 'Roboto';
+    src: url('fonts/Roboto-Regular-webfont.eot');
+    src: url('fonts/Roboto-Regular-webfont.eot?#iefix') format('embedded-opentype'),
+         url('fonts/Roboto-Regular-webfont.woff') format('woff'),
+         url('fonts/Roboto-Regular-webfont.ttf') format('truetype'),
+         url('fonts/Roboto-Regular-webfont.svg#RobotoRegular') format('svg');
+    font-weight: normal;
+    font-style: normal;
+
+}
+
 * {
 	margin: 0px;
 	padding: 0px;
@@ -5,17 +28,71 @@
 
 body {
 	background-color: #ebebeb;
+	font-family: 'OpenSans', Helvetica;
+	font-size: 12px;
 }
 
 header, #content, footer { position: absolute; left: 0px; width: 100%;}
 
-header {
+header, footer {
 	background-color: #242424;
+	color: #ebebeb;
+}
+
+header {
 	height: 100px;
 	top: 0px;
+	
 	border-bottom-color: #ffffff;
 	border-bottom-style: solid;
 	border-bottom-width: 1px;
+}
+
+header .kendo {
+	color: #e15613;
+}
+
+header div#logo {
+	line-height: 2.5em;
+	font-size: 3em;
+	margin-left: 20px;
+}
+
+header div#navigation {
+	position: absolute;
+	top: 0px;
+	right: 0px;
+	z-index: 2;
+}
+
+header div#navigation ul {
+	list-style: none;
+}
+
+header div#navigation li {
+	display: inline-block;
+	height: 100px;
+	width: 100px;
+
+	margin-left: -3px;
+
+	font-size: 1.75em;
+
+	line-height: 4.5em;
+
+	text-align: center;
+}
+
+header div#navigation li:hover {
+	background-color: #000000;
+}
+
+header div#navigation li a {
+	text-decoration: none;
+	color: #ebebeb;
+	display: inline-block;
+	height: 100px;
+	width: 100px;
 }
 
 section#content {
@@ -25,16 +102,19 @@ section#content {
 }
 
 footer {
-	position:fixed;
 	left:0px;
 	bottom:0px;
 	height:30px;
 	width:100%;
-	background-color: #242424;
 	height: 50px;
 
 	border-top-color: #ffffff;
 	border-top-style: solid;
 	border-top-width: 1px;
+}
+
+footer #info {
+	text-align: center;
+	margin: 20px auto;
 }
 

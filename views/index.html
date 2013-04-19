@@ -2,6 +2,7 @@
 <html>
 <head>
 	<title>Calculate Body Fat</title>
+	<meta charset="UTF-8">
 	<script src="/scripts/lib/jquery-1.9.1.js" type="text/javascript"></script>
 	<script src="/scripts/lib/moment.min.js" type="text/javascript"></script>
 	<script src="/scripts/lib/kendo.web.js" type="text/javascript"></script>
@@ -13,9 +14,19 @@
 </head>
 <body>
 	<header>
+		<div id="logo">
+			<p><span class="kendo">Kendo UI</span> Body Fat</p>
+		</div>
+		<div id="navigation">
+			<ul>
+				<li><a href="#">Home</a></li>
+				<li><a href="#">Weight</a></li>
+				<li><a href="#">Settings</a></li>
+			</ul>
+		</div>
 	</header>
 	<section id="content">
-		<p>Calculate Body Fat:</p>
+		<!-- <p>Calculate Body Fat:</p>
 		<form id="body-fat-form">
 			<label>Gender:</label>
 			<br />
@@ -47,9 +58,11 @@
 			<input type="numeric" name="abs" id="absInput" value="" />
 			<br />
 		  	<input type="submit" value="Get Body Fat"/>
-		</form>
+		</form> -->
 	</section>
-	<footer></footer>
+	<footer>
+		<div id="info">Created by Carl Bergenhem</div>
+	</footer>
 	<script type="text/javascript">
 
 		//simple helper function to make an object out of our form
