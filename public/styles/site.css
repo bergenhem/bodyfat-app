@@ -32,7 +32,11 @@ body {
 	font-size: 12px;
 }
 
-header, #content, footer { position: absolute; left: 0px; width: 100%;}
+header, #content, footer { 
+	position: absolute;
+	left: 0px;
+	width: 100%;
+}
 
 header, footer {
 	background-color: #242424;
@@ -99,6 +103,29 @@ section#content {
 	top: 100px;
 	bottom: 50px;
 	overflow: auto;
+}
+
+section#content div#chooser{
+	margin: 50px auto;
+	width: 710px;
+}
+
+section#content div#chooser > div {
+	display: inline-block;
+	margin: 20px 25px 20px 25px;
+	width: 300px;
+	height: 400px;
+	text-align: center;
+	background-color: #CFCFCF;
+
+	border: 1px;
+	border-color: #242424;
+	border-style: solid;
+}
+
+section#content div#chooser > div h3 {
+	margin-top: 20px;
+	font-size: 2em;
 }
 
 footer {
