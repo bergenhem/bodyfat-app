@@ -120,6 +120,8 @@ section#content div#chooser > div {
 
 	border-radius: 3px;
 	box-shadow: inset 0px 1px 0px #c5c5c5;
+
+	transition: all 0.3s ease;
 }
 
 section#content div#chooser > div:hover {
