@@ -136,6 +136,19 @@ section#content div#chooser > div h3 {
 	font-size: 2em;
 }
 
+section#content div#chooser > div p {
+	margin: 20px 5px 20px 5px;
+}
+
+section#content div#chooser div.paragraphs{
+	margin: 20px 0px 20px 0px;
+	height: 225px;
+}
+
+section#content div#chooser div a {
+	font-size: 2em;
+}
+
 footer {
 	left:0px;
 	bottom:0px;
