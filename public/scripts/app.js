@@ -3,6 +3,10 @@ window.FitnessApp = (function($){
 	var _fitnessApp = {};
 
 	_fitnessApp.init = function() {
+
+		var caliperWindowView = new kendo.View('caliper-window-view');
+		caliperWindowView.render('#content');
+
 		var modalWindow = $('#caliperWindow');
 		modalWindow.kendoWindow({
 			title: "Before We Begin",
