@@ -149,6 +149,30 @@ section#content div#chooser div a {
 	font-size: 2em;
 }
 
+div#caliperWindow p {
+	margin: 20px auto;
+	text-align: center;
+}
+div#caliperWindow p#title {
+	font-size: 2em;
+}
+
+div#caliperWindow > div {
+	text-align: center;
+	padding-top: 50px;
+	padding-bottom: 30px;
+}
+
+div#caliperWindow > div a {
+	height: 50px;
+	width: 100px;
+	margin: 0px 20px 0px 20px;
+
+	line-height: 1.45em;
+	font-size: 2.5em;
+}
+
+
 footer {
 	left:0px;
 	bottom:0px;
