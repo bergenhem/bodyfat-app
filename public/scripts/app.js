@@ -11,7 +11,13 @@ window.FitnessApp = (function($){
 			resizable: false,
 			width: 400,
 			height: 250
-		}).data('kendoWindow').center();;
+		}).data('kendoWindow').center();
+
+		$('#caliperExplanation').kendoTooltip({
+			content: kendo.template($('#tooltipTemplate').html()),
+			position: "right",
+			width: 300
+		});
 	}
 
 	return _fitnessApp;

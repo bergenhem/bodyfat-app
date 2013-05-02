@@ -451,7 +451,7 @@ div.k-imagebrowser-dropzone em {
 /* Tooltip */
 .k-widget.k-tooltip {
   border-color: #c5c5c5;
-  background-color: #c6c6c6;
+  background-color: #ffffff;
   color: #282828;
 }
 .k-widget.k-tooltip-validation {
