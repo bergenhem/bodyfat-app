@@ -26,7 +26,15 @@
 		</div>
 	</header>
 	<section id="content">
-		<div id="chooser">
+		<div id="caliperWindow">
+			<p>Do you have skin calipers?</p>
+			<div>
+				<a href="#" class="k-button">Yes</a>
+				<a href="#" class="k-button">No</a>
+			</div>
+			<a href="#">Why does it matter?</a>
+		</div>
+		<!-- <div id="chooser">
 			<div>
 				<div class="paragraphs">
 					<h3>BMI</h3>
@@ -50,7 +58,7 @@
 					<a class="k-button" href="#">Choose</a>
 				</div>
 			</div>
-		</div>
+		</div> -->
 		<!-- <p>Calculate Body Fat:</p>
 		<form id="body-fat-form">
 			<label>Gender:</label>
@@ -89,65 +97,68 @@
 		<div id="info">Created by Carl Bergenhem</div>
 	</footer>
 	<script type="text/javascript">
+		(function() {
+			FitnessApp.init();
+		})();
 
-		//simple helper function to make an object out of our form
-		$.fn.serializeObject = function()
-		{
-		   var o = {};
-		   var a = this.serializeArray();
-		   $.each(a, function() {
-		       if (o[this.name]) {
-		           if (!o[this.name].push) {
-		               o[this.name] = [o[this.name]];
-		           }
-		           o[this.name].push(this.value || '');
-		       } else {
-		           o[this.name] = this.value || '';
-		       }
-		   });
-		   return o;
-		};
+		// //simple helper function to make an object out of our form
+		// $.fn.serializeObject = function()
+		// {
+		//    var o = {};
+		//    var a = this.serializeArray();
+		//    $.each(a, function() {
+		//        if (o[this.name]) {
+		//            if (!o[this.name].push) {
+		//                o[this.name] = [o[this.name]];
+		//            }
+		//            o[this.name].push(this.value || '');
+		//        } else {
+		//            o[this.name] = this.value || '';
+		//        }
+		//    });
+		//    return o;
+		// };
 
-		$(function() {
-			$('#body-fat-form').on('submit', function(e) {
-				e.preventDefault();
-				var formData = $(this).serializeObject();
-				formData.date = moment(new Date()).format('YYYY-MM-DD');
-				var serializedForm = JSON.stringify(formData);
+		// $(function() {
+		// 	$('#body-fat-form').on('submit', function(e) {
+		// 		e.preventDefault();
+		// 		var formData = $(this).serializeObject();
+		// 		formData.date = moment(new Date()).format('YYYY-MM-DD');
+		// 		var serializedForm = JSON.stringify(formData);
 
-				$.ajax({
-					type: "POST",
-					url: "/bodyfat/",
-					data: serializedForm,
-					contentType: "application/json; charset=utf-8",
-					dataType: "json",
-					statusCode: {
-						200: function(e) {
-							console.log('200');
-							console.log(e);
-						},
-						201: function(e) {
-							console.log('201');
-							console.log(e);
-						},
-						404: function(e) {
-							console.log('404');
-							console.log(e);
-						},
-						409: function(e) {
-							console.log('409');
-							console.log(e);
-						},
-						500: function(e) {
-							console.log('500');
-							console.log(e);
-						}
-					}
-				});
+		// 		$.ajax({
+		// 			type: "POST",
+		// 			url: "/bodyfat/",
+		// 			data: serializedForm,
+		// 			contentType: "application/json; charset=utf-8",
+		// 			dataType: "json",
+		// 			statusCode: {
+		// 				200: function(e) {
+		// 					console.log('200');
+		// 					console.log(e);
+		// 				},
+		// 				201: function(e) {
+		// 					console.log('201');
+		// 					console.log(e);
+		// 				},
+		// 				404: function(e) {
+		// 					console.log('404');
+		// 					console.log(e);
+		// 				},
+		// 				409: function(e) {
+		// 					console.log('409');
+		// 					console.log(e);
+		// 				},
+		// 				500: function(e) {
+		// 					console.log('500');
+		// 					console.log(e);
+		// 				}
+		// 			}
+		// 		});
 
-				return false; //avoid execution of actual submission
-			});
-		});
+		// 		return false; //avoid execution of actual submission
+		// 	});
+		// });
 	</script>
 </body>
 </html>
