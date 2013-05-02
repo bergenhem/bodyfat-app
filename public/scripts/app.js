@@ -1,12 +1,22 @@
 window.FitnessApp = (function($){
 	var _window = $(window);
 	var _fitnessApp = {};
+	var _kendoRouter = {};
 
-	_fitnessApp.init = function() {
+	_fitnessApp.initSPA = function() {
 
 		var caliperWindowView = new kendo.View('caliper-window-view');
-		caliperWindowView.render('#content');
+		
+		_kendoRouter = new kendo.Router();
 
+		_kendoRouter.route("/", function() {
+			caliperWindowView.render('#content');
+		});
+
+		_kendoRouter.start();
+	}
+
+	_fitnessApp.initKendo = function() {
 		var modalWindow = $('#caliperWindow');
 		modalWindow.kendoWindow({
 			title: "Before We Begin",
