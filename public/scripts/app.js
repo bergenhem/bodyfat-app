@@ -8,22 +8,47 @@ window.FitnessApp = (function($){
 	//set up our views, layout, and routes
 	_fitnessApp.initSPA = function() {
 
+		_fitnessLayout = new kendo.Layout('fitness-layout-template');
+
+		_kendoRouter = new kendo.Router();
+
 		var caliperWindowModel = kendo.observable({
+			bmiClick: function(e){
+				e.preventDefault();
+				$('#caliperWindow').data('kendoWindow').close();
+				_kendoRouter.navigate('/bmi');
+			},
+			bfClick: function(e){
+				e.preventDefault();
+				$('#caliperWindow').data('kendoWindow').close();
+				_kendoRouter.navigate('/bodyfat');
+			}
 		});
 		
 		_caliperWindowView = new kendo.View('caliper-window-view', {
 			model: caliperWindowModel,
 			show: function() {
-				$('#caliperWindow').data('kendoWindow').center();
+				//center window and hide close button
+				$('#caliperWindow').data('kendoWindow').center().element.parent().find(".k-window-action").css("visibility", "hidden");;
 			}
 		});
-		
-		_fitnessLayout = new kendo.Layout('fitness-layout-template');
 
-		_kendoRouter = new kendo.Router();
+		var bmiView = new kendo.View('bmi-view', {
+		});
+
+		var bfView = new kendo.View('body-fat-view', {
+		});
 
 		_kendoRouter.route('/', function() {
 			_fitnessLayout.showIn('#content', _caliperWindowView);
+		});
+
+		_kendoRouter.route('/bmi', function() {
+			_fitnessLayout.showIn('#content', bmiView);
+		});
+
+		_kendoRouter.route('/bodyfat', function() {
+			_fitnessLayout.showIn('#content', bfView);
 		});
 	}
 

@@ -40,6 +40,7 @@
 
 	<!-- Views -->
 
+	<!-- Caliper Window View -->
 	<script type="text/x-kendo-template" id="caliper-window-view">
 		<div 	id="caliperWindow"
 				data-role="window"
@@ -52,8 +53,8 @@
 				data-visible="true">
 			<p id="title">Do you have skin calipers?</p>
 			<div>
-				<a href="#" class="k-button">Yes</a>
-				<a href="#" class="k-button">No</a>
+				<a class="k-button" href="#" data-bind="events: {click: bfClick }">Yes</a>
+				<a class="k-button" href="#" data-bind="events: {click: bmiClick }">No</a>
 			</div>
 			<p>
 				<a id="caliperExplanation" href="#">Why does it matter?</a>
@@ -61,6 +62,15 @@
 		</div>
 	</script>
 
+	<!-- BMI View -->
+	<script type="text/x-kendo-template" id="bmi-view">
+		<h1>BMI</h1>
+	</script>
+
+	<!-- Body Fat View -->
+	<script type="text/x-kendo-template" id="body-fat-view">
+		<h1>Body Fat</h1>
+	</script>
 	<!-- End Views -->
 
 	<!-- Templates -->
