@@ -8,7 +8,15 @@ window.FitnessApp = (function($){
 	//set up our views, layout, and routes
 	_fitnessApp.initSPA = function() {
 
-		_caliperWindowView = new kendo.View('caliper-window-view');
+		var caliperWindowModel = kendo.observable({
+		});
+		
+		_caliperWindowView = new kendo.View('caliper-window-view', {
+			model: caliperWindowModel,
+			show: function() {
+				$('#caliperWindow').data('kendoWindow').center();
+			}
+		});
 		
 		_fitnessLayout = new kendo.Layout('fitness-layout-template');
 
@@ -49,7 +57,7 @@ window.FitnessApp = (function($){
 	_fitnessApp.startApp = function () {
 		this.initSPA();
 		this.startSPA();
-		this.initKendo();
+		//this.initKendo();
 	}
 
 	return _fitnessApp;

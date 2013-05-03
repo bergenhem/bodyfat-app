@@ -41,7 +41,15 @@
 	<!-- Views -->
 
 	<script type="text/x-kendo-template" id="caliper-window-view">
-		<div id="caliperWindow">
+		<div 	id="caliperWindow"
+				data-role="window"
+				data-title="Before We Begin"
+				data-modal="true"
+				data-draggable="false"
+				data-resizable="false"
+				data-width="400px"
+				data-height="250px"
+				data-visible="true">
 			<p id="title">Do you have skin calipers?</p>
 			<div>
 				<a href="#" class="k-button">Yes</a>
@@ -70,6 +78,10 @@
 	<div id="main"></div>
 
 	<script type="text/javascript">
+
+		function centerWindowz(e){
+			console.log('page');
+		}
 		(function() {
 			FitnessApp.startApp();
 		})();
