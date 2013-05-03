@@ -149,8 +149,14 @@ section#content div#chooser div a {
 	font-size: 2em;
 }
 
-div#caliperWindow p {
+div#caliperWindow h1 {
+	text-align: center;
+	font-size: 2em;
 	margin: 20px auto;
+}
+
+div#caliperWindow p {
+	margin: 15px 0px auto;
 	text-align: center;
 }
 div#caliperWindow p#title {

@@ -22,6 +22,9 @@ window.FitnessApp = (function($){
 				e.preventDefault();
 				$('#caliperWindow').data('kendoWindow').close();
 				_kendoRouter.navigate('/bodyfat');
+			},
+			explanationClick: function(e){
+				e.preventDefault();
 			}
 		});
 		
@@ -30,6 +33,11 @@ window.FitnessApp = (function($){
 			show: function() {
 				//center window and hide close button
 				$('#caliperWindow').data('kendoWindow').center().element.parent().find(".k-window-action").css("visibility", "hidden");;
+				$('#caliperExplanation').kendoTooltip({
+					content: kendo.template($('#tooltipTemplate').html()),
+					position: "right",
+					width: 300
+				});
 			}
 		});
 
