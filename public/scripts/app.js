@@ -2,20 +2,31 @@ window.FitnessApp = (function($){
 	var _window = $(window);
 	var _fitnessApp = {};
 	var _kendoRouter = {};
+	var _fitnessLayout = {};
+	var _caliperWindowView = {};
 
+	//set up our views, layout, and routes
 	_fitnessApp.initSPA = function() {
 
-		var caliperWindowView = new kendo.View('caliper-window-view');
+		_caliperWindowView = new kendo.View('caliper-window-view');
 		
+		_fitnessLayout = new kendo.Layout('fitness-layout-template');
+
 		_kendoRouter = new kendo.Router();
 
-		_kendoRouter.route("/", function() {
-			caliperWindowView.render('#content');
+		_kendoRouter.route('/', function() {
+			_fitnessLayout.showIn('#content', _caliperWindowView);
 		});
-
-		_kendoRouter.start();
 	}
 
+	//start our router and render our initial view
+	_fitnessApp.startSPA = function() {
+		_kendoRouter.start();
+		_fitnessLayout.render('#main');
+		_fitnessLayout.showIn('#content', _caliperWindowView);
+	}
+
+	//placeholder function to set up Kendo UI Widgets
 	_fitnessApp.initKendo = function() {
 		var modalWindow = $('#caliperWindow');
 		modalWindow.kendoWindow({
@@ -32,6 +43,13 @@ window.FitnessApp = (function($){
 			position: "right",
 			width: 300
 		});
+	}
+
+	//start the app
+	_fitnessApp.startApp = function () {
+		this.initSPA();
+		this.startSPA();
+		this.initKendo();
 	}
 
 	return _fitnessApp;

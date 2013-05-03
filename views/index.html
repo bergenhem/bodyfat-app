@@ -13,176 +13,66 @@
 	<link href="/styles/site.css" rel="stylesheet" />
 </head>
 <body>
-	<header>
-		<div id="logo">
-			<p><span class="kendo">Kendo UI</span> Body Fat</p>
-		</div>
-		<div id="navigation">
-			<ul>
-				<li><a href="#">Home</a></li>
-				<li><a href="#">Weight</a></li>
-				<li><a href="#">Settings</a></li>
-			</ul>
-		</div>
-	</header>
-	<section id="content">
 
-		<!-- Views -->
+	<!-- Layout Template -->
 
-		<script type="text/x-kendo-template" id="caliper-window-view">
-			<div id="caliperWindow">
-				<p id="title">Do you have skin calipers?</p>
-				<div>
-					<a href="#" class="k-button">Yes</a>
-					<a href="#" class="k-button">No</a>
-				</div>
-				<p>
-					<a id="caliperExplanation" href="#">Why does it matter?</a>
-				</p>
+	<script type="text/x-kendo-template" id="fitness-layout-template">
+		<header>
+			<div id="logo">
+				<p><span class="kendo">Kendo UI</span> Fitness</p>
 			</div>
-		</script>
-
-		<!-- End Views -->
-
-		<!-- Templates -->
-
-		<script type="text/x-kendo-template" id="tooltipTemplate">
-			<div id="tooltipContent">
-				<h2>Importance of Calipers</h2>
-				<p>Skin calipers allow for more accurate body fat percentage results. With calipers you can calculate<strong>Body Fat Percentage</strong>, <strong>Lean Muscle Mass</strong>, <strong>Total Fat Mass</strong>, as well as <strong>FFMI</strong></p>
-				<p>Without calipers only the <strong>BMI</strong> can be provided</p>
+			<div id="navigation">
+				<ul>
+					<li><a href="#">Home</a></li>
+					<li><a href="#">Weight</a></li>
+					<li><a href="#">Settings</a></li>
+				</ul>
 			</div>
-		</script>
+		</header>
+		<section id="content">
+		</section>
+		<footer>
+			<div id="info">Created by Carl Bergenhem</div>
+		</footer>
+	</script>
 
-		<!-- End Templates -->
+	<!-- End Layout Template -->
 
-		<!-- <div id="chooser">
+	<!-- Views -->
+
+	<script type="text/x-kendo-template" id="caliper-window-view">
+		<div id="caliperWindow">
+			<p id="title">Do you have skin calipers?</p>
 			<div>
-				<div class="paragraphs">
-					<h3>BMI</h3>
-					<p>Body Mass Index</p>
-					<p>Simple calculation that uses height and weight in order to determine body shape. Can be easily calculated and gives a rough estimate for body health.</p>
-					<p>Requires height and weight.
-					</p>
-				</div>
-				<div>
-					<a class="k-button" href="#">Choose</a>
-				</div>
+				<a href="#" class="k-button">Yes</a>
+				<a href="#" class="k-button">No</a>
 			</div>
-			<div>
-				<div class="paragraphs">
-					<h3>FFMI</h3>
-					<p>Fat Free Mass Index</p>
-					<p>Advanced calculation taking several factors in to consideration, but can determine Body Fat Percentage, Lean Muscle Mass, as well as Body Fat Mass.</p>
-					<p>Requires height, weight, age, and skin calipers.</p>
-				</div>
-				<div>
-					<a class="k-button" href="#">Choose</a>
-				</div>
-			</div>
-		</div> -->
-		<!-- <p>Calculate Body Fat:</p>
-		<form id="body-fat-form">
-			<label>Gender:</label>
-			<br />
-			<label for="male">Male</label>
-			<input type="radio" name="genderSelect" id="male" value="male" checked="checked" />
-			<label for="female">Female</label>
-			<input type="radio" name="genderSelect" id="female" value="female" />
-			<br />
-			<label for="ageInput">Age:</label>
-			<input type="numeric" name="age" id="ageInput" value=""/> 
-			<br />
-			<label>Unit:</label>
-			<br />
-			<label for="metric">Metric</label>
-			<input type="radio" name="unitSelect" id="metric" value="metric" checked="checked" />
-			<label for="imperial">Imperial</label>
-			<input type="radio" name="unitSelect" id="imperial" value="imperial" />
-			<br />
-			<label for="weightInput">Weight:</label>
-			<input type="numeric" name="weight" id="weightInput" value="" />
-			<br />
-			<label for="chestInput">Chest:</label>
-			<input type="numeric" name="chest" id="chestInput" value="" />
-			<br />
-			<label for="thighInput">Thigh:</label>
-			<input type="numeric" name="thigh" id="thighInput" value="" />
-			<br />
-			<label for="absInput">Abs:</label>
-			<input type="numeric" name="abs" id="absInput" value="" />
-			<br />
-		  	<input type="submit" value="Get Body Fat"/>
-		</form> -->
-	</section>
-	<footer>
-		<div id="info">Created by Carl Bergenhem</div>
-	</footer>
+			<p>
+				<a id="caliperExplanation" href="#">Why does it matter?</a>
+			</p>
+		</div>
+	</script>
+
+	<!-- End Views -->
+
+	<!-- Templates -->
+
+	<script type="text/x-kendo-template" id="tooltipTemplate">
+		<div id="tooltipContent">
+			<h2>Importance of Calipers</h2>
+			<p>Skin calipers allow for more accurate body fat percentage results. With calipers you can calculate<strong>Body Fat Percentage</strong>, <strong>Lean Muscle Mass</strong>, <strong>Total Fat Mass</strong>, as well as <strong>FFMI</strong></p>
+			<p>Without calipers only the <strong>BMI</strong> can be provided</p>
+		</div>
+	</script>
+
+	<!-- End Templates -->
+
+	<div id="main"></div>
+
 	<script type="text/javascript">
 		(function() {
-			FitnessApp.initSPA();
-
-			FitnessApp.initKendo();
+			FitnessApp.startApp();
 		})();
-
-		// //simple helper function to make an object out of our form
-		// $.fn.serializeObject = function()
-		// {
-		//    var o = {};
-		//    var a = this.serializeArray();
-		//    $.each(a, function() {
-		//        if (o[this.name]) {
-		//            if (!o[this.name].push) {
-		//                o[this.name] = [o[this.name]];
-		//            }
-		//            o[this.name].push(this.value || '');
-		//        } else {
-		//            o[this.name] = this.value || '';
-		//        }
-		//    });
-		//    return o;
-		// };
-
-		// $(function() {
-		// 	$('#body-fat-form').on('submit', function(e) {
-		// 		e.preventDefault();
-		// 		var formData = $(this).serializeObject();
-		// 		formData.date = moment(new Date()).format('YYYY-MM-DD');
-		// 		var serializedForm = JSON.stringify(formData);
-
-		// 		$.ajax({
-		// 			type: "POST",
-		// 			url: "/bodyfat/",
-		// 			data: serializedForm,
-		// 			contentType: "application/json; charset=utf-8",
-		// 			dataType: "json",
-		// 			statusCode: {
-		// 				200: function(e) {
-		// 					console.log('200');
-		// 					console.log(e);
-		// 				},
-		// 				201: function(e) {
-		// 					console.log('201');
-		// 					console.log(e);
-		// 				},
-		// 				404: function(e) {
-		// 					console.log('404');
-		// 					console.log(e);
-		// 				},
-		// 				409: function(e) {
-		// 					console.log('409');
-		// 					console.log(e);
-		// 				},
-		// 				500: function(e) {
-		// 					console.log('500');
-		// 					console.log(e);
-		// 				}
-		// 			}
-		// 		});
-
-		// 		return false; //avoid execution of actual submission
-		// 	});
-		// });
 	</script>
 </body>
 </html>
