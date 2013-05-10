@@ -6,6 +6,7 @@ window.FitnessApp = (function($){
 	var _caliperWindowView = {};
 	var _recordingView = {};
 	var _settingsView = {};
+	var _introView = {};
 
 	//set up our views, layout, and routes
 	_fitnessApp.initSPA = function() {
@@ -49,8 +50,11 @@ window.FitnessApp = (function($){
 		_settingsView = new kendo.View('settings-view', {
 		});
 
+		_introView = new kendo.View('intro-view', {
+		});
+
 		_kendoRouter.route('/', function() {
-			_fitnessLayout.showIn('#content', _settingsView);
+			_fitnessLayout.showIn('#content', _introView);
 		});
 
 		_kendoRouter.route('/record', function() {
@@ -66,7 +70,7 @@ window.FitnessApp = (function($){
 	_fitnessApp.startSPA = function() {
 		_kendoRouter.start();
 		_fitnessLayout.render('#main');
-		_fitnessLayout.showIn('#content', _settingsView);
+		_fitnessLayout.showIn('#content', _introView);
 	}
 
 	//placeholder function to set up Kendo UI Widgets
@@ -92,7 +96,6 @@ window.FitnessApp = (function($){
 	_fitnessApp.startApp = function () {
 		this.initSPA();
 		this.startSPA();
-		//this.initKendo();
 	}
 
 	return _fitnessApp;
