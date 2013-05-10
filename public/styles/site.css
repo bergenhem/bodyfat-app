@@ -151,8 +151,23 @@ section#content div#chooser div a {
 
 section#content div.view-content div.input-form {
 	margin: 20px auto;
-	height: 200px;
-	width: 300px;
+
+	padding: 20px 30px 20px 30px;
+
+	width: 350px;
+
+	background-color: #E0E0E0;
+
+	border-radius: 3px;
+	box-shadow: inset 0px 1px 0px #c5c5c5;
+}
+
+section#content div.view-content div.input-form ol.form-list {
+	list-style: none;
+}
+
+section#content div.view-content div.input-form ol.form-list li {
+	margin: 20px 0px 20px 0px;
 }
 
 section#content div.view-content div.input-form label {
@@ -165,9 +180,11 @@ section#content div.view-content div.input-form label {
 	text-align: left;
 }
 
-section#content div.view-content div.input-form h1 {
+section#content div.view-content h1 {
 	font-size: 3em;
 	text-align: center;
+
+	margin: 30px auto 30px auto;
 }
 
 section#content div.view-content div.input-form input {
@@ -213,15 +230,6 @@ div#tooltipContent h2 {
 
 div#tooltipContent p {
 	margin: 10px;
-}
-
-ol.form-list {
-	list-style: none;
-}
-
-ol.form-list li {
-	margin-top: 10px;
-	margin-bottom: 10px;
 }
 
 footer a,

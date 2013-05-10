@@ -62,19 +62,27 @@
 		</div>
 	</script>
 
-	<!-- BMI View -->
-	<script type="text/x-kendo-template" id="bmi-view">
+	<!-- Recoding View -->
+	<script type="text/x-kendo-template" id="recording-view">
 		<div class="view-content">
+			<h1>Enter Today&#39;s Values</h1>
 			<div class="input-form">
-				<h1>BMI</h1>
 				<ol class="form-list">
 					<li>
 						<label for="weight-input">Weight</label>
-						<input type="text" id="weight-input" class="k-textbox" />
+						<input type="number" min="0" step="0.5" id="weight-input" class="k-textbox" />
 					</li>
 					<li>
-						<label for="height-input">Height</label>
-						<input type="text" id="height-input" class="k-textbox" />
+						<label for="chest-input">Chest</label>
+						<input type="number" min="0" step="0.1" id="chest-input" class="k-textbox" />
+					</li>
+					<li>
+						<label for="ab-input">Abs</label>
+						<input type="number" min="0" step="0.1" id="ab-input" class="k-textbox" />
+					</li>
+					<li>
+						<label for="thigh-input">Thigh</label>
+						<input type="number" min="0" step="0.1" id="thigh-input" class="k-textbox" />
 					</li>
 			</div>
 		</div>

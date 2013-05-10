@@ -4,7 +4,7 @@ window.FitnessApp = (function($){
 	var _kendoRouter = {};
 	var _fitnessLayout = {};
 	var _caliperWindowView = {};
-	var _bmiView = {};
+	var _recordingView = {};
 
 	//set up our views, layout, and routes
 	_fitnessApp.initSPA = function() {
@@ -42,18 +42,18 @@ window.FitnessApp = (function($){
 			}
 		});
 
-		_bmiView = new kendo.View('bmi-view', {
+		_recordingView = new kendo.View('recording-view', {
 		});
 
 		var bfView = new kendo.View('body-fat-view', {
 		});
 
 		_kendoRouter.route('/', function() {
-			_fitnessLayout.showIn('#content', _bmiView);
+			_fitnessLayout.showIn('#content', _recordingView);
 		});
 
-		_kendoRouter.route('/bmi', function() {
-			_fitnessLayout.showIn('#content', bmiView);
+		_kendoRouter.route('/record', function() {
+			_fitnessLayout.showIn('#content', _recordingView);
 		});
 
 		_kendoRouter.route('/bodyfat', function() {
@@ -65,7 +65,7 @@ window.FitnessApp = (function($){
 	_fitnessApp.startSPA = function() {
 		_kendoRouter.start();
 		_fitnessLayout.render('#main');
-		_fitnessLayout.showIn('#content', _bmiView);
+		_fitnessLayout.showIn('#content', _recordingView);
 	}
 
 	//placeholder function to set up Kendo UI Widgets
