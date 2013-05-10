@@ -170,9 +170,27 @@ section#content div.view-content div.input-form ol.form-list li {
 	margin: 20px 0px 20px 0px;
 }
 
-section#content div.view-content div.input-form label {
+section#content div.view-content div.input-form ol.form-list li label.selector-label {
 	display: inline-block;
+}
+
+section#content div.view-content div.input-form ol.form-list li div.selector-group {
+	float: right;
+	margin-right: -5px;
+}
+
+section#content div.view-content div.input-form label {
 	font-size: 2em;
+}
+
+section#content div.view-content div.input-form input[type="number"] {
+	display: inline-block;
+	float: right;
+	font-size: 1.25em;
+}
+
+section#content div.view-content div.input-form input[type="number"] + label {
+	display: inline-block;
 	width: 50px;
 	margin-right: 0px;
 	padding-right: 20px;
@@ -180,19 +198,37 @@ section#content div.view-content div.input-form label {
 	text-align: left;
 }
 
+section#content div.view-content div.input-form input[type="text"] {
+	display: inline-block;
+	float: right;
+	font-size: 1.25em;
+}
+
+section#content div.view-content div.input-form input[type="text"] + label {
+	display: inline-block;
+	width: 50px;
+	margin-right: 0px;
+	padding-right: 20px;
+	vertical-align: middle;
+	text-align: left;
+}
+
+section#content div.view-content div.input-form input[type="radio"] {
+}
+
+section#content div.view-content div.input-form input[type="radio"] + label {
+	width: 50px;
+	padding-right: 10px;
+	padding-left: 5px;
+	vertical-align: middle;
+	text-align: right;
+}
+
 section#content div.view-content h1 {
 	font-size: 3em;
 	text-align: center;
 
 	margin: 30px auto 30px auto;
-}
-
-section#content div.view-content div.input-form input {
-	display: inline-block;
-	float: right;
-	font-size: 1.25em;
-}
-section#content div.view-content div.input-form input#weight-input {
 }
 
 div#caliperWindow h1 {

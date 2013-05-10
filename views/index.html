@@ -88,10 +88,40 @@
 		</div>
 	</script>
 
-	<!-- Body Fat View -->
-	<script type="text/x-kendo-template" id="body-fat-view">
+	<!-- Settings View -->
+	<script type="text/x-kendo-template" id="settings-view">
 		<div class="view-content">
-			<h1>Body Fat</h1>
+			<h1>Settings</h1>
+			<div class="input-form">
+				<ol class="form-list">
+					<li>
+						<label class="selector-label">Unit</label>
+						<div class="selector-group">
+							<input type="radio" name="unit" value="metric" id="metric-selector" />
+							<label for="metric-selector">Metric</label>
+							<input type="radio" name="unit" value="imperial" id="imperial-selector" />
+							<label for="imperial-selector">Imperial</label>
+						</div>
+					</li>
+					<li>
+						<input type="number" min="0" step="1" id="age-input" class="k-textbox" />
+						<label for="age-input">Age</label>
+					</li>
+					<li>
+						<input type="number" min="0" step="1" id="height-input" class="k-textbox" />
+						<label for="height-input">Height</label>
+					</li>
+					<li>
+						<label class="selector-label">Gender</label>
+						<div class="selector-group">
+							<input type="radio" name="gender" value="male" id="male-selector" />
+							<label for="male-selector">Male</label>
+							<input type="radio" name="gender" value="female" id="female-selector" />
+							<label for="female-selector">Female</label>
+						</div>
+					</li>
+				</ol>
+			</div>
 		</div>
 	</script>
 
