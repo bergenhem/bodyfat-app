@@ -1,6 +1,23 @@
 window.Settings = (function($){
-	var _unit, age, height, gender = {};
+	var _settingsModule = {}
+	var _unit, _age, _height, _gender, _settingsWindowModel = {};
 
-	
+	//temporary before RequireJS
+	_settingsModule.init = function() {
+		_settingsWindowModel = kendo.observable({
+			unit: 'metric',
+			age: 0,
+			height: 0,
+			gender: 'male',
+			calipers: true
+		});
+	}
+
+	_settingsModule.getSettingsModel = function() {
+		this.init();
+		return _settingsWindowModel;
+	}
+
+	return _settingsModule;
 
 })(jQuery);

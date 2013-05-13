@@ -48,6 +48,8 @@ window.FitnessApp = (function($){
 		});
 
 		_settingsView = new kendo.View('settings-view', {
+			//temporary before RequireJS
+			model: window.Settings.getSettingsModel()
 		});
 
 		_introView = new kendo.View('intro-view', {
