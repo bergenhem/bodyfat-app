@@ -224,11 +224,34 @@ section#content div.view-content div.input-form input[type="radio"] + label {
 	text-align: right;
 }
 
+section#content div.view-content div.input-form input[type="checkbox"] {
+	display: inline-block;
+	font-size: 1.25em;
+}
+
+section#content div.view-content div.input-form input[type="checkbox"] + label {
+	display: inline-block;
+	margin-right: 0px;
+	padding-right: 20px;
+	vertical-align: middle;
+	text-align: left;
+	float: left;
+}
+
+
 section#content div.view-content h1 {
 	font-size: 3em;
 	text-align: center;
 
 	margin: 30px auto 30px auto;
+}
+
+button#settings-save {
+	height: 50px;
+	width: 75px;
+	font-size: 1.5em;
+
+	margin: 20px auto;
 }
 
 div#caliperWindow h1 {
