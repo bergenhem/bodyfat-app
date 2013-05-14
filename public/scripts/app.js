@@ -64,6 +64,7 @@ window.FitnessApp = (function($){
 		});
 
 		_kendoRouter.route('/settings', function() {
+			window.Settings.init();
 			_fitnessLayout.showIn('#content', _settingsView);
 		});
 	}

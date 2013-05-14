@@ -14,7 +14,6 @@ window.Settings = (function($){
 	}
 
 	_settingsModule.getSettingsModel = function() {
-		this.init();
 		return _settingsWindowModel;
 	}
 
