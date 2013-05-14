@@ -47,6 +47,7 @@ window.FitnessApp = (function($){
 		window.Settings.init();
 
 		_recordingView = new kendo.View('recording-view', {
+			model: window.Record.getRecordViewModel()
 		});
 
 		_settingsView = new kendo.View('settings-view', {
