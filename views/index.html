@@ -99,35 +99,34 @@
 					<li>
 						<label class="selector-label">Unit</label>
 						<div class="selector-group">
-							<input type="radio" name="unit" value="metric" id="metric-selector" />
+							<input type="radio" name="unit" value="metric" id="metric-selector" data-bind="checked: unit" />
 							<label for="metric-selector">Metric</label>
-							<input type="radio" name="unit" value="imperial" id="imperial-selector" />
+							<input type="radio" name="unit" value="imperial" id="imperial-selector" data-bind="checked: unit" />
 							<label for="imperial-selector">Imperial</label>
 						</div>
 					</li>
 					<li>
-						<input type="number" min="0" step="1" id="age-input" class="k-textbox" />
+						<input type="number" min="0" step="1" id="age-input" class="k-textbox" data-bind="value: age" />
 						<label for="age-input">Age</label>
 					</li>
 					<li>
-						<input type="number" min="0" step="1" id="height-input" class="k-textbox" />
+						<input type="number" min="0" step="1" id="height-input" class="k-textbox" data-bind="value: height" />
 						<label for="height-input">Height</label>
 					</li>
 					<li>
 						<label class="selector-label">Gender</label>
 						<div class="selector-group">
-							<input type="radio" name="gender" value="male" id="male-selector" />
+							<input type="radio" name="gender" value="male" id="male-selector" data-bind="checked: gender" />
 							<label for="male-selector">Male</label>
-							<input type="radio" name="gender" value="female" id="female-selector" />
+							<input type="radio" name="gender" value="female" id="female-selector" data-bind="checked: gender" />
 							<label for="female-selector">Female</label>
 						</div>
 					</li>
 					<li>
-						<input type="checkbox" id="caliper-indicator" />
+						<input type="checkbox" id="caliper-indicator" data-bind="checked: calipers" />
 						<label for="caliper-indicator">I Own Calipers</label>
 					</li>
 				</ol>
-				<button id="settings-save" class="k-button">Save</button>
 			</div>
 		</div>
 	</script>

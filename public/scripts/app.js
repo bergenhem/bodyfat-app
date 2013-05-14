@@ -44,6 +44,8 @@ window.FitnessApp = (function($){
 			}
 		});
 
+		window.Settings.init();
+
 		_recordingView = new kendo.View('recording-view', {
 		});
 
@@ -64,7 +66,6 @@ window.FitnessApp = (function($){
 		});
 
 		_kendoRouter.route('/settings', function() {
-			window.Settings.init();
 			_fitnessLayout.showIn('#content', _settingsView);
 		});
 	}
