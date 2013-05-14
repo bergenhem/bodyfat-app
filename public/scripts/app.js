@@ -75,7 +75,6 @@ window.FitnessApp = (function($){
 	_fitnessApp.startSPA = function() {
 		_kendoRouter.start();
 		_fitnessLayout.render('#main');
-		_fitnessLayout.showIn('#content', _introView);
 	}
 
 	//placeholder function to set up Kendo UI Widgets
