@@ -246,49 +246,9 @@ section#content div.view-content h1 {
 	margin: 30px auto 30px auto;
 }
 
-button#settings-save {
+button#calculate-button {
 	height: 50px;
-	width: 75px;
 	font-size: 1.5em;
-
-	margin: 20px auto;
-}
-
-div#caliperWindow h1 {
-	text-align: center;
-	font-size: 2em;
-	margin: 20px auto;
-}
-
-div#caliperWindow p {
-	margin: 15px 0px auto;
-	text-align: center;
-}
-div#caliperWindow p#title {
-	font-size: 2em;
-}
-
-div#caliperWindow > div {
-	text-align: center;
-	padding-top: 50px;
-	padding-bottom: 30px;
-}
-
-div#caliperWindow > div a {
-	height: 50px;
-	width: 100px;
-	margin: 0px 20px 0px 20px;
-
-	line-height: 1.45em;
-	font-size: 2.5em;
-}
-
-div#tooltipContent h2 {
-	margin: 10px;
-}
-
-div#tooltipContent p {
-	margin: 10px;
 }
 
 footer a,

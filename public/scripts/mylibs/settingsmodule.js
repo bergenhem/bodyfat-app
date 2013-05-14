@@ -1,6 +1,6 @@
 window.Settings = (function($){
-	var _settingsModule = {}
-	var _unit, _age, _height, _gender, _settingsWindowModel = {};
+	var _settingsModule = {};
+	var _settingsWindowModel = {};
 
 	//temporary before RequireJS
 	_settingsModule.init = function() {

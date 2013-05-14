@@ -9,8 +9,17 @@ window.Record = (function($){
 		thigh: null,
 		calculated: false,
 		calculate: function(){
-			console.log('calc');
-			console.log(this.weight);
+			var dataToPost = {
+				date: moment(Date.now()).format('YYYY-MM-DD'),
+				gender: settingsViewModel.get('gender'),
+				age: settingsViewModel.get('age'),
+				unit: settingsViewModel.get('unit'),
+				weight: _recordViewModel.get('weight'),
+				height: settingsViewModel.get('height'),
+				chest: _recordViewModel.get('chest'),
+				thigh: _recordViewModel.get('thigh'),
+				abs: _recordViewModel.get('abs')
+			};
 		}
 	});
 
