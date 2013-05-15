@@ -179,6 +179,13 @@ section#content div.view-content div.input-form ol.form-list li div.selector-gro
 	margin-right: -5px;
 }
 
+section#content div.view-content div.input-form ol.form-list li span.unit-span {
+	display: inline-block;
+	vertical-align: middle;
+	margin-left: 5px;
+	font-size: 0.75em;
+}
+
 section#content div.view-content div.input-form label {
 	font-size: 2em;
 }
@@ -237,7 +244,6 @@ section#content div.view-content div.input-form input[type="checkbox"] + label {
 	text-align: left;
 	float: left;
 }
-
 
 section#content div.view-content h1 {
 	font-size: 3em;
