@@ -9,7 +9,16 @@ window.Settings = (function($){
 			age: 0,
 			height: 0,
 			gender: 'male',
-			calipers: true
+			calipers: true,
+			heightDisplay: '(cm)',
+			unitSelect: function() {
+				if(this.get('unit') === 'metric') {
+					this.set('heightDisplay', '(cm)');
+				}
+				else if(this.get('unit') === 'imperial') {
+					this.set('heightDisplay', '(in)');
+				}
+			}
 		});
 	}
 

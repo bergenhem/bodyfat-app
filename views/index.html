@@ -54,18 +54,22 @@
 					<li>
 						<input type="number" min="0" step="0.5" id="weight-input" class="k-textbox" data-bind="value: weight" />
 						<label for="weight-input">Weight</label>
+						<span class="unit-span" data-bind="text: weightDisplay"></span>
 					</li>
 					<li>
 						<input type="number" min="0" step="0.1" id="chest-input" class="k-textbox" data-bind="value: chest" />
 						<label for="chest-input">Chest</label>
+						<span class="unit-span">(mm)</span>
 					</li>
 					<li>
 						<input type="number" min="0" step="0.1" id="ab-input" class="k-textbox" data-bind="value: abs" />
 						<label for="ab-input">Abs</label>
+						<span class="unit-span">(mm)</span>
 					</li>
 					<li>
 						<input type="number" min="0" step="0.1" id="thigh-input" class="k-textbox" data-bind="value: thigh" />
 						<label for="thigh-input">Thigh</label>
+						<span class="unit-span">(mm)</span>
 					</li>
 				</ol>
 				<button id="calculate-button" class="k-button" data-bind="click: calculate">Calculate</button>
@@ -82,9 +86,9 @@
 					<li>
 						<label class="selector-label">Unit</label>
 						<div class="selector-group">
-							<input type="radio" name="unit" value="metric" id="metric-selector" data-bind="checked: unit" />
+							<input type="radio" name="unit" value="metric" id="metric-selector" data-bind="checked: unit, events: { change: unitSelect }" />
 							<label for="metric-selector">Metric</label>
-							<input type="radio" name="unit" value="imperial" id="imperial-selector" data-bind="checked: unit" />
+							<input type="radio" name="unit" value="imperial" id="imperial-selector" data-bind="checked: unit, events: { change: unitSelect }" />
 							<label for="imperial-selector">Imperial</label>
 						</div>
 					</li>
@@ -95,7 +99,7 @@
 					<li>
 						<input type="number" min="0" step="1" id="height-input" class="k-textbox" data-bind="value: height" />
 						<label for="height-input">Height</label>
-						<span class="unit-span">(cm)</span>
+						<span class="unit-span" data-bind="text: heightDisplay"></span>
 					</li>
 					<li>
 						<label class="selector-label">Gender</label>

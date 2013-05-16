@@ -45,9 +45,11 @@ window.FitnessApp = (function($){
 		});
 
 		window.Settings.init();
+		window.Record.init();
 
 		_recordingView = new kendo.View('recording-view', {
-			model: window.Record.getRecordViewModel()
+			model: window.Record.getRecordViewModel(),
+			show: function() { this.model.updateWeight(); }
 		});
 
 		_settingsView = new kendo.View('settings-view', {
