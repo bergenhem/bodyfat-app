@@ -36,6 +36,18 @@ window.Record = (function($){
 				thigh: this.get('thigh'),
 				abs: this.get('abs')
 			};
+
+			var serializedDataToPost = JSON.stringify(dataToPost);
+
+			$.ajax({
+				url: '/bodyfat',
+				type: 'post',
+				data: serializedDataToPost
+			}).done(function() {
+				console.log('done!');
+			}).fail(function() {
+				console.log('fail');
+			});
 		}
 	});
 
