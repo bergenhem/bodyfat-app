@@ -41,8 +41,9 @@ window.Record = (function($){
 
 			$.ajax({
 				url: '/bodyfat',
-				type: 'post',
-				data: serializedDataToPost
+				type: 'put',
+				data: serializedDataToPost,
+				contentType: "application/json"
 			}).done(function() {
 				console.log('done!');
 			}).fail(function() {

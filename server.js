@@ -27,7 +27,7 @@ app.get('/', function(req, res) {
 });
 
 app.get('/bodyfat', fitness.getAllBodyFat);
-app.post('/bodyfat', fitness.addBodyFat);
+app.put('/bodyfat', fitness.addBodyFat);
 app.get('/bodyfat/:date', fitness.getSingleBodyFat);
 app.put('/bodyfat/:date', fitness.updateBodyFat);
 
