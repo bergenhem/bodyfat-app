@@ -1,0 +1,318 @@
+@font-face {
+    font-family: 'OpenSans';
+    src: url('fonts/OpenSans-Regular-webfont.eot');
+    src: url('fonts/OpenSans-Regular-webfont.eot?#iefix') format('embedded-opentype'),
+         url('fonts/OpenSans-Regular-webfont.woff') format('woff'),
+         url('fonts/OpenSans-Regular-webfont.ttf') format('truetype'),
+         url('fonts/OpenSans-Regular-webfont.svg#OpenSansRegular') format('svg');
+    font-weight: normal;
+    font-style: normal;
+
+}
+@font-face {
+    font-family: 'Roboto';
+    src: url('fonts/Roboto-Regular-webfont.eot');
+    src: url('fonts/Roboto-Regular-webfont.eot?#iefix') format('embedded-opentype'),
+         url('fonts/Roboto-Regular-webfont.woff') format('woff'),
+         url('fonts/Roboto-Regular-webfont.ttf') format('truetype'),
+         url('fonts/Roboto-Regular-webfont.svg#RobotoRegular') format('svg');
+    font-weight: normal;
+    font-style: normal;
+
+}
+
+* {
+	margin: 0px;
+	padding: 0px;
+}
+
+body {
+	background-color: #ebebeb;
+	font-family: 'OpenSans', Helvetica;
+	font-size: 12px;
+}
+
+header, #content, footer { 
+	position: absolute;
+	left: 0px;
+	width: 100%;
+}
+
+header, footer {
+	background-color: #242424;
+	color: #ebebeb;
+}
+
+header {
+	height: 100px;
+	top: 0px;
+	
+	border-bottom-color: #ffffff;
+	border-bottom-style: solid;
+	border-bottom-width: 1px;
+}
+
+header .kendo {
+	color: #e15613;
+}
+
+header div#logo {
+	line-height: 2.5em;
+	font-size: 3em;
+	margin-left: 20px;
+}
+
+header div#navigation {
+	position: absolute;
+	top: 0px;
+	right: 0px;
+	z-index: 2;
+}
+
+header div#navigation ul {
+	list-style: none;
+}
+
+header div#navigation li {
+	display: inline-block;
+	height: 100px;
+	width: 100px;
+
+	margin-left: -3px;
+
+	font-size: 1.75em;
+
+	line-height: 4.5em;
+
+	text-align: center;
+}
+
+header div#navigation li:hover {
+	background-color: #000000;
+}
+
+header div#navigation li a {
+	text-decoration: none;
+	color: #ebebeb;
+	display: inline-block;
+	height: 100px;
+	width: 100px;
+}
+
+section#content {
+	top: 100px;
+	bottom: 50px;
+	overflow: auto;
+}
+
+section#content div#chooser{
+	margin: 50px auto;
+	width: 710px;
+}
+
+section#content div#chooser > div {
+	display: inline-block;
+	margin: 20px 25px 20px 25px;
+	width: 300px;
+	height: 400px;
+	text-align: center;
+	background-color: #E0E0E0;
+
+	border-radius: 3px;
+	box-shadow: inset 0px 1px 0px #c5c5c5;
+
+	transition: all 0.3s ease;
+}
+
+section#content div#chooser > div:hover {
+	background-color: #DBDBDB;
+
+	border-radius: 3px;
+	box-shadow: inset 0px 1px 0px #c5c5c5, 0px 1px 0px #c5c5c5;
+}
+
+section#content div#chooser > div h3 {
+	margin-top: 20px;
+	font-size: 2em;
+}
+
+section#content div#chooser > div p {
+	margin: 20px 5px 20px 5px;
+}
+
+section#content div#chooser div.paragraphs{
+	margin: 20px 0px 20px 0px;
+	height: 225px;
+}
+
+section#content div#chooser div a {
+	font-size: 2em;
+}
+
+section#content div.view-content div.dashSection,
+section#content div.view-content div.dashSectionAlt {
+	width: 100%;
+	height: 400px;
+}
+
+section#content div.view-content div.dashSectionAlt {
+	background-color: #E0E0E0;
+
+	border-color: #c5c5c5;
+	border-width: 1px;
+	border-style: solid;
+}
+
+section#content div.view-content div.chartArea {
+	height: 350px;
+	width: 500px;
+	margin: 0px auto;
+}
+
+section#content div.view-content div.chartArea h2 {
+	padding-top: 20px;
+}
+
+section#content div.view-content div.chartArea div.dashChart {
+	height: 300px;
+	width: 500px;
+	margin: 20px auto;
+}
+
+section#content div.view-content div.input-form {
+	margin: 20px auto;
+
+	padding: 20px 30px 20px 30px;
+
+	width: 350px;
+
+	background-color: #E0E0E0;
+
+	border-radius: 3px;
+	box-shadow: inset 0px 1px 0px #c5c5c5;
+}
+
+section#content div.view-content div.input-form ol.form-list {
+	list-style: none;
+}
+
+section#content div.view-content div.input-form ol.form-list li {
+	margin: 20px 0px 20px 0px;
+}
+
+section#content div.view-content div.input-form ol.form-list li label.selector-label {
+	display: inline-block;
+}
+
+section#content div.view-content div.input-form ol.form-list li div.selector-group {
+	float: right;
+	margin-right: -5px;
+}
+
+section#content div.view-content div.input-form ol.form-list li span.unit-span {
+	display: inline-block;
+	vertical-align: middle;
+	margin-left: 5px;
+	font-size: 0.75em;
+}
+
+section#content div.view-content div.input-form label {
+	font-size: 2em;
+}
+
+section#content div.view-content div.input-form input[type="number"] {
+	display: inline-block;
+	float: right;
+	font-size: 1.25em;
+}
+
+section#content div.view-content div.input-form input[type="number"] + label {
+	display: inline-block;
+	margin-right: 0px;
+	vertical-align: middle;
+	text-align: left;
+}
+
+section#content div.view-content div.input-form input[type="text"] {
+	display: inline-block;
+	float: right;
+	font-size: 1.25em;
+}
+
+section#content div.view-content div.input-form input[type="text"] + label {
+	display: inline-block;
+	width: 50px;
+	margin-right: 0px;
+	padding-right: 20px;
+	vertical-align: middle;
+	text-align: left;
+}
+
+section#content div.view-content div.input-form input[type="radio"] {
+}
+
+section#content div.view-content div.input-form input[type="radio"] + label {
+	width: 50px;
+	padding-right: 10px;
+	padding-left: 5px;
+	vertical-align: middle;
+	text-align: right;
+}
+
+section#content div.view-content div.input-form input[type="checkbox"] {
+	display: inline-block;
+	font-size: 1.25em;
+}
+
+section#content div.view-content div.input-form input[type="checkbox"] + label {
+	display: inline-block;
+	margin-right: 0px;
+	padding-right: 20px;
+	vertical-align: middle;
+	text-align: left;
+	float: left;
+}
+
+section#content div.view-content h1 {
+	font-size: 3em;
+	text-align: center;
+
+	margin: 30px auto 30px auto;
+}
+
+button#calculate-button {
+	height: 50px;
+	font-size: 1.5em;
+}
+
+footer a,
+footer a:hover,
+footer a:visited {
+	color: #e15613;
+}
+
+footer a,
+footer a:visited {
+	text-decoration: none;
+}
+
+footer a:hover {
+	text-decoration: underline;
+}
+
+footer {
+	left:0px;
+	bottom:0px;
+	height:30px;
+	width:100%;
+	height: 50px;
+
+	border-top-color: #ffffff;
+	border-top-style: solid;
+	border-top-width: 1px;
+}
+
+footer #info {
+	text-align: center;
+	margin: 20px auto;
+}
