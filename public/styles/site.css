@@ -149,6 +149,12 @@ section#content div#chooser div a {
 	font-size: 2em;
 }
 
+section#content div.view-content div.dashChart {
+	height: 300px;
+	width: 500px;
+	margin: 20px auto;
+}
+
 section#content div.view-content div.input-form {
 	margin: 20px auto;
 

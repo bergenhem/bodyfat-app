@@ -59,7 +59,7 @@ window.FitnessApp = (function($){
 		});
 
 		_introView = new kendo.View('intro-view', {
-			model: window.Dashboard.getDashboardViewModel()
+			//model: window.Dashboard.getDashboardViewModel()
 		});
 
 		_kendoRouter.route('/', function() {

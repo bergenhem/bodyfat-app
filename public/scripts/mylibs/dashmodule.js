@@ -12,16 +12,88 @@ window.Dashboard = (function($){
 			url: '/bodyfat',
 			type: 'get',
 			contentType: "application/json"
-		}).done(_dashboardModule.createObservable)
+		}).done(_dashboardModule.createCharts)
 		.fail(function() {
 			console.log('fail');
 		});
 	}
 
-	_dashboardModule.createObservable = function(data) {
-		_dashboardData = data;
-		_dashboardViewModel = kendo.observable({
-			data: _dashboardData
+	_dashboardModule.createCharts = function(data) {
+		$('#weightChart').kendoChart({
+			dataSource: {
+				data: data
+			},
+			seriesDefaults: {
+				type: 'line',
+				labels: {
+					visible: true
+				}
+			},
+			series: [{
+				field: 'weight',
+				name: 'Weight'
+			},
+			{
+				field: 'bodyFat',
+				name: 'Body Fat'
+			},
+			{
+				field: 'leanBodyMass',
+				name: 'Lean Mass'
+			}],
+			categoryAxis: {
+				field: 'date'
+			}
+		});
+
+		$('#caliperChart').kendoChart({
+			dataSource: {
+				data: data
+			},
+			seriesDefaults: {
+				type: 'line',
+				labels: {
+					visible: true
+				}
+			},
+			series: [{
+				field: 'chest',
+				name: 'Weight'
+			},
+			{
+				field: 'abs',
+				name: 'Abs'
+			},
+			{
+				field: 'thigh',
+				name: 'Thigh'
+			}],
+			categoryAxis: {
+				field: 'date'
+			}
+		});
+
+		$('#indexChart').kendoChart({
+			dataSource: {
+				data: data
+			},
+			seriesDefaults: {
+				type: 'line',
+				labels: {
+					visible: true
+				}
+			},
+			series: [{
+				field: 'bmi',
+				name: 'BMI'
+			},
+			{
+				field: 'ffmi',
+				name: 'FFMI'
+			}],
+			categoryAxis: {
+				field: 'date'
+			}
 		});
 	}
 
