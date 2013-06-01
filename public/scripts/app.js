@@ -46,6 +46,7 @@ window.FitnessApp = (function($){
 
 		window.Settings.init();
 		window.Record.init();
+		window.Dashboard.init();
 
 		_recordingView = new kendo.View('recording-view', {
 			model: window.Record.getRecordViewModel(),
@@ -58,6 +59,7 @@ window.FitnessApp = (function($){
 		});
 
 		_introView = new kendo.View('intro-view', {
+			model: window.Dashboard.getDashboardViewModel()
 		});
 
 		_kendoRouter.route('/', function() {

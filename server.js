@@ -10,7 +10,7 @@ app.configure(function () {
 	//define a place for our CSS and JS files
 	app.use(express.static(__dirname + '/public'));
 
-	//register ejs as .html so we can have .html pages
+	//register our engine as .html so we can have .html pages
 	app.engine('.html', require('ejs').__express);
 
 	//define our views folder
