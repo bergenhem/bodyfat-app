@@ -25,25 +25,31 @@ window.Record = (function($){
 			}
 		},
 		convertWeightToMetric: function(passedWeight) {
-			var poundWeight,
-				kiloWeight,
+			var imperialWeight,
+				metricWeight,
 				roundedKiloWeight;
-			poundWeight = passedWeight;
-			kiloWeight = poundWeight * 0.453592;
-			roundedKiloWeight = Math.round(kiloWeight * 100) / 100;
+				
+			imperialWeight = passedWeight;
+			metricWeight = imperialWeight * 0.453592;
+			roundedKiloWeight = Math.round(metricWeight * 100) / 100;
 
 			return roundedKiloWeight;
 		},
+		convertHeightToMetric: function(passedHeight) {
+			var imperialHeight,
+				metricHeight,
+				roundedMetricHeight;
+		},
 		calculate: function(){
-			var definedUnit,
-				definedWeight,
+			var selectedUnit,
+				givenWeight,
 				kiloWeight;
 
-			definedUnit = _settingsViewModel.get('unit');
-			definedWeight = _recordViewModel.get('weight');
+			selectedUnit = _settingsViewModel.get('unit');
+			givenWeight = _recordViewModel.get('weight');
 
-			if(definedUnit === 'imperial'){
-				kiloWeight = _recordViewModel.convertWeightToMetric(definedWeight);
+			if(selectedUnit === 'imperial'){
+				kiloWeight = _recordViewModel.convertWeightToMetric(givenWeight);
 			}
 			else {
 				kiloWeight = _recordViewModel.get('weight');
