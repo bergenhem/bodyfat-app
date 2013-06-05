@@ -25,24 +25,24 @@ window.Record = (function($){
 			}
 		},
 		convertWeightToMetric: function(passedWeight) {
-			var imperialWeight,
-				metricWeight,
-				roundedKiloWeight;
+			var imperialWeightIn,
+				metricWeightCm,
+				roundedMetricWeightKg;
 
-			imperialWeight = passedWeight;
-			metricWeight = imperialWeight * 0.453592;
-			roundedKiloWeight = Math.round(metricWeight * 100) / 100;
+			imperialWeightIn = passedWeight;
+			metricWeightCm = imperialWeightIn * 0.453592;
+			roundedMetricWeightKg = Math.round(metricWeightCm * 100) / 100;
 
-			return roundedKiloWeight;
+			return roundedMetricWeightKg;
 		},
 		convertHeightToMetric: function(passedHeight) {
-			var imperialHeight,
-				metricHeight,
-				roundedMetricHeight;
+			var imperialHeightIn,
+				metricHeightCm,
+				roundedMetricHeightCm;
 
-			imperialHeight = passedHeight;
-			metricHeight = imperialHeight * 2.54;
-			roundedMetricHeight = Math.round(metricHeight * 100) / 100;
+			imperialHeightIn = passedHeight;
+			metricHeightCm = imperialHeightIn * 2.54;
+			roundedMetricHeightCm = Math.round(metricHeightCm * 100) / 100;
 
 			return roundedMetricHeight;
 		},
@@ -50,20 +50,20 @@ window.Record = (function($){
 			var selectedUnit,
 				givenWeight,
 				givenHeight,
-				metricWeight,
-				metricHeight;
+				metricWeightKg,
+				metricHeightCm;
 
 			selectedUnit = _settingsViewModel.get('unit');
 			givenWeight = _recordViewModel.get('weight');
 			givenHeight = _settingsViewModel.get('height');
 
 			if(selectedUnit === 'imperial'){
-				metricWeight = _recordViewModel.convertWeightToMetric(givenWeight);
-				metricHeight = _recordViewModel.convertHeightToMetric(givenHeight);
+				metricWeightKg = _recordViewModel.convertWeightToMetric(givenWeight);
+				metricHeightCm = _recordViewModel.convertHeightToMetric(givenHeight);
 			}
 			else {
-				metricWeight = givenWeight;
-				metricHeight = givenHeight;
+				metricWeightKg = givenWeight;
+				metricHeightCm = givenHeight;
 			}
 
 			var dataToPost = {
@@ -71,8 +71,8 @@ window.Record = (function($){
 				gender: _settingsViewModel.get('gender'),
 				age: _settingsViewModel.get('age'),
 				unit: selectedUnit,
-				weight: metricWeight,
-				height: metricHeight,
+				weight: metricWeightKg,
+				height: metricHeightCm,
 				chest: this.get('chest'),
 				thigh: this.get('thigh'),
 				abs: this.get('abs')
