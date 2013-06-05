@@ -39,6 +39,7 @@ bodyFatSchema.methods.calcBMI = function () {
 		height 			= this.height,
 		weight			= this.weight;
 	
+	//convert height to meters
 	height = height / 100;
 	calculatedBmi = weight / (height * height);
 
