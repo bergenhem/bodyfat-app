@@ -7,7 +7,7 @@ var bodyFatSchema = mongoose.Schema({
 	date: { type: String, default: moment(new Date).format('YYYY-MM-DD') },
 	gender: { type: String, enum: ['male', 'female'], default: 'male' },
 	age: { type: Number, default: 0 },
-	unit: { type: String, enum: ['metric', 'imperial'], default: 'imperial'},
+	unit: { type: String, enum: ['metric', 'imperial'], default: 'metric'},
 	weight: { type: Number, default: 0 },
 	height: { type: Number, default: 0},
 	chest: { type: Number, default: 0 },
@@ -36,17 +36,12 @@ bodyFatSchema.options.toJSON = { transform: function(doc, ret, options) {
 //calculate BMI (Body Mass Index)
 bodyFatSchema.methods.calcBMI = function () {
 	var calculatedBmi 	= 0,
-		unitType 		= this.unit,
-		height 			= this.height,
-		weight			= this.weight;
-
-	if(unitType === "imperial") {
-		height = height * 0.254;
-		bodyMass = bodyMass * 0.454;
-	}
+		heightCm 			= this.height,
+		weightKg			= this.weight;
 	
-	height = height / 100;
-	calculatedBmi = weight / (height * height);
+	//convert height to meters
+	heightCm = height / 100;
+	calculatedBmi = weightKg / (heightCm * heightCm);
 
 	this.bmi = Math.round(calculatedBmi * 100) / 100;
 
@@ -58,6 +53,9 @@ bodyFatSchema.methods.calcBMI = function () {
 	*/
 };
 
+
+//Calculation formula found at: http://jumk.de/bmi/body-fat-rate.php
+//Also known as the Jackson/Pollock 3-point formula
 bodyFatSchema.methods.calcBFValues = function() {
 	var age 	= this.age,
 		gender	= this.gender,
@@ -89,43 +87,37 @@ bodyFatSchema.methods.calcBFValues = function() {
 
 //calculate total fat weight
 bodyFatSchema.methods.calcFat = function () {
-	var fat 	= 0,
-		bf 		= this.bodyFatPercentage,
-		weight 	= this.weight;
+	var fatKg 			= 0,
+		bodyFatPercent 	= this.bodyFatPercentage,
+		weightKg		= this.weight;
 
-	fat = weight * (bf / 100);
+	fatKg = weightKg * (bodyFatPercent / 100);
 
-	this.bodyFat = Math.round(fat * 100) / 100;
+	this.bodyFat = Math.round(fatKg * 100) / 100;
 };
 
 //calculate lean muscle weight
 bodyFatSchema.methods.calcLeanMuscle = function () {
-	var muscle 	= 0,
-		fat 	= this.bodyFat,
-		weight 	= this.weight;
+	var muscleKg 	= 0,
+		fatKg 		= this.bodyFat,
+		weightKg 	= this.weight;
 
-	muscle = weight - fat;
+	muscleKg = weightKg - fatKg;
 
-	this.leanBodyMass = Math.round(muscle * 100) / 100;
+	this.leanBodyMass = Math.round(muscleKg * 100) / 100;
 };
 
-//calc found at: http://scoobysworkshop.com/body-fat-calculator/
-//calculate FFMI (Fat Free Mass Index)
+//Calculation algorithm found at: http://www.ncbi.nlm.nih.gov/pubmed/7496846?dopt=Abstract
+//Calculates FFMI (Fat Free Mass Index)
 bodyFatSchema.methods.calcFFMI = function () {
 	var ffmi 		= 0,
-		unitType 	= this.unit,
 		bodyMass 	= this.leanBodyMass,
-		height 		= this.height;
-
-	if(unitType === "imperial") {
-		height = height * 0.254;
-		bodyMass = bodyMass * 0.454;
-	}
+		heightCm 	= this.height;
 
 	//convert this to full meters
-	height = height / 100;
+	heightCm = heightCm / 100;
 
-	ffmi = (bodyMass / (height * height)) + (6.1 * (1.8 - height));
+	ffmi = (bodyMass / (heightCm * heightCm)) + (6.1 * (1.8 - heightCm));
 	this.ffmi = Math.round(ffmi * 100) / 100;
 
 	/*
