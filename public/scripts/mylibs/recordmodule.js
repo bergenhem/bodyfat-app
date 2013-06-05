@@ -24,13 +24,37 @@ window.Record = (function($){
 				this.set('weightDisplay', '(lbs)');
 			}
 		},
+		convertWeightToMetric: function(passedWeight) {
+			var poundWeight,
+				kiloWeight,
+				roundedKiloWeight;
+			poundWeight = passedWeight;
+			kiloWeight = poundWeight * 0.453592;
+			roundedKiloWeight = Math.round(kiloWeight * 100) / 100;
+
+			return roundedKiloWeight;
+		},
 		calculate: function(){
+			var definedUnit,
+				definedWeight,
+				kiloWeight;
+
+			definedUnit = _settingsViewModel.get('unit');
+			definedWeight = _recordViewModel.get('weight');
+
+			if(definedUnit === 'imperial'){
+				kiloWeight = _recordViewModel.convertWeightToMetric(definedWeight);
+			}
+			else {
+				kiloWeight = _recordViewModel.get('weight');
+			}
+
 			var dataToPost = {
 				date: moment(Date.now()).format('YYYY-MM-DD'),
 				gender: _settingsViewModel.get('gender'),
 				age: _settingsViewModel.get('age'),
-				unit: _settingsViewModel.get('unit'),
-				weight: this.get('weight'),
+				unit: definedUnit,
+				weight: kiloWeight,
 				height: _settingsViewModel.get('height'),
 				chest: this.get('chest'),
 				thigh: this.get('thigh'),
