@@ -36,7 +36,6 @@ bodyFatSchema.options.toJSON = { transform: function(doc, ret, options) {
 //calculate BMI (Body Mass Index)
 bodyFatSchema.methods.calcBMI = function () {
 	var calculatedBmi 	= 0,
-		unitType 		= this.unit,
 		height 			= this.height,
 		weight			= this.weight;
 	
@@ -108,7 +107,6 @@ bodyFatSchema.methods.calcLeanMuscle = function () {
 //calculate FFMI (Fat Free Mass Index)
 bodyFatSchema.methods.calcFFMI = function () {
 	var ffmi 		= 0,
-		unitType 	= this.unit,
 		bodyMass 	= this.leanBodyMass,
 		height 		= this.height;
 
