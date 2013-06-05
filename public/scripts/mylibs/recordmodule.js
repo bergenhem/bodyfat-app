@@ -24,14 +24,55 @@ window.Record = (function($){
 				this.set('weightDisplay', '(lbs)');
 			}
 		},
+		convertWeightToMetric: function(passedWeight) {
+			var imperialWeightIn,
+				metricWeightCm,
+				roundedMetricWeightKg;
+
+			imperialWeightIn = passedWeight;
+			metricWeightCm = imperialWeightIn * 0.453592;
+			roundedMetricWeightKg = Math.round(metricWeightCm * 100) / 100;
+
+			return roundedMetricWeightKg;
+		},
+		convertHeightToMetric: function(passedHeight) {
+			var imperialHeightIn,
+				metricHeightCm,
+				roundedMetricHeightCm;
+
+			imperialHeightIn = passedHeight;
+			metricHeightCm = imperialHeightIn * 2.54;
+			roundedMetricHeightCm = Math.round(metricHeightCm * 100) / 100;
+
+			return roundedMetricHeight;
+		},
 		calculate: function(){
+			var selectedUnit,
+				givenWeight,
+				givenHeight,
+				metricWeightKg,
+				metricHeightCm;
+
+			selectedUnit = _settingsViewModel.get('unit');
+			givenWeight = _recordViewModel.get('weight');
+			givenHeight = _settingsViewModel.get('height');
+
+			if(selectedUnit === 'imperial'){
+				metricWeightKg = _recordViewModel.convertWeightToMetric(givenWeight);
+				metricHeightCm = _recordViewModel.convertHeightToMetric(givenHeight);
+			}
+			else {
+				metricWeightKg = givenWeight;
+				metricHeightCm = givenHeight;
+			}
+
 			var dataToPost = {
 				date: moment(Date.now()).format('YYYY-MM-DD'),
 				gender: _settingsViewModel.get('gender'),
 				age: _settingsViewModel.get('age'),
-				unit: _settingsViewModel.get('unit'),
-				weight: this.get('weight'),
-				height: _settingsViewModel.get('height'),
+				unit: selectedUnit,
+				weight: metricWeightKg,
+				height: metricHeightCm,
 				chest: this.get('chest'),
 				thigh: this.get('thigh'),
 				abs: this.get('abs')
