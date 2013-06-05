@@ -7,7 +7,7 @@ var bodyFatSchema = mongoose.Schema({
 	date: { type: String, default: moment(new Date).format('YYYY-MM-DD') },
 	gender: { type: String, enum: ['male', 'female'], default: 'male' },
 	age: { type: Number, default: 0 },
-	unit: { type: String, enum: ['metric', 'imperial'], default: 'imperial'},
+	unit: { type: String, enum: ['metric', 'imperial'], default: 'metric'},
 	weight: { type: Number, default: 0 },
 	height: { type: Number, default: 0},
 	chest: { type: Number, default: 0 },
@@ -39,11 +39,6 @@ bodyFatSchema.methods.calcBMI = function () {
 		unitType 		= this.unit,
 		height 			= this.height,
 		weight			= this.weight;
-
-	if(unitType === "imperial") {
-		height = height * 0.254;
-		bodyMass = bodyMass * 0.454;
-	}
 	
 	height = height / 100;
 	calculatedBmi = weight / (height * height);
@@ -116,11 +111,6 @@ bodyFatSchema.methods.calcFFMI = function () {
 		unitType 	= this.unit,
 		bodyMass 	= this.leanBodyMass,
 		height 		= this.height;
-
-	if(unitType === "imperial") {
-		height = height * 0.254;
-		bodyMass = bodyMass * 0.454;
-	}
 
 	//convert this to full meters
 	height = height / 100;
