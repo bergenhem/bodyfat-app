@@ -81,25 +81,6 @@ window.FitnessApp = (function($){
 		_fitnessLayout.render('#main');
 	}
 
-	//placeholder function to set up Kendo UI Widgets
-	_fitnessApp.initKendo = function() {
-		var modalWindow = $('#caliperWindow');
-		modalWindow.kendoWindow({
-			title: "Before We Begin",
-			modal: true,
-			draggable: false,
-			resizable: false,
-			width: 400,
-			height: 250
-		}).data('kendoWindow').center();
-
-		$('#caliperExplanation').kendoTooltip({
-			content: kendo.template($('#tooltipTemplate').html()),
-			position: "right",
-			width: 300
-		});
-	}
-
 	//start the app
 	_fitnessApp.startApp = function () {
 		this.initSPA();
