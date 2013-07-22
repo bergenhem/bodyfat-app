@@ -1,15 +1,10 @@
 var mongoose = require('mongoose');
 var moment = require('moment');
-mongoose.connect('mongodb://localhost/fitness');
 
 //define our schema and the defaults
 var bodyFatSchema = mongoose.Schema({
 	date: { type: String, default: moment(new Date).format('YYYY-MM-DD') },
-	gender: { type: String, enum: ['male', 'female'], default: 'male' },
-	age: { type: Number, default: 0 },
-	unit: { type: String, enum: ['metric', 'imperial'], default: 'metric'},
 	weight: { type: Number, default: 0 },
-	height: { type: Number, default: 0},
 	chest: { type: Number, default: 0 },
 	thigh: { type: Number, default: 0 },
 	abs: { type: Number, default: 0 },
@@ -34,13 +29,13 @@ bodyFatSchema.options.toJSON = { transform: function(doc, ret, options) {
 }};
 
 //calculate BMI (Body Mass Index)
-bodyFatSchema.methods.calcBMI = function () {
+bodyFatSchema.methods.calcBMI = function (passedHeight) {
 	var calculatedBmi 	= 0,
-		heightCm 			= this.height,
-		weightKg			= this.weight;
+		heightCm 		= passedHeight,
+		weightKg		= this.weight;
 	
 	//convert height to meters
-	heightCm = height / 100;
+	heightCm = heightCm / 100;
 	calculatedBmi = weightKg / (heightCm * heightCm);
 
 	this.bmi = Math.round(calculatedBmi * 100) / 100;
@@ -56,9 +51,9 @@ bodyFatSchema.methods.calcBMI = function () {
 
 //Calculation formula found at: http://jumk.de/bmi/body-fat-rate.php
 //Also known as the Jackson/Pollock 3-point formula
-bodyFatSchema.methods.calcBFValues = function() {
-	var age 	= this.age,
-		gender	= this.gender,
+bodyFatSchema.methods.calcBFValues = function(passedAge, passedGender) {
+	var age 	= passedAge,
+		gender	= passedGender,
 		chest 	= this.chest,
 		thigh 	= this.thigh,
 		ab 		= this.abs,
@@ -109,10 +104,10 @@ bodyFatSchema.methods.calcLeanMuscle = function () {
 
 //Calculation algorithm found at: http://www.ncbi.nlm.nih.gov/pubmed/7496846?dopt=Abstract
 //Calculates FFMI (Fat Free Mass Index)
-bodyFatSchema.methods.calcFFMI = function () {
+bodyFatSchema.methods.calcFFMI = function (passedHeight) {
 	var ffmi 		= 0,
 		bodyMass 	= this.leanBodyMass,
-		heightCm 	= this.height;
+		heightCm 	= passedHeight;
 
 	//convert this to full meters
 	heightCm = heightCm / 100;
@@ -133,12 +128,15 @@ bodyFatSchema.methods.calcFFMI = function () {
 }
 
 //initialize all of the calculations
-bodyFatSchema.methods.initCalculations = function() {
-	this.calcBMI();
-	this.calcBFValues();
+bodyFatSchema.methods.initCalculations = function(passedHeight, passedGender, passedAge) {
+
+	console.log('Init: \n' + passedHeight + ', ' + passedGender + ', ' + passedAge);
+
+	this.calcBMI(passedHeight);
+	this.calcBFValues(passedAge, passedGender);
 	this.calcFat();
 	this.calcLeanMuscle();
-	this.calcFFMI();
+	this.calcFFMI(passedHeight);
 }	
 
-module.exports = mongoose.model('BodyFat', bodyFatSchema, 'bodyfat');
+module.exports = mongoose.model('BodyFat', bodyFatSchema);

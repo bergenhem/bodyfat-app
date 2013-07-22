@@ -1,6 +1,8 @@
 var mongoose = require('mongoose');
-var BodyFat = require('bodyfat').schema();
-mongoose.connect('mongodb://localhost/fitness');
+var BodyFat = mongoose.model('BodyFat').Schema;
+var moment = require('moment');
+
+mongoose.connect('mongodb://localhost/testfitness');
 
 var userSchema = mongoose.Schema({
 	userName: String,
@@ -12,3 +14,5 @@ var userSchema = mongoose.Schema({
 	calipers: Boolean,
 	bodyFat: [BodyFat]
 });
+
+module.exports = mongoose.model('UserModel', userSchema);
