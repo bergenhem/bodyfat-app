@@ -1,6 +1,5 @@
 var mongoose = require('mongoose');
 var moment = require('moment');
-//mongoose.connect('mongodb://localhost/fitness');
 
 //define our schema and the defaults
 var bodyFatSchema = mongoose.Schema({
