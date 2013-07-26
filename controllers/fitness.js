@@ -1,37 +1,5 @@
 var BodyFat = require('../models/bodyfat');
-var UserModel = require('../models/users')
 var moment = require('moment');
-
-exports.testUser = function(req, res) {
-	var test = new UserModel();
-
-	test.userName = 'zeL';
-	test.gender = 'male';
-	test.dateOfBirth = '1987-10-01';
-	test.age = 25;
-	test.height = 175;
-	test.unit = 'metric';
-	test.calipers = true;
-
-	var testFat = new BodyFat();
-
-	testFat.date = '2013-10-01';
-	testFat.weight = 75;
-	testFat.chest = 10;
-	testFat.thigh = 10;
-	testFat.abs = 25;
-
-	testFat.initCalculations(test.height, test.gender, test.age);
-
-	console.log('Test Fat: \n' + JSON.stringify(testFat));
-
-	//how to add subdocument?
-	test.bodyFat.push(testFat);
-
-	console.log('Test: \n' + JSON.stringify(test));
-
-	res.end();
-}
 
 exports.addBodyFat = function(req, res) {
 	var itemToInsert = req.body;

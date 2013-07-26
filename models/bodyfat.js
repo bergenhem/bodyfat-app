@@ -1,5 +1,6 @@
 var mongoose = require('mongoose');
 var moment = require('moment');
+//mongoose.connect('mongodb://localhost/fitness');
 
 //define our schema and the defaults
 var bodyFatSchema = mongoose.Schema({
@@ -139,4 +140,4 @@ bodyFatSchema.methods.initCalculations = function(passedHeight, passedGender, pa
 	this.calcFFMI(passedHeight);
 }	
 
-module.exports = mongoose.model('BodyFat', bodyFatSchema);
+module.exports = mongoose.model('BodyFat', bodyFatSchema, 'bodyfat');
