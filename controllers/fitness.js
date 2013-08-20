@@ -107,24 +107,27 @@ exports.addBodyFat = function(req, res) {
 }
 
 exports.getAllBodyFat = function(req, res) {
-	BodyFat.find({ }, function(err, bodyFat) {
-		if(err) {
-			console.log('Error in getting all items:\n' + err);
-			res.writeHead(404, 'Not Found', {'content-type': 'application/json'});
-			res.end();
-		}
-		else {
-			if(bodyFat.length == 0) {
+	var currentUser = req.params.userName;
+	if(currentUser) {
+		UserModel.find({ }, function(err, userModel) {
+			if(err) {
+				console.log('Error in getting all items:\n' + err);
 				res.writeHead(404, 'Not Found', {'content-type': 'application/json'});
 				res.end();
 			}
 			else {
-				res.writeHead(200, 'OK', {'content-type': 'application/json'});
-				res.write(JSON.stringify(bodyFat));
-				res.end();
+				if(userModel.length == 0) {
+					res.writeHead(404, 'Not Found', {'content-type': 'application/json'});
+					res.end();
+				}
+				else {
+					res.writeHead(200, 'OK', {'content-type': 'application/json'});
+					res.write(JSON.stringify(userModel));
+					res.end();
+				}
 			}
-		}
-	});
+		});
+	}
 }
 
 exports.getSingleBodyFat = function(req, res) {

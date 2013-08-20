@@ -139,4 +139,4 @@ bodyFatSchema.methods.initCalculations = function(passedHeight, passedGender, pa
 	this.calcFFMI(passedHeight);
 }	
 
-module.exports = mongoose.model('BodyFat', bodyFatSchema, 'bodyfat');
+module.exports = mongoose.model('BodyFat', bodyFatSchema);
