@@ -2,6 +2,44 @@ var BodyFat = require('../models/bodyfat');
 var UserModel = require('../models/users');
 var moment = require('moment');
 
+exports.login = function(req, res) {
+	authenticate(req.body.userName, req.body.password, function(err, currentUser) {
+		if(currentUser) {
+			req.session.regenerate(function() {
+				req.session.user = currentUser;
+				req.session.success = 'Authenticated as ' + currentUser;
+				res.writeHead(200, 'OK', {'content-type': 'application/json'});
+				res.end();
+			});
+		}
+		else {
+			req.session.error = 'Authentication Failed';
+			res.writeHead(401, 'Unauthorized', {'content-type': 'application/json'});
+			res.end();
+		}
+	});
+}
+
+exports.authed = function(req, res, next) {
+	console.log(JSON.stringify(req.session));
+	if(req.session.user) {
+		console.log('we have a user!');
+		next();
+	}
+	else {
+		req.session.error = 'Authentication Failed'
+		res.writeHead(401, 'Unauthorized', {'content-type': 'application/json'});
+		res.end();
+	}
+}
+
+exports.logout = function(req, res) {
+	req.session.destroy(function() {
+		res.writeHead(200, 'OK', {'content-type': 'application/json'});
+		res.end();
+	});
+}
+
 exports.addUser = function(req, res) {
 	var submittedUser = req.body;
 
@@ -107,27 +145,24 @@ exports.addBodyFat = function(req, res) {
 }
 
 exports.getAllBodyFat = function(req, res) {
-	var currentUser = req.params.userName;
-	if(currentUser) {
-		UserModel.find({ }, function(err, userModel) {
-			if(err) {
-				console.log('Error in getting all items:\n' + err);
+	UserModel.find({ }, function(err, userModel) {
+		if(err) {
+			console.log('Error in getting all items:\n' + err);
+			res.writeHead(404, 'Not Found', {'content-type': 'application/json'});
+			res.end();
+		}
+		else {
+			if(userModel.length == 0) {
 				res.writeHead(404, 'Not Found', {'content-type': 'application/json'});
 				res.end();
 			}
 			else {
-				if(userModel.length == 0) {
-					res.writeHead(404, 'Not Found', {'content-type': 'application/json'});
-					res.end();
-				}
-				else {
-					res.writeHead(200, 'OK', {'content-type': 'application/json'});
-					res.write(JSON.stringify(userModel));
-					res.end();
-				}
+				res.writeHead(200, 'OK', {'content-type': 'application/json'});
+				res.write(JSON.stringify(userModel));
+				res.end();
 			}
-		});
-	}
+		}
+	});
 }
 
 exports.getSingleBodyFat = function(req, res) {
@@ -224,3 +259,28 @@ exports.updateBodyFat = function(req, res) {
 		res.end();
 	}
 }
+
+function authenticate(name, pass, fn) {
+	//this needs to change - no encryption is being done here
+	UserModel.findOne({ 'userName': name }, 'userName', function(err, users) {
+		if(err) {
+			return fn(err);
+		}
+		else {
+			if(users){
+				return fn(null, users);
+			}
+			else {
+				return fn(new Error('No user found'));
+			}
+		}
+	});
+}
+
+
+
+
+
+
+
+
