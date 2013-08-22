@@ -6,7 +6,8 @@ window.FitnessApp = (function($){
 	var _caliperWindowView = {};
 	var _recordingView = {};
 	var _settingsView = {};
-	var _introView = {};
+	var _loginView = {};
+	var _dashView = {};
 
 	//set up our views, layout, and routes
 	_fitnessApp.initSPA = function() {
@@ -30,6 +31,30 @@ window.FitnessApp = (function($){
 				e.preventDefault();
 			}
 		});
+
+		var	loginViewModel = kendo.observable({
+			userName: 'zeL',
+			password: 'fakepass',
+			login: function() {
+				var tempUser = {
+					userName: this.get('userName'),
+					password: this.get('fakepass')
+				};
+
+				var serializedUser = JSON.stringify(tempUser);
+
+				$.ajax({
+					url: '/login',
+					type: 'put',
+					data: serializedUser,
+					contentType: "application/json"
+				}).done(function() {
+					console.log('Logged in!');
+				}).fail(function() {
+					console.log('Login failed');
+				});
+			}
+		});
 		
 		_caliperWindowView = new kendo.View('caliper-window-view', {
 			model: caliperWindowModel,
@@ -44,26 +69,31 @@ window.FitnessApp = (function($){
 			}
 		});
 
-		window.Settings.init();
-		window.Record.init();
-		window.Dashboard.init();
-
 		_recordingView = new kendo.View('recording-view', {
 			model: window.Record.getRecordViewModel(),
-			show: function() { this.model.updateWeight(); }
+			show: function() { window.Record.init(); this.model.updateWeight(); }
 		});
 
 		_settingsView = new kendo.View('settings-view', {
 			//temporary before RequireJS
-			model: window.Settings.getSettingsModel()
+			model: window.Settings.getSettingsModel(),
+			show: function() { window.Settings.init(); }
 		});
 
-		_introView = new kendo.View('intro-view', {
-			//model: window.Dashboard.getDashboardViewModel()
+		_dashView = new kendo.View('dash-view', {
+			show: function() { window.Dashboard.init(); }
+		});
+
+		_loginView = new kendo.View('login-view', {
+			model: loginViewModel
 		});
 
 		_kendoRouter.route('/', function() {
-			_fitnessLayout.showIn('#content', _introView);
+			_fitnessLayout.showIn('#content', _loginView);
+		});
+
+		_kendoRouter.route('/dash', function() {
+			_fitnessLayout.showIn('#content', _dashView);
 		});
 
 		_kendoRouter.route('/record', function() {
@@ -72,6 +102,10 @@ window.FitnessApp = (function($){
 
 		_kendoRouter.route('/settings', function() {
 			_fitnessLayout.showIn('#content', _settingsView);
+		});
+
+		_kendoRouter.route('/login', function() {
+			_fitnessLayout.showIn('#content', _loginView);
 		});
 	}
 

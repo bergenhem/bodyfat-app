@@ -30,9 +30,10 @@
 			</div>
 			<div id="navigation">
 				<ul>
-					<li><a href="#">Dash</a></li>
+					<li><a href="/#/dash">Dash</a></li>
 					<li><a href="/#/record">Weight</a></li>
 					<li><a href="/#/settings">Settings</a></li>
+					<li><a href="/#/login">Login</a></li>
 				</ul>
 			</div>
 		</header>
@@ -47,8 +48,8 @@
 
 	<!-- Views -->
 
-	<!-- Intro View -->
-	<script type="text/x-kendo-template" id="intro-view">
+	<!-- Dash View -->
+	<script type="text/x-kendo-template" id="dash-view">
 		<div class="view-content">
 			<h1>Your Dashboard</h1>
 			<div class="dashSection">
@@ -143,6 +144,11 @@
 				</ol>
 			</div>
 		</div>
+	</script>
+
+	<!-- Login View -->
+	<script type="text/x-kendo-template" id="login-view">
+		<button id="login-button" class="k-button" data-bind="click: login">Login</button>
 	</script>
 
 	<!-- End Views -->

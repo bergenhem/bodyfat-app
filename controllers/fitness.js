@@ -21,9 +21,8 @@ exports.login = function(req, res) {
 }
 
 exports.authed = function(req, res, next) {
-	console.log(JSON.stringify(req.session));
 	if(req.session.user) {
-		console.log('we have a user!');
+		//user is authenticated - let's move to the next function
 		next();
 	}
 	else {
