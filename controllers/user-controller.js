@@ -45,3 +45,42 @@ exports.addUser = function(req, res) {
 		});
 	}
 }
+
+exports.saveSettings = function(req, res) {
+	var passedSettings = req.body;
+	var currentUser = req.session.user.userName;
+
+	UserModel.findOne({ 'userName': userName }, function(err, foundUser) {
+		if(err) {
+			console.log('Errr in finding user to save settings to:\n' + err);
+			res.writeHead(500, 'Internal Server Error', { 'content-type': 'application/json' });
+			res.end();
+		}
+		else {
+			if(foundUser) {
+				if(passedSettings.unit) foundUser.unit = passedSettings.unit;
+				if(passedSettings.age) foundUser.age = passedSettings.age;
+				if(passedSettings.height) foundUser.height = passedSettings.height;
+				if(passedSettings.gender) foundUser.gender = passedSettings.gender;
+				if(passedSettings.calipers) foundUser.calipers = passedSettings.calipers;
+
+				foundUser.save(function(err, user) {
+					if(err) {
+						console.log('Error when saving user settings:\n' + err);
+						res.writeHead(500, 'Internal Server Error', {'content-type': 'application/json'});
+						res.end();
+					}
+					else {
+						res.writeHead(200, 'OK', {'content-type': 'application/json'});
+						res.end();
+					}
+				});
+			}
+			else {
+				console.log('Did not find a user when savint settings');
+				res.writeHead(500, 'Internal Server Error', { 'content-type': 'application/json' });
+				res.end();
+			}
+		}
+	});
+}
