@@ -1,6 +1,7 @@
-var express = require('express'),
-	fitness	= require('./controllers/fitness'),
-	auth 	= require('./controllers/auth');
+var express 			= require('express'),
+	fitnessController	= require('./controllers/fitness-controller'),
+	authController 		= require('./controllers/auth-controller'),
+	userController		= require('./controllers/user-controller');
 
 var app = express();
 
@@ -29,13 +30,13 @@ app.get('/', function(req, res) {
 	res.render('index');
 });
 
-app.put('/login', auth.login);
-app.get('/logout', auth.logout);
-app.put('/adduser', fitness.addUser);
-app.get('/bodyfat', auth.authed, fitness.getAllBodyFat);
-app.put('/bodyfat', auth.authed, fitness.addBodyFat);
-app.get('/bodyfat/:date', auth.authed, fitness.getSingleBodyFat);
-app.put('/bodyfat/:date', auth.authed, fitness.updateBodyFat);
+app.put('/login', authController.login);
+app.get('/logout', authController.logout);
+app.put('/adduser', userController.addUser);
+app.get('/bodyfat', authController.authed, fitnessController.getAllBodyFat);
+app.put('/bodyfat', authController.authed, fitnessController.addBodyFat);
+app.get('/bodyfat/:date', authController.authed, fitnessController.getSingleBodyFat);
+app.put('/bodyfat/:date', authController.authed, fitnessController.updateBodyFat);
 
 app.listen(3000);
 console.log('Listening on port 3000...');
