@@ -18,6 +18,30 @@ window.Settings = (function($){
 				else if(this.get('unit') === 'imperial') {
 					this.set('heightDisplay', '(in)');
 				}
+			},
+			saveSettings: function() {
+				var dataToPost = {
+					unit: _settingsViewModel.get('unit'),
+					age: _settingsViewModel.get('age'),
+					height: _settingsViewModel.get('height'),
+					gender: _settingsViewModel.get('gender'),
+					calipers: _settingsViewModel.get('calipers')
+				};
+
+				var serializedDataToPost = JSON.stringify(dataToPost);
+
+				console.log(serializedDataToPost);
+
+				$.ajax({
+					url: '/saveSettings',
+					type: 'put',
+					data: serializedDataToPost,
+					contentType: "application/json"
+				}).done(function() {
+					console.log('Settings saved!');
+				}).fail(function() {
+					console.log('Settings failed to save.');
+				});
 			}
 		});
 	}
