@@ -21,7 +21,6 @@ exports.addUser = function(req, res) {
 				if(!users) { //username is unique
 
 					encryption.genSalt(10, function(err, salt) {
-						console.log('salt\n');
 						if(err) {
 							console.log('Error when generating salt\n');
 						}

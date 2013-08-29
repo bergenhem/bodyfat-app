@@ -76,16 +76,6 @@ exports.getAllBodyFat = function(req, res) {
 
 	var signedInUser = req.session.user;
 
-	var foundUser = findUser(signedInUser);
-
-	if(foundUser) {
-		
-	}
-	else {
-		res.writeHead(404, 'Not Found', {'content-type': 'application/json'});
-		res.end();
-	}
-
 	UserModel.find({ }, function(err, userModel) {
 		if(err) {
 			console.log('Error in getting all items:\n' + err);

@@ -38,10 +38,11 @@ window.FitnessApp = (function($){
 			login: function() {
 				var tempUser = {
 					userName: this.get('userName'),
-					password: this.get('fakepass')
+					password: this.get('password')
 				};
 
 				var serializedUser = JSON.stringify(tempUser);
+				console.log(serializedUser);
 
 				$.ajax({
 					url: '/login',

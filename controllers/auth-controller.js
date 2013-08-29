@@ -1,14 +1,14 @@
 var UserModel = require('../models/users');
 var encryption = require('bcrypt');
 
-function authenticate(name, pass, fn) {
+function authenticate(name, passedPass, fn) {
 	UserModel.findOne({ 'userName': name }, function(err, users) {
 		if(err) {
 			return fn(err);
 		}
 		else {
 			if(users){
-				encryption.compare(pass, users.password, function(err, res) {
+				encryption.compare(passedPass, users.password, function(err, res) {
 					if(res == true) {
 						return fn(null, users);
 					}
