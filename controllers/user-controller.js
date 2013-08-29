@@ -1,4 +1,5 @@
 var UserModel = require('../models/users');
+var encryption = require('bcrypt');
 
 exports.addUser = function(req, res) {
 	var submittedUser = req.body;
@@ -17,7 +18,22 @@ exports.addUser = function(req, res) {
 			}
 			else {
 				if(!users) { //username is unique
+
+					var secretPassword;
+
+					encryption.genSalt(10, function(err, salt) {
+						if(err) {
+							console.log('Error when generating salt\n');
+						}
+						else {
+							encryption.hash(userPass, salt, function(err, hash) {
+								secretPassword = hash;
+							});
+						}
+					});
+
 					if(submittedUser.userName) newUser.userName = userName;
+					if(submittedUser.password) newUser.pass = secretPassword;
 					if(submittedUser.gender) newUser.gender = submittedUser.gender;
 					if(submittedUser.dateOfBirth) newUser.dateOfBirth = moment(submittedUser.dateOfBirth).format('YYYY-MM-DD');
 					if(submittedUser.age) newUser.age = submittedUser.age;
