@@ -34,7 +34,7 @@ window.FitnessApp = (function($){
 
 		var	loginViewModel = kendo.observable({
 			userName: 'zeL',
-			password: 'fakepass',
+			password: 'temp',
 			login: function() {
 				var tempUser = {
 					userName: this.get('userName'),

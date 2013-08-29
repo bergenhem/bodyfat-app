@@ -1,14 +1,22 @@
 var UserModel = require('../models/users');
+var encryption = require('bcrypt');
 
 function authenticate(name, pass, fn) {
-	//this needs to change - no encryption is being done here
-	UserModel.findOne({ 'userName': name }, 'userName', function(err, users) {
+	UserModel.findOne({ 'userName': name }, function(err, users) {
 		if(err) {
 			return fn(err);
 		}
 		else {
 			if(users){
-				return fn(null, users);
+				encryption.compare(pass, users.password, function(err, res) {
+					if(res == true) {
+						return fn(null, users);
+					}
+					else {
+						return fn(new Error('Incorrect Password'));
+					}
+				});
+				
 			}
 			else {
 				return fn(new Error('No user found'));
@@ -28,7 +36,7 @@ exports.login = function(req, res) {
 			});
 		}
 		else {
-			req.session.error = 'Authentication Failed';
+			req.session.error = 'Authentication Failed:\n' + err;
 			res.writeHead(401, 'Unauthorized', {'content-type': 'application/json'});
 			res.end();
 		}
