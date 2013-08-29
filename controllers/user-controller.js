@@ -7,6 +7,7 @@ exports.addUser = function(req, res) {
 		var newUser = new UserModel();
 
 		var userName = submittedUser.userName;
+		var userPass = submittedUser.password;
 
 		UserModel.findOne({ 'userName': userName }, 'userName', function(err, users) {
 			if(err) {
@@ -16,7 +17,7 @@ exports.addUser = function(req, res) {
 			}
 			else {
 				if(!users) { //username is unique
-					if(submittedUser.userName) newUser.userName = submittedUser.userName;
+					if(submittedUser.userName) newUser.userName = userName;
 					if(submittedUser.gender) newUser.gender = submittedUser.gender;
 					if(submittedUser.dateOfBirth) newUser.dateOfBirth = moment(submittedUser.dateOfBirth).format('YYYY-MM-DD');
 					if(submittedUser.age) newUser.age = submittedUser.age;

@@ -5,6 +5,7 @@ mongoose.connect('mongodb://localhost/testfitness');
 
 var userSchema = mongoose.Schema({
 	userName: String,
+	password: String,
 	gender: { type: String, enum: ['male', 'female'], default: 'male' },
 	dateOfBirth: String,
 	age: { type: Number, default: 0 },
