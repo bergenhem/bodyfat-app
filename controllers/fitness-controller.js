@@ -73,23 +73,22 @@ exports.addBodyFat = function(req, res) {
 }
 
 exports.getAllBodyFat = function(req, res) {
+	var userName = req.session.user.userName;
 
-	var signedInUser = req.session.user;
-
-	UserModel.find({ }, function(err, userModel) {
+	UserModel.findOne({ 'userName': userName }, 'bodyFat', function(err, foundUser) {
 		if(err) {
 			console.log('Error in getting all items:\n' + err);
 			res.writeHead(404, 'Not Found', {'content-type': 'application/json'});
 			res.end();
 		}
 		else {
-			if(userModel.length == 0) {
+			if(foundUser.length == 0) {
 				res.writeHead(404, 'Not Found', {'content-type': 'application/json'});
 				res.end();
 			}
 			else {
 				res.writeHead(200, 'OK', {'content-type': 'application/json'});
-				res.write(JSON.stringify(userModel));
+				res.write(JSON.stringify(foundUser));
 				res.end();
 			}
 		}
@@ -97,9 +96,6 @@ exports.getAllBodyFat = function(req, res) {
 }
 
 exports.getSingleBodyFat = function(req, res) {
-	console.log('Single Body Fat Called');
-	console.log('Parameters: ' + req.params);
-	console.log('Date: '+ req.params.date);
 	//get our date
 	var passedDate = req.params.date;
 	if(passedDate) {

@@ -129,9 +129,6 @@ bodyFatSchema.methods.calcFFMI = function (passedHeight) {
 
 //initialize all of the calculations
 bodyFatSchema.methods.initCalculations = function(passedHeight, passedGender, passedAge) {
-
-	console.log('Init: \n' + passedHeight + ', ' + passedGender + ', ' + passedAge);
-
 	this.calcBMI(passedHeight);
 	this.calcBFValues(passedAge, passedGender);
 	this.calcFat();
