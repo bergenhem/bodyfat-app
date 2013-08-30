@@ -110,8 +110,6 @@ exports.loadSettings = function(req, res) {
 		}
 		else {
 			if(foundUser) {
-				res.writeHead(200, 'OK', {'content-type': 'application/json'});
-
 				var settingsToReturn = {
 					unit : foundUser.unit,
 					age : foundUser.age,
@@ -120,6 +118,7 @@ exports.loadSettings = function(req, res) {
 					calipers : foundUser.calipers
 				}
 
+				res.writeHead(200, 'OK', {'content-type': 'application/json'});
 				res.write(JSON.stringify(settingsToReturn));
 				res.end();
 			}
