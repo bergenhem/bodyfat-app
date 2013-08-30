@@ -33,7 +33,8 @@ app.get('/', function(req, res) {
 app.put('/login', authController.login);
 app.get('/logout', authController.logout);
 app.put('/adduser', userController.addUser);
-app.put('/saveSettings', authController.authed, userController.saveSettings)
+app.put('/settings', authController.authed, userController.saveSettings);
+app.get('/settings', authController.authed, userController.loadSettings);
 app.get('/bodyfat', authController.authed, fitnessController.getAllBodyFat);
 app.put('/bodyfat', authController.authed, fitnessController.addBodyFat);
 app.get('/bodyfat/:date', authController.authed, fitnessController.getSingleBodyFat);

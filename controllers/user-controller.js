@@ -91,7 +91,40 @@ exports.saveSettings = function(req, res) {
 				});
 			}
 			else {
-				console.log('Did not find a user when savint settings');
+				console.log('Did not find a user when saving settings');
+				res.writeHead(500, 'Internal Server Error', { 'content-type': 'application/json' });
+				res.end();
+			}
+		}
+	});
+}
+
+exports.loadSettings = function(req, res) {
+	var currentUser = req.session.user.userName;
+
+	UserModel.findOne({ 'userName': currentUser }, function(err, foundUser) {
+		if(err) {
+			console.log('Error in finding user when loading settings:\n' + err);
+			res.writeHead(500, 'Internal Server Error', { 'content-type': 'application/json' });
+			res.end();
+		}
+		else {
+			if(foundUser) {
+				res.writeHead(200, 'OK', {'content-type': 'application/json'});
+
+				var settingsToReturn = {
+					unit : foundUser.unit,
+					age : foundUser.age,
+					height : foundUser.height,
+					gender : foundUser.gender,
+					calipers : foundUser.calipers
+				}
+
+				res.write(JSON.stringify(settingsToReturn));
+				res.end();
+			}
+			else {
+				console.log('Did not find a user when loading settings');
 				res.writeHead(500, 'Internal Server Error', { 'content-type': 'application/json' });
 				res.end();
 			}
