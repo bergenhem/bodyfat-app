@@ -48,7 +48,7 @@ app.get('/settings', authController.authed, userController.loadSettings);
 app.get('/bodyfat', authController.authed, fitnessController.getAllBodyFat);
 app.put('/bodyfat', authController.authed, fitnessController.addBodyFat);
 app.get('/bodyfat/:date', authController.authed, fitnessController.getSingleBodyFat);
-app.put('/bodyfat/:date', authController.authed, fitnessController.updateBodyFat);
+app.put('/bodyfat/:date', authController.authed, fitnessController.updateSingleBodyFat);
 
 app.listen(3000);
 console.log('Listening on port 3000...');
