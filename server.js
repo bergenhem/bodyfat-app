@@ -1,7 +1,11 @@
 var express 			= require('express'),
 	fitnessController	= require('./controllers/fitness-controller'),
 	authController 		= require('./controllers/auth-controller'),
-	userController		= require('./controllers/user-controller');
+	userController		= require('./controllers/user-controller'),
+	mongoose 			= require('mongoose'),
+	MongoStore			= require('connect-mongodb');
+
+mongoose.connect('mongodb://localhost/testfitness');
 
 var app = express();
 
@@ -13,7 +17,7 @@ app.configure(function () {
 		cookie: {
 			maxAge: 1000 * 60 * 60 * 24 * 3 //session lasts for 3 days
 		},
-		secret: 'sup3rbl4dd3rw4rr10r' 
+		secret: 'sup3rbl4dd3rw4rr10r'
 	}));
 
 	//define a place for our CSS and JS files

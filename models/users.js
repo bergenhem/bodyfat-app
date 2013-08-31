@@ -1,7 +1,6 @@
 var mongoose = require('mongoose');
 var BodyFat = mongoose.model('BodyFat').Schema;
 var moment = require('moment');
-mongoose.connect('mongodb://localhost/testfitness');
 
 var userSchema = mongoose.Schema({
 	userName: String,
