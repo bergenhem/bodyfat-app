@@ -2,7 +2,8 @@ var express 			= require('express'),
 	fitnessController	= require('./controllers/fitness-controller'),
 	authController 		= require('./controllers/auth-controller'),
 	userController		= require('./controllers/user-controller'),
-	mongoose 			= require('mongoose');
+	mongoose 			= require('mongoose'),
+	mongoStore 			= require('connect-mongo')(express);
 
 mongoose.connect('mongodb://localhost/testfitness');
 
@@ -17,7 +18,7 @@ app.configure(function () {
 			maxAge: 1000 * 60 * 60 * 24 * 3 //session lasts for 3 days
 		},
 		secret: 'sup3rbl4dd3rw4rr10r',
-		store: new MongoStore({ db: mongoose.connection.db })
+		store: new mongoStore({ mongoose_connection: mongoose.connections[0] })
 	}));
 
 	//define a place for our CSS and JS files
@@ -36,7 +37,6 @@ app.configure(function () {
 });
 
 app.get('/', function(req, res) {
-	console.log('hmmm');
 	res.render('index');
 });
 
