@@ -10,14 +10,14 @@ exports.addBodyFat = function(req, res) {
 	if(itemToInsert.date) {
 		var formattedDate = moment(itemToInsert.date).format('YYYY-MM-DD');
 
-		UserModel.findOne({ 'userName': userName, 'bodyFat': { 'date': formattedDate } }, function(err, bodyFat) {
+		UserModel.findOne({ 'userName' : userName }, { 'bodyFat.date' : formattedDate }, function(err, userCheck) {
 			if(err) {
 				console.log('Error in checking for previous body fat entries: \n' + err);
 				res.writeHead(500, 'Internal Server Error', {'content-type': 'application/json'});
 				res.end();
 			}
 			else {
-				if(!bodyFat){
+				if(!userCheck || userCheck.bodyFat.length == 0){
 					UserModel.findOne({ 'userName': userName }, function(err, foundUser) {
 						if(err) {
 							console.log('Error in finding user when adding body fat:\n' + err);
