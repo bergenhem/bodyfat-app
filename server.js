@@ -9,7 +9,12 @@ var app = express();
 app.configure(function () {
 	app.use(express.bodyParser());
 	app.use(express.cookieParser());
-	app.use(express.session({ secret: 'SuperSecret' }));
+	app.use(express.session({ 
+		cookie: {
+			maxAge: 1000 * 60 * 60 * 24 * 3 //session lasts for 3 days
+		},
+		secret: 'sup3rbl4dd3rw4rr10r' 
+	}));
 
 	//define a place for our CSS and JS files
 	app.use(express.static(__dirname + '/public'));
