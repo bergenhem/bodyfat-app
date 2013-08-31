@@ -99,23 +99,22 @@ exports.getSingleBodyFat = function(req, res) {
 	//get our date
 	var passedDate = req.params.date;
 	if(passedDate) {
-
 		//format it just in case
 		var formatPassedDate = moment(passedDate).format('YYYY-MM-DD');
-		BodyFat.findOne({ 'date': formatPassedDate }, function(err, bodyFat) {
+		UserModel.findOne({ 'userName' : userName }, { 'bodyFat.date' : formattedDate }, function(err, userCheck) {
 			if(err) {
 				console.log('Error in getting single item:\n' + err);
 				res.writeHead(404, 'Not Found', {'content-type': 'application/json'});
 				res.end();
 			}
 			else {
-				if(!bodyFat) {
+				if(!userCheck || userCheck.bodyFat.length == 0) {
 					res.writeHead(404, 'Not Found', {'content-type': 'application/json'});
 					res.end();
 				}
 				else {
 					res.writeHead(200, 'OK', {'content-type': 'application/json'});
-					res.write(JSON.stringify(bodyFat));
+					res.write(JSON.stringify(userCheck));
 					res.end();
 				}
 			}
