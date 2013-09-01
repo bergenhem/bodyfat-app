@@ -5,10 +5,10 @@ window.Settings = (function($){
 	//temporary before RequireJS
 	_settingsModule.init = function() {
 		_settingsWindowModel = kendo.observable({
-			unit: 'metric',
+			unit: '',
 			age: 0,
 			height: 0,
-			gender: 'male',
+			gender: '',
 			calipers: true,
 			heightDisplay: '(cm)',
 			unitSelect: function() {
@@ -33,7 +33,7 @@ window.Settings = (function($){
 				console.log(serializedDataToPost);
 
 				$.ajax({
-					url: '/saveSettings',
+					url: '/settings',
 					type: 'put',
 					data: serializedDataToPost,
 					contentType: "application/json"
@@ -41,6 +41,19 @@ window.Settings = (function($){
 					console.log('Settings saved!');
 				}).fail(function() {
 					console.log('Settings failed to save.');
+				});
+			},
+			loadSettings: function() {
+				$.ajax({
+					url: '/settings',
+					type: 'get',
+					contentType: 'application/json'
+				}).done(function(userData) {
+					this.set('unit', userData.unit);
+					this.set('age', userData.age);
+					this.set('height', userData.height);
+					this.set('gender', userData.gender);
+					this.set('calipers', userData.calipers);
 				});
 			}
 		});
