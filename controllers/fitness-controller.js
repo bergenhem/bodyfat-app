@@ -133,40 +133,49 @@ exports.updateSingleBodyFat = function(req, res) {
 	if(itemToInsert.date) {
 		var formattedDate = moment(itemToInsert.date).format('YYYY-MM-DD');
 
-		UserModel.findOne({ 'userName' : userName }, { 'bodyFat.date' : formattedDate }, function(err, foundBodyFat) {
+		UserModel.findOne({ 'userName' : userName }, { 'bodyFat' : { $elemMatch : { 'date' : formatPassedDate } } }, function(err, returnedBodyFat) {
 			if(err) {
 				console.log('Error in checking for previous body fat entries: \n' + err);
 				res.writeHead(500, 'Internal Server Error', {'content-type': 'application/json'});
 				res.end();
 			}
 			else {
-				if(!foundBodyFat || foundBodyFat.bodyFat.length == 0) {
+				if(!returnedBodyFat || returnedBodyFat.bodyFat == undefined) {
 						res.writeHead(404, 'Not Found', {'content-type': 'application/json'});
 						res.end();
 				}
 				else {
-					foundBodyFat.bodyFat[0] = formattedDate;
-					if(itemToInsert.gender) foundBodyFat.bodyFat[0].gender = itemToInsert.gender;
-					if(itemToInsert.age) foundBodyFat.bodyFat[0].age = itemToInsert.age;
-					if(itemToInsert.unit) foundBodyFat.bodyFat[0].unit = itemToInsert.unit;
-					if(itemToInsert.weight) foundBodyFat.bodyFat[0].weight = itemToInsert.weight;
-					if(itemToInsert.height) foundBodyFat.bodyFat[0].height = itemToInsert.height;
-					if(itemToInsert.chest) foundBodyFat.bodyFat[0].chest = itemToInsert.chest;
-					if(itemToInsert.thigh) foundBodyFat.bodyFat[0].thigh = itemToInsert.thigh;
-					if(itemToInsert.abs) foundBodyFat.bodyFat[0].abs = itemToInsert.abs;
-
-					foundBodyFat.bodyFat[0].initCalculations(foundUser.height, foundUser.gender, foundUser.age);
-
-					foundUser.save(function(err, user) {
+					UserModel.findOne({ 'userName': userName }, function(err, foundUser) {
 						if(err) {
-							console.log('Error when saving bodyfat:\n' + err);
-							res.writeHead(500, 'Internal Server Error', {'content-type': 'application/json'});
+							console.log('Error in finding user\n' + err);
+							res.writeHead(404, 'Not Found', {'content-type': 'application/json'});
 							res.end();
 						}
 						else {
-							res.writeHead(201, 'Created', {'content-type': 'application/json'});
-							res.write(JSON.stringify(foundUser));
-							res.end();
+							returnedBodyFat.bodyFat[0] = formattedDate;
+							if(itemToInsert.gender) returnedBodyFat.bodyFat[0].gender = itemToInsert.gender;
+							if(itemToInsert.age) returnedBodyFat.bodyFat[0].age = itemToInsert.age;
+							if(itemToInsert.unit) returnedBodyFat.bodyFat[0].unit = itemToInsert.unit;
+							if(itemToInsert.weight) returnedBodyFat.bodyFat[0].weight = itemToInsert.weight;
+							if(itemToInsert.height) returnedBodyFat.bodyFat[0].height = itemToInsert.height;
+							if(itemToInsert.chest) returnedBodyFat.bodyFat[0].chest = itemToInsert.chest;
+							if(itemToInsert.thigh) returnedBodyFat.bodyFat[0].thigh = itemToInsert.thigh;
+							if(itemToInsert.abs) returnedBodyFat.bodyFat[0].abs = itemToInsert.abs;
+
+							returnedBodyFat.bodyFat[0].initCalculations(foundUser.height, foundUser.gender, foundUser.age);
+
+							foundUser.save(function(err, user) {
+								if(err) {
+									console.log('Error when saving bodyfat:\n' + err);
+									res.writeHead(500, 'Internal Server Error', {'content-type': 'application/json'});
+									res.end();
+								}
+								else {
+									res.writeHead(201, 'Created', {'content-type': 'application/json'});
+									res.write(JSON.stringify(foundUser));
+									res.end();
+								}
+							});
 						}
 					});
 				}
