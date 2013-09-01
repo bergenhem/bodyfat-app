@@ -1,12 +1,14 @@
 /*
-* Kendo UI Complete v2012.2.913 (http://kendoui.com)
-* Copyright 2012 Telerik AD. All rights reserved.
+* Kendo UI Complete v2013.2.716 (http://kendoui.com)
+* Copyright 2013 Telerik AD. All rights reserved.
 *
 * Kendo UI Complete commercial licenses may be obtained at
 * https://www.kendoui.com/purchase/license-agreement/kendo-ui-complete-commercial.aspx
 * If you do not own a commercial license, this file shall be governed by the trial license terms.
 */
-;(function($, undefined) {
+
+
+(function($, evil, undefined) {
     var kendo = window.kendo = window.kendo || {},
         extend = $.extend,
         each = $.each,
@@ -21,6 +23,7 @@
         percentRegExp = /%/,
         formatRegExp = /\{(\d+)(:[^\}]+)?\}/g,
         boxShadowRegExp = /(\d+?)px\s*(\d+?)px\s*(\d+?)px\s*(\d+?)?/i,
+        numberRegExp = /^(\+|-?)\d+(\.?)\d*$/,
         FUNCTION = "function",
         STRING = "string",
         NUMBER = "number",
@@ -32,6 +35,8 @@
         setterCache = {},
         slice = [].slice,
         globalize = window.Globalize;
+
+    kendo.version = "2013.2.716";
 
     function Class() {}
 
@@ -62,6 +67,14 @@
         return subclass;
     };
 
+    var preventDefault = function() {
+        this._defaultPrevented = true;
+    };
+
+    var isDefaultPrevented = function() {
+        return this._defaultPrevented === true;
+    };
+
     var Observable = Class.extend({
         init: function() {
             this._events = {};
@@ -76,6 +89,13 @@
                 handler,
                 handlersIsFunction = typeof handlers === FUNCTION,
                 events;
+
+            if (handlers === undefined) {
+                for (idx in eventName) {
+                    that.bind(idx, eventName[idx]);
+                }
+                return that;
+            }
 
             for (idx = 0, length = eventNames.length; idx < length; idx++) {
                 eventName = eventNames[idx];
@@ -129,44 +149,41 @@
             var that = this,
                 events = that._events[eventName],
                 idx,
-                length,
-                isDefaultPrevented = false;
+                length;
 
             if (events) {
                 e = e || {};
 
                 e.sender = that;
 
-                e.preventDefault = function () {
-                    isDefaultPrevented = true;
-                };
+                e._defaultPrevented = false;
 
-                e.isDefaultPrevented = function() {
-                    return isDefaultPrevented;
-                };
+                e.preventDefault = preventDefault;
+
+                e.isDefaultPrevented = isDefaultPrevented;
 
                 events = events.slice();
 
-                //Do not cache the length of the events array as removing events attached through one will fail
                 for (idx = 0, length = events.length; idx < length; idx++) {
                     events[idx].call(that, e);
                 }
+
+                return e._defaultPrevented === true;
             }
 
-            return isDefaultPrevented;
+            return false;
         },
 
         unbind: function(eventName, handler) {
             var that = this,
                 events = that._events[eventName],
-                idx,
-                length;
+                idx;
 
             if (eventName === undefined) {
                 that._events = {};
             } else if (events) {
                 if (handler) {
-                    for (idx = 0, length = events.length; idx < length; idx++) {
+                    for (idx = events.length - 1; idx >= 0; idx--) {
                         if (events[idx] === handler) {
                             events.splice(idx, 1);
                         }
@@ -208,7 +225,8 @@
         escapedCurlyRegExp = /\\\}/g,
         curlyRegExp = /__CURLY__/g,
         escapedSharpRegExp = /\\#/g,
-        sharpRegExp = /__SHARP__/g;
+        sharpRegExp = /__SHARP__/g,
+        zeros = ["", "0", "00", "000", "0000"];
 
     Template = {
         paramName: "data", // name of the parameter of the generated template
@@ -230,6 +248,7 @@
                 argumentName = paramName.match(argumentNameRegExp)[0],
                 useWithBlock = settings.useWithBlock,
                 functionBody = "var o,e=kendo.htmlEncode;",
+                fn,
                 parts,
                 idx;
 
@@ -265,15 +284,25 @@
             functionBody = functionBody.replace(sharpRegExp, "#");
 
             try {
-                return new Function(argumentName, functionBody);
+                fn = new Function(argumentName, functionBody);
+                fn._slotCount = Math.floor(parts.length / 2);
+                return fn;
             } catch(e) {
                 throw new Error(kendo.format("Invalid template:'{0}' Generated code:'{1}'", template, functionBody));
             }
         }
     };
 
-function pad(number) {
-    return number < 10 ? "0" + number : number;
+function pad(number, digits, end) {
+    number = number + "";
+    digits = digits || 2;
+    end = digits - number.length;
+
+    if (end) {
+        return zeros[digits].substring(0, end) + number;
+    }
+
+    return number;
 }
 
     //JSON stringify
@@ -295,20 +324,19 @@ function pad(number) {
 
     if (typeof Date.prototype.toJSON !== FUNCTION) {
 
-
-        Date.prototype.toJSON = function (key) {
+        Date.prototype.toJSON = function () {
             var that = this;
 
             return isFinite(that.valueOf()) ?
-                that.getUTCFullYear()     + "-" +
-                pad(that.getUTCMonth() + 1) + "-" +
-                pad(that.getUTCDate())      + "T" +
-                pad(that.getUTCHours())     + ":" +
-                pad(that.getUTCMinutes())   + ":" +
-                pad(that.getUTCSeconds())   + "Z" : null;
+                pad(that.getUTCFullYear(), 4) + "-" +
+                pad(that.getUTCMonth() + 1)   + "-" +
+                pad(that.getUTCDate())        + "T" +
+                pad(that.getUTCHours())       + ":" +
+                pad(that.getUTCMinutes())     + ":" +
+                pad(that.getUTCSeconds())     + "Z" : null;
         };
 
-        String.prototype.toJSON = Number.prototype.toJSON = Boolean.prototype.toJSON = function (key) {
+        String.prototype.toJSON = Number.prototype.toJSON = Boolean.prototype.toJSON = function () {
             return this.valueOf();
         };
     }
@@ -423,7 +451,7 @@ function pad(number) {
 (function() {
     var dateFormatRegExp = /dddd|ddd|dd|d|MMMM|MMM|MM|M|yyyy|yy|HH|H|hh|h|mm|m|fff|ff|f|tt|ss|s|"[^"]*"|'[^']*'/g,
         standardFormatRegExp =  /^(n|c|p|e)(\d*)$/i,
-        literalRegExp = /["'].*?["']/g,
+        literalRegExp = /(\\.)|(['][^']*[']?)|(["][^"]*["]?)/g,
         commaRegExp = /\,/g,
         EMPTY = "",
         POINT = ".",
@@ -431,7 +459,8 @@ function pad(number) {
         SHARP = "#",
         ZERO = "0",
         PLACEHOLDER = "??",
-        EN = "en-US";
+        EN = "en-US",
+        objectToString = {}.toString;
 
     //cultures
     kendo.cultures = {"en-US" : {
@@ -489,7 +518,8 @@ function pad(number) {
                 },
                 "/": "/",
                 ":": ":",
-                firstDay: 0
+                firstDay: 0,
+                twoDigitYearMax: 2029
             }
         }
     }};
@@ -520,6 +550,12 @@ function pad(number) {
         return culture || kendo.cultures.current;
     }
 
+    function expandNumberFormat(numberFormat) {
+        numberFormat.groupSizes = numberFormat.groupSize;
+        numberFormat.percent.groupSizes = numberFormat.percent.groupSize;
+        numberFormat.currency.groupSizes = numberFormat.currency.groupSize;
+    }
+
     kendo.culture = function(cultureName) {
         var cultures = kendo.cultures, culture;
 
@@ -527,6 +563,11 @@ function pad(number) {
             culture = findCulture(cultureName) || cultures[EN];
             culture.calendar = culture.calendars.standard;
             cultures.current = culture;
+
+            if (globalize) {
+                expandNumberFormat(culture.numberFormat);
+            }
+
         } else {
             return cultures.current;
         }
@@ -569,7 +610,7 @@ function pad(number) {
             } else if (match === "yy") {
                 result = pad(date.getFullYear() % 100);
             } else if (match === "yyyy") {
-                result = date.getFullYear();
+                result = pad(date.getFullYear(), 4);
             } else if (match === "h" ) {
                 result = date.getHours() % 12 || 12;
             } else if (match === "hh") {
@@ -630,7 +671,9 @@ function pad(number) {
             decimalIndex,
             sharpIndex,
             zeroIndex,
+            hasZero, hasSharp,
             percentIndex,
+            currencyIndex,
             startZeroIndex,
             start = -1,
             end;
@@ -685,7 +728,7 @@ function pad(number) {
                 number *= 100;
             }
 
-            number = number.toFixed(precision);
+            number = round(number, precision);
             number = number.split(POINT);
 
             integer = number[0];
@@ -744,6 +787,24 @@ function pad(number) {
             number = -number;
         }
 
+        /*if (format.indexOf("'") > -1 || format.indexOf("\"") > -1) {
+            format = format.replace(literalRegExp, function(match) {
+                literals.push(match.substring(1, match.length - 1));
+                return PLACEHOLDER;
+            });
+        }*/
+
+        if (format.indexOf("'") > -1 || format.indexOf("\"") > -1 || format.indexOf("\\") > -1) {
+            format = format.replace(literalRegExp, function (match) {
+                var quoteChar = match.charAt(0).replace("\\", ""),
+                    literal = match.slice(1).replace(quoteChar, "");
+
+                literals.push(literal);
+
+                return PLACEHOLDER;
+            });
+        }
+
         format = format.split(";");
         if (negative && format[1]) {
             //get negative format
@@ -760,25 +821,20 @@ function pad(number) {
             format = format[0];
         }
 
-        if (format.indexOf("'") > -1 || format.indexOf("\"") > -1) {
-            format = format.replace(literalRegExp, function(match) {
-                literals.push(match);
-                return PLACEHOLDER;
-            });
-        }
-
         percentIndex = format.indexOf("%");
+        currencyIndex = format.indexOf("$");
 
         isPercent = percentIndex != -1;
-        isCurrency = format.indexOf("$") != -1;
+        isCurrency = currencyIndex != -1;
 
         //multiply number if the format has percent
         if (isPercent) {
-            if (format[percentIndex - 1] !== "\\") {
-                number *= 100;
-            } else {
-                format = format.split("\\").join("");
-            }
+            number *= 100;
+        }
+
+        if (isCurrency && format[currencyIndex - 1] === "\\") {
+            format = format.split("\\").join("");
+            isCurrency = false;
         }
 
         if (isCurrency || isPercent) {
@@ -800,22 +856,39 @@ function pad(number) {
         length = format.length;
 
         if (decimalIndex != -1) {
-            zeroIndex = format.lastIndexOf(ZERO);
-            sharpIndex = format.lastIndexOf(SHARP);
-            fraction = number.toString().split(POINT)[1] || EMPTY;
+            fraction = number.toString().split("e");
+            if (fraction[1]) {
+                fraction = round(number, Math.abs(fraction[1]));
+            } else {
+                fraction = fraction[0];
+            }
+            fraction = fraction.split(POINT)[1] || EMPTY;
+            zeroIndex = format.lastIndexOf(ZERO) - decimalIndex;
+            sharpIndex = format.lastIndexOf(SHARP) - decimalIndex;
+            hasZero = zeroIndex > -1;
+            hasSharp = sharpIndex > -1;
+            idx = fraction.length;
 
-            if (sharpIndex > zeroIndex && fraction.length > (sharpIndex - zeroIndex)) {
-                idx = sharpIndex;
-            } else if (zeroIndex != -1 && zeroIndex >= decimalIndex) {
+            if (!hasZero && !hasSharp) {
+                format = format.substring(0, decimalIndex) + format.substring(decimalIndex + 1);
+                length = format.length;
+                decimalIndex = -1;
+                idx = 0;
+            } if (hasZero && zeroIndex > sharpIndex) {
                 idx = zeroIndex;
+            } else if (sharpIndex > zeroIndex) {
+                if (hasSharp && idx > sharpIndex) {
+                    idx = sharpIndex;
+                } else if (hasZero && idx < zeroIndex) {
+                    idx = zeroIndex;
+                }
             }
 
-            if (idx) {
-                number = number.toFixed(idx - decimalIndex);
+            if (idx > -1) {
+                number = round(number, idx);
             }
-
         } else {
-            number = number.toFixed(0);
+            number = round(number);
         }
 
         sharpIndex = format.indexOf(SHARP);
@@ -924,8 +997,9 @@ function pad(number) {
                 number = value;
             }
 
-            if (literals[0]) {
-                length = literals.length;
+            length = literals.length;
+
+            if (length) {
                 for (idx = 0; idx < length; idx++) {
                     number = number.replace(PLACEHOLDER, literals[idx]);
                 }
@@ -935,9 +1009,14 @@ function pad(number) {
         return number;
     }
 
+    var round = function(value, precision) {
+        var power = Math.pow(10, precision || 0);
+        return (Math.round(value * power) / power).toFixed(precision);
+    };
+
     var toString = function(value, fmt, culture) {
         if (fmt) {
-            if (value instanceof Date) {
+            if (objectToString.call(value) === "[object Date]") {
                 return formatDate(value, fmt, culture);
             } else if (typeof value === NUMBER) {
                 return formatNumber(value, fmt, culture);
@@ -969,8 +1048,17 @@ function pad(number) {
         return format;
     };
 
+    kendo._activeElement = function() {
+        try {
+            return document.activeElement;
+        } catch(e) {
+            return document.documentElement.activeElement;
+        }
+    };
+
+    kendo._round = round;
     kendo.toString = toString;
-    })();
+})();
 
 
 (function() {
@@ -983,7 +1071,8 @@ function pad(number) {
         numberRegExp = {
             2: /^\d{1,2}/,
             4: /^\d{4}/
-        };
+        },
+        objectToString = {}.toString;
 
     function outOfRange(value, start, end) {
         return !(value >= start && value <= end);
@@ -995,6 +1084,35 @@ function pad(number) {
 
     function mapDesignators(designators) {
         return $.map(designators, designatorPredicate);
+    }
+
+    //if date's day is different than the typed one - adjust
+    function adjustDST(date, hours) {
+        if (!hours && date.getHours() === 23) {
+            date.setHours(date.getHours() + 2);
+        }
+    }
+
+    function lowerArray(data) {
+        var idx = 0,
+            length = data.length,
+            array = [];
+
+        for (; idx < length; idx++) {
+            array[idx] = (data[idx] + "").toLowerCase();
+        }
+
+        return array;
+    }
+
+    function lowerLocalInfo(localInfo) {
+        var newLocalInfo = {}, property;
+
+        for (property in localInfo) {
+            newLocalInfo[property] = lowerArray(localInfo[property]);
+        }
+
+        return newLocalInfo;
     }
 
     function parseExact(value, format, culture) {
@@ -1024,16 +1142,22 @@ function pad(number) {
                 }
                 return null;
             },
-            getIndexByName = function (names) {
+            getIndexByName = function (names, lower) {
                 var i = 0,
                     length = names.length,
-                    name, nameLength;
+                    name, nameLength,
+                    subValue;
 
                 for (; i < length; i++) {
                     name = names[i];
                     nameLength = name.length;
+                    subValue = value.substr(valueIdx, nameLength);
 
-                    if (value.substr(valueIdx, nameLength) == name) {
+                    if (lower) {
+                        subValue = subValue.toLowerCase();
+                    }
+
+                    if (subValue == name) {
                         valueIdx += nameLength;
                         return i + 1;
                     }
@@ -1060,7 +1184,7 @@ function pad(number) {
             valueIdx = 0,
             literal = false,
             date = new Date(),
-            shortYearCutOff = 30,
+            twoDigitYearMax = calendar.twoDigitYearMax || 2029,
             defaultYear = date.getFullYear(),
             ch, count, length, pattern,
             pmHour, UTC, ISO8601, matches,
@@ -1092,14 +1216,21 @@ function pad(number) {
             } else {
                 if (ch === "d") {
                     count = lookAhead("d");
-                    day = count < 3 ? getNumber(2) : getIndexByName(calendar.days[count == 3 ? "namesAbbr" : "names"]);
+                    if (!calendar._lowerDays) {
+                        calendar._lowerDays = lowerLocalInfo(calendar.days);
+                    }
+
+                    day = count < 3 ? getNumber(2) : getIndexByName(calendar._lowerDays[count == 3 ? "namesAbbr" : "names"], true);
 
                     if (day === null || outOfRange(day, 1, 31)) {
                         return null;
                     }
                 } else if (ch === "M") {
                     count = lookAhead("M");
-                    month = count < 3 ? getNumber(2) : getIndexByName(calendar.months[count == 3 ? 'namesAbbr' : 'names']);
+                    if (!calendar._lowerMonths) {
+                        calendar._lowerMonths = lowerLocalInfo(calendar.months);
+                    }
+                    month = count < 3 ? getNumber(2) : getIndexByName(calendar._lowerMonths[count == 3 ? 'namesAbbr' : 'names'], true);
 
                     if (month === null || outOfRange(month, 1, 12)) {
                         return null;
@@ -1108,11 +1239,20 @@ function pad(number) {
                 } else if (ch === "y") {
                     count = lookAhead("y");
                     year = getNumber(count);
+
                     if (year === null) {
-                        year = defaultYear;
+                        return null;
                     }
-                    if (year < shortYearCutOff) {
+
+                    if (count == 2) {
+                        if (typeof twoDigitYearMax === "string") {
+                            twoDigitYearMax = defaultYear + parseInt(twoDigitYearMax, 10);
+                        }
+
                         year = (defaultYear - defaultYear % 100) + year;
+                        if (year > twoDigitYearMax) {
+                            year -= 100;
+                        }
                     }
                 } else if (ch === "h" ) {
                     lookAhead("h");
@@ -1144,9 +1284,15 @@ function pad(number) {
                 } else if (ch === "f") {
                     count = lookAhead("f");
                     milliseconds = getNumber(count);
+
+                    if (milliseconds !== null && count > 3) {
+                        milliseconds = parseInt(milliseconds.toString().substring(0, 3), 10);
+                    }
+
                     if (milliseconds === null || outOfRange(milliseconds, 0, 999)) {
                         return null;
                     }
+
                 } else if (ch === "t") {
                     count = lookAhead("t");
                     amDesignators = calendar.AM;
@@ -1208,6 +1354,10 @@ function pad(number) {
             }
         }
 
+        if (year === null) {
+            year = defaultYear;
+        }
+
         if (pmHour && hours < 12) {
             hours += 12;
         }
@@ -1225,14 +1375,25 @@ function pad(number) {
                 minutes += -minutesOffset;
             }
 
-            return new Date(Date.UTC(year, month, day, hours, minutes, seconds, milliseconds));
+            value = new Date(Date.UTC(year, month, day, hours, minutes, seconds, milliseconds));
+        } else {
+            value = new Date(year, month, day, hours, minutes, seconds, milliseconds);
+            adjustDST(value, hours);
         }
 
-        return new Date(year, month, day, hours, minutes, seconds, milliseconds);
+        if (year < 100) {
+            value.setFullYear(year);
+        }
+
+        if (value.getDate() !== day && UTC === undefined) {
+            return null;
+        }
+
+        return value;
     }
 
     kendo.parseDate = function(value, formats, culture) {
-        if (value instanceof Date) {
+        if (objectToString.call(value) === "[object Date]") {
             return value;
         }
 
@@ -1257,14 +1418,25 @@ function pad(number) {
             for (; idx < length; idx++) {
                 formats[idx] = patterns[formatsSequence[idx]];
             }
-            formats[idx] = "ddd MMM dd yyyy HH:mm:ss";
-            formats[++idx] = "yyyy-MM-ddTHH:mm:ss.fffzzz";
-            formats[++idx] = "yyyy-MM-ddTHH:mm:sszzz";
-            formats[++idx] = "yyyy-MM-ddTHH:mmzzz";
-            formats[++idx] = "yyyy-MM-ddTHH:mmzz";
-            formats[++idx] = "yyyy-MM-dd";
 
             idx = 0;
+
+            formats.push(
+                "yyyy/MM/dd HH:mm:ss",
+                "yyyy/MM/dd HH:mm",
+                "yyyy/MM/dd",
+                "ddd MMM dd yyyy HH:mm:ss",
+                "yyyy-MM-ddTHH:mm:ss.fffffffzzz",
+                "yyyy-MM-ddTHH:mm:ss.fffzzz",
+                "yyyy-MM-ddTHH:mm:sszzz",
+                "yyyy-MM-ddTHH:mmzzz",
+                "yyyy-MM-ddTHH:mmzz",
+                "yyyy-MM-ddTHH:mm:ss",
+                "yyyy-MM-ddTHH:mm",
+                "yyyy-MM-dd HH:mm:ss",
+                "yyyy-MM-dd HH:mm",
+                "yyyy-MM-dd"
+            );
         }
 
         formats = isArray(formats) ? formats: [formats];
@@ -1305,7 +1477,7 @@ function pad(number) {
             currency = number.currency,
             symbol = currency.symbol,
             percentSymbol = percent.symbol,
-            negative = value.indexOf("-") > -1,
+            negative = value.indexOf("-"),
             parts, isPercent;
 
         //handle exponential number
@@ -1315,6 +1487,12 @@ function pad(number) {
                 value = null;
             }
             return value;
+        }
+
+        if (negative > 0) {
+            return null;
+        } else {
+            negative = negative > -1;
         }
 
         if (value.indexOf(symbol) > -1 || (format && format.toLowerCase().indexOf("c") > -1)) {
@@ -1352,13 +1530,34 @@ function pad(number) {
     };
 
     if (globalize) {
-        kendo.parseDate = proxy(globalize.parseDate, globalize);
-        kendo.parseFloat = proxy(globalize.parseFloat, globalize);
+        kendo.parseDate = function (value, format, culture) {
+            if (objectToString.call(value) === "[object Date]") {
+                return value;
+            }
+
+            return globalize.parseDate(value, format, culture);
+        };
+
+        kendo.parseFloat = function (value, culture) {
+            if (typeof value === NUMBER) {
+                return value;
+            }
+
+            if (value === undefined || value === null) {
+               return null;
+            }
+
+            value = globalize.parseFloat(value, culture);
+
+            return isNaN(value) ? null : value;
+        };
     }
 })();
 
     function wrap(element) {
-        var browser = support.browser, percentage;
+        var browser = support.browser,
+            percentage,
+            isRtl = element.css("direction") == "rtl";
 
         if (!element.parent().hasClass("k-animation-container")) {
             var shadow = element.css(kendo.support.transitions.css + "box-shadow") || element.css("box-shadow"),
@@ -1387,7 +1586,7 @@ function pad(number) {
                          .css({
                              width: width,
                              height: height,
-                             marginLeft: -left,
+                             marginLeft: left * (isRtl ? 1 : -1),
                              paddingLeft: left,
                              paddingRight: right,
                              paddingBottom: bottom
@@ -1421,9 +1620,8 @@ function pad(number) {
         }
 
         if (browser.msie && math.floor(browser.version) <= 7) {
-            element.css({
-                zoom: 1
-            });
+            element.css({ zoom: 1 });
+            element.children(".k-menu").width(element.width());
         }
 
         return element.parent();
@@ -1442,6 +1640,7 @@ function pad(number) {
 
     function deepExtendOne(destination, source) {
         var ObservableArray = kendo.data.ObservableArray,
+            DataSource = kendo.data.DataSource,
             property,
             propValue,
             propType,
@@ -1450,7 +1649,8 @@ function pad(number) {
         for (property in source) {
             propValue = source[property];
             propType = typeof propValue;
-            if (propType === OBJECT && propValue !== null && propValue.constructor !== Array && propValue.constructor !== ObservableArray) {
+            if (propType === OBJECT && propValue !== null && propValue.constructor !== Array &&
+                propValue.constructor !== ObservableArray && propValue.constructor !== DataSource) {
                 if (propValue instanceof Date) {
                     destination[property] = new Date(propValue.getTime());
                 } else {
@@ -1522,6 +1722,10 @@ function pad(number) {
             return result;
         };
 
+        support.isRtl = function(element) {
+            return $(element).closest(".k-rtl").length > 0;
+        };
+
         var table = document.createElement("table");
 
         // Internet Explorer does not support setting the innerHTML of TBODY and TABLE elements
@@ -1541,7 +1745,6 @@ function pad(number) {
             elementProto = "HTMLElement" in window ? HTMLElement.prototype : [];
 
         support.hasHW3D = ("WebKitCSSMatrix" in window && "m11" in new window.WebKitCSSMatrix()) || "MozPerspective" in document.documentElement.style || "msPerspective" in document.documentElement.style;
-        support.hasNativeScrolling = typeof document.documentElement.style.webkitOverflowScrolling == "string";
 
         each([ "Moz", "webkit", "O", "ms" ], function () {
             var prefix = this.toString(),
@@ -1551,9 +1754,9 @@ function pad(number) {
                 var lowPrefix = prefix.toLowerCase();
 
                 transforms = {
-                    css: "-" + lowPrefix + "-",
+                    css: (lowPrefix != "ms") ? "-" + lowPrefix + "-" : "",
                     prefix: prefix,
-                    event: (lowPrefix === "o" || lowPrefix === "webkit") ? lowPrefix : lowPrefix === "ms" ? "MS" : ""
+                    event: (lowPrefix === "o" || lowPrefix === "webkit") ? lowPrefix : ""
                 };
 
                 if (hasTransitions) {
@@ -1570,8 +1773,27 @@ function pad(number) {
 
         support.devicePixelRatio = window.devicePixelRatio === undefined ? 1 : window.devicePixelRatio;
 
+        try {
+            support.screenWidth = window.outerWidth || window.screen ? window.screen.availWidth : window.innerWidth;
+            support.screenHeight = window.outerHeight || window.screen ? window.screen.availHeight : window.innerHeight;
+
+            support.zoomLevel = function() {
+                return support.touch ? (document.documentElement.clientWidth / window.innerWidth) :
+                       support.pointers ? ((top || window).outerWidth / (top || window).innerWidth) : 1;
+            };
+        } catch(e) {
+            //window.outerWidth throws error when in IE showModalDialog.
+            support.screenWidth = window.screen.availWidth;
+            support.screenHeight = window.screen.availHeight;
+
+            support.zoomLevel = function() {
+                return 1;
+            };
+        }
+
         support.detectOS = function (ua) {
             var os = false, minorVersion, match = [],
+                notAndroidPhone = !/mobile safari/i.test(ua),
                 agentRxs = {
                     fire: /(Silk)\/(\d+)\.(\d+(\.\d+)?)/,
                     android: /(Android|Android.*(?:Opera|Firefox).*?\/)\s*(\d+)\.(\d+(\.\d+)?)/,
@@ -1579,16 +1801,19 @@ function pad(number) {
                     ipad: /(iPad).*OS\s+(\d+)[\._]([\d_]+)/,
                     meego: /(MeeGo).+NokiaBrowser\/(\d+)\.([\d\._]+)/,
                     webos: /(webOS)\/(\d+)\.(\d+(\.\d+)?)/,
-                    blackberry: /(BlackBerry).*?Version\/(\d+)\.(\d+(\.\d+)?)/,
+                    blackberry: /(BlackBerry|BB10).*?Version\/(\d+)\.(\d+(\.\d+)?)/,
                     playbook: /(PlayBook).*?Tablet\s*OS\s*(\d+)\.(\d+(\.\d+)?)/,
-                    winphone: /(IEMobile)\/(\d+)\.(\d+(\.\d+)?)/,
-                    windows: /(MSIE)\s+(\d+)\.(\d+(\.\d+)?)/
+                    wp: /(Windows Phone(?: OS)?)\s(\d+)\.(\d+(\.\d+)?)/,
+                    windows: /(MSIE)\s+(\d+)\.(\d+(\.\d+)?)/,
+                    ffos: /(Mobile).*rv:(\d+)\.(\d+(\.\d+)?).*Firefox/
                 },
                 osRxs = {
                     ios: /^i(phone|pad|pod)$/i,
                     android: /^android|fire$/i,
                     blackberry: /^blackberry|playbook/i,
-                    windows: /windows|winphone/
+                    windows: /windows/,
+                    wp: /wp/,
+                    meego: /meego|ffos/
                 },
                 formFactorRxs = {
                     tablet: /playbook|ipad|fire/i
@@ -1619,9 +1844,9 @@ function pad(number) {
                         os.minorVersion = match[3].replace("_", ".");
                         minorVersion = os.minorVersion.replace(".", "").substr(0, 2);
                         os.flatVersion = os.majorVersion + minorVersion + (new Array(3 - (minorVersion.length < 3 ? minorVersion.length : 2)).join("0"));
-                        os.appMode = window.navigator.standalone || (/file|local/).test(window.location.protocol) || typeof window.PhoneGap !== UNDEFINED || typeof window.cordova !== UNDEFINED; // Use file protocol to detect appModes.
+                        os.appMode = window.navigator.standalone || (/file|local|wmapp/).test(window.location.protocol) || typeof window.PhoneGap !== UNDEFINED || typeof window.cordova !== UNDEFINED; // Use file protocol to detect appModes.
 
-                        if (os.android && support.devicePixelRatio < 1.5 && (window.outerWidth > 800 || window.outerHeight > 800)) {
+                        if (os.android && (support.devicePixelRatio < 1.5 && os.flatVersion < 400 || notAndroidPhone) && (support.screenWidth > 800 || support.screenHeight > 800)) {
                             os.tablet = agent;
                         }
 
@@ -1632,7 +1857,18 @@ function pad(number) {
             return os;
         };
 
-        support.mobileOS = support.detectOS(navigator.userAgent);
+        var mobileOS = support.mobileOS = support.detectOS(navigator.userAgent);
+
+        support.wpDevicePixelRatio = mobileOS.wp ? screen.width / 320 : 0;
+        support.kineticScrollNeeded = mobileOS && (support.touch || support.pointers);
+
+        support.hasNativeScrolling = false;
+
+        if ((mobileOS.ios && mobileOS.majorVersion > 4) || (mobileOS.android && mobileOS.majorVersion > 2) || mobileOS.wp) {
+            support.hasNativeScrolling = mobileOS;
+        }
+
+        support.mouseAndTouchPresent = support.touch && !(support.mobileOS.ios || support.mobileOS.android);
 
         function detectBrowser(ua) {
             var browser = false, match = [],
@@ -1651,20 +1887,41 @@ function pad(number) {
                         browser = {};
                         browser[agent] = true;
                         browser[match[1].toLowerCase()] = true;
-                        browser.version = match[2];
+                        browser.version = parseInt(document.documentMode || match[2], 10);
 
                         break;
                     }
                 }
             }
+
             return browser;
         }
 
         support.browser = detectBrowser(navigator.userAgent);
 
-        support.zoomLevel = function() {
-            return support.touch ? (document.documentElement.clientWidth / window.innerWidth) : 1;
-        };
+        support.cssBorderSpacing = typeof document.documentElement.style.borderSpacing != "undefined" && !(support.browser.msie && support.browser.version < 8);
+
+        (function(browser) {
+            // add browser-specific CSS class
+            var cssClass,
+                majorVersion = parseInt(browser.version, 10);
+
+            if (browser.msie) {
+                cssClass = "ie";
+            } else if (browser.mozilla) {
+                cssClass = "ff";
+            } else if (browser.safari) {
+                cssClass = "safari";
+            } else if (browser.webkit) {
+                cssClass = "webkit";
+            } else if (browser.opera) {
+                cssClass = "opera";
+            }
+
+            if (cssClass) {
+                $(document.documentElement).addClass("k-" + cssClass + " k-" + cssClass + majorVersion);
+            }
+        })(support.browser);
 
         support.eventCapture = document.documentElement.addEventListener;
 
@@ -1690,6 +1947,12 @@ function pad(number) {
 
               return false;
           };
+
+        support.pushState = window.history && window.history.pushState;
+
+        var documentMode = document.documentMode;
+
+        support.hashChange = ("onhashchange" in window) && !(support.browser.msie && (!documentMode || documentMode <= 8)); // old IE detection
     })();
 
 
@@ -1704,11 +1967,7 @@ function pad(number) {
         return result;
     }
 
-    function isNodeEmpty(element) {
-        return $.trim($(element).contents().filter(function () { return this.nodeType != 8; }).html()) === "";
-    }
-
-    function getOffset(element, type) {
+    function getOffset(element, type, positioned) {
         if (!type) {
             type = "offset";
         }
@@ -1718,14 +1977,19 @@ function pad(number) {
 
         if (support.touch && mobileOS.ios && mobileOS.flatVersion < 410) { // Extra processing only in broken iOS'
             var offset = type == "offset" ? result : element.offset(),
-                positioned = (result.left == offset.left && result.top == offset.top);
+                position = (result.left == offset.left && result.top == offset.top);
 
-            if (positioned) {
+            if (position) {
                 return {
                     top: result.top - window.scrollY,
                     left: result.left - window.scrollX
                 };
             }
+        }
+
+        if (kendo.support.pointers && !positioned) { // IE10 touch zoom is living in a separate viewport.
+            result.top -= (window.pageYOffset - document.documentElement.scrollTop);
+            result.left -= (window.pageXOffset - document.documentElement.scrollLeft);
         }
 
         return result;
@@ -1752,9 +2016,19 @@ function pad(number) {
         return effects;
     }
 
-    var fx = {
+    function fx(element) {
+        return new kendo.effects.Element(element);
+    }
+
+    var effects = {};
+
+    $.extend(effects, {
+        Element: function(element) {
+            this.element = $(element);
+        },
+
         promise: function (element, options) {
-            if (options.show) {
+            if (!element.is(":visible")) {
                 element.css({ display: element.data("olddisplay") || "block" }).css("display");
             }
 
@@ -1786,7 +2060,7 @@ function pad(number) {
 
             return element;
         }
-    };
+    });
 
     function prepareAnimationOptions(options, duration, reverse, complete) {
         if (typeof options === STRING) {
@@ -1824,25 +2098,28 @@ function pad(number) {
             reverse: false,
             init: noop,
             teardown: noop,
-            hide: false,
-            show: false
+            hide: false
         }, options, { completeCallback: options.complete, complete: noop }); // Move external complete callback, so deferred.resolve can be always executed.
 
     }
 
     function animate(element, options, duration, reverse, complete) {
-        element.each(function (idx, el) { // fire separate queues on every element to separate the callback elements
-            el = $(el);
-            el.queue(function () {
-                fx.promise(el, prepareAnimationOptions(options, duration, reverse, complete));
+        var idx = 0,
+            length = element.length,
+            instance;
+
+        for (; idx < length; idx ++) {
+            instance = $(element[idx]);
+            instance.queue(function() {
+                effects.promise(instance, prepareAnimationOptions(options, duration, reverse, complete));
             });
-        });
+        }
 
         return element;
     }
 
     function animateTo(element, destination, options, duration, reverse, complete) {
-        return fx.transitionPromise(element, destination, prepareAnimationOptions(options, duration, reverse, complete));
+        return effects.transitionPromise(element, destination, prepareAnimationOptions(options, duration, reverse, complete));
     }
 
     function toggleClass(element, classes, options, add) {
@@ -1890,55 +2167,16 @@ function pad(number) {
         return ("" + value).replace(ampRegExp, "&amp;").replace(ltRegExp, "&lt;").replace(gtRegExp, "&gt;");
     }
 
-    var touchLocation = function(e) {
-        var originalEvent = typeof e.pageX == UNDEFINED ? e.originalEvent : e;
-        return {
-            idx: support.pointers ? originalEvent.pointerId : 0,
-            x: originalEvent.pageX,
-            y: originalEvent.pageY
-        };
-    };
-
     var eventTarget = function (e) {
         return e.target;
     };
 
     if (support.touch) {
 
-        var mobileChrome = (support.mobileOS.browser == "chrome" && !support.mobileOS.ios);
-
-        touchLocation = function(e, id) {
-            var changedTouches = e.changedTouches || e.originalEvent.changedTouches;
-
-            if (id) {
-                var output = null;
-                each(changedTouches, function(idx, value) {
-                    if (id == value.identifier) {
-                        output = {
-                            idx: value.identifier,
-                            x: value.pageX,
-                            y: value.pageY
-                        };
-                    }
-                });
-                return output;
-            } else {
-                return {
-                    idx: changedTouches[0].identifier,
-                    x: changedTouches[0].pageX,
-                    y: changedTouches[0].pageY
-                };
-            }
-        };
-
         eventTarget = function(e) {
             var touches = "originalEvent" in e ? e.originalEvent.changedTouches : "changedTouches" in e ? e.changedTouches : null;
 
-            if (mobileChrome) {
-                return touches ? document.elementFromPoint(touches[0].screenX, touches[0].screenY) : null;
-            } else {
-                return touches ? document.elementFromPoint(touches[0].clientX, touches[0].clientY) : null;
-            }
+            return touches ? document.elementFromPoint(touches[0].clientX, touches[0].clientY) : e.target;
         };
 
         each(["swipe", "swipeLeft", "swipeRight", "swipeUp", "swipeDown", "doubleTap", "tap"], function(m, value) {
@@ -1949,28 +2187,39 @@ function pad(number) {
     }
 
     if (support.touch) {
-        support.mousedown = "touchstart";
-        support.mouseup = "touchend";
-        support.mousemove = "touchmove";
-        support.mousecancel = "touchcancel";
-        support.resize = "orientationchange";
+        if (!support.mobileOS) {
+            support.mousedown = "mousedown touchstart";
+            support.mouseup = "mouseup touchend";
+            support.mousemove = "mousemove touchmove";
+            support.mousecancel = "mouseleave touchcancel";
+            support.click = "click";
+            support.resize = "resize";
+        } else {
+            support.mousedown = "touchstart";
+            support.mouseup = "touchend";
+            support.mousemove = "touchmove";
+            support.mousecancel = "touchcancel";
+            support.click = "touchend";
+            support.resize = "orientationchange";
+        }
     } else if (support.pointers) {
         support.mousemove = "MSPointerMove";
         support.mousedown = "MSPointerDown";
         support.mouseup = "MSPointerUp";
         support.mousecancel = "MSPointerCancel";
+        support.click = "MSPointerUp";
         support.resize = "orientationchange resize";
     } else {
         support.mousemove = "mousemove";
         support.mousedown = "mousedown";
         support.mouseup = "mouseup";
         support.mousecancel = "mouseleave";
+        support.click = "click";
         support.resize = "resize";
     }
 
-
-    var wrapExpression = function(members) {
-        var result = "d",
+    var wrapExpression = function(members, paramName) {
+        var result = paramName || "d",
             index,
             idx,
             length,
@@ -2002,6 +2251,7 @@ function pad(number) {
     extend(kendo, {
         ui: kendo.ui || {},
         fx: kendo.fx || fx,
+        effects: kendo.effects || effects,
         mobile: kendo.mobile || {},
         data: kendo.data || {},
         dataviz: kendo.dataviz || {ui: { roles: {}}},
@@ -2035,7 +2285,6 @@ function pad(number) {
         deepExtend: deepExtend,
         getComputedStyles: getComputedStyles,
         size: size,
-        isNodeEmpty: isNodeEmpty,
         getOffset: kendo.getOffset || getOffset,
         parseEffects: kendo.parseEffects || parseEffects,
         toggleClass: kendo.toggleClass || toggleClass,
@@ -2046,24 +2295,30 @@ function pad(number) {
         template: proxy(Template.compile, Template),
         render: proxy(Template.render, Template),
         stringify: proxy(JSON.stringify, JSON),
-        touchLocation: touchLocation,
         eventTarget: eventTarget,
         htmlEncode: htmlEncode,
         isLocalUrl: function(url) {
             return url && !localUrlRe.test(url);
         },
 
-        expr: function(expression, safe) {
+        expr: function(expression, safe, paramName) {
             expression = expression || "";
+
+            if (typeof safe == STRING) {
+                paramName = safe;
+                safe = false;
+            }
+
+            paramName = paramName || "d";
 
             if (expression && expression.charAt(0) !== "[") {
                 expression = "." + expression;
             }
 
             if (safe) {
-                expression =  wrapExpression(expression.split("."));
+                expression = wrapExpression(expression.split("."), paramName);
             } else {
-                expression = "d" + expression;
+                expression = paramName + expression;
             }
 
             return expression;
@@ -2074,7 +2329,7 @@ function pad(number) {
         },
 
         setter: function(expression) {
-            return setterCache[expression] = setterCache[expression] || new Function("d,value", "d." + expression + "=value");
+            return setterCache[expression] = setterCache[expression] || new Function("d,value", kendo.expr(expression) + "=value");
         },
 
         accessor: function(expression) {
@@ -2103,6 +2358,9 @@ function pad(number) {
             return role.replace(/(\S+)/g, "[" + kendo.attr("role") + "=$1],").slice(0, -1);
         },
 
+        triggeredByInput: function(e) {
+            return (/^(label|input|textarea|select)$/i).test(e.target.tagName);
+        },
 
         logToConsole: function(message) {
             var console = window.console;
@@ -2117,7 +2375,7 @@ function pad(number) {
         init: function(element, options) {
             var that = this;
 
-            that.element = $(element);
+            that.element = kendo.jQuery(element).handler(that);
 
             Observable.fn.init.call(that);
 
@@ -2136,6 +2394,18 @@ function pad(number) {
 
         options: {
             prefix: ""
+        },
+
+        _tabindex: function(target) {
+            target = target || this.wrapper;
+
+            var element = this.element,
+                TABINDEX = "tabindex",
+                tabindex = target.attr(TABINDEX) || element.attr(TABINDEX);
+
+            element.removeAttr(TABINDEX);
+
+            target.attr(TABINDEX, !isNaN(tabindex) ? tabindex : 0);
         },
 
         setOptions: function(options) {
@@ -2159,6 +2429,7 @@ function pad(number) {
             var that = this;
 
             that.element.removeData("kendo" + that.options.prefix + that.options.name);
+            that.element.removeData("handler");
 
             that.unbind();
         }
@@ -2167,7 +2438,7 @@ function pad(number) {
     kendo.notify = noop;
 
     var templateRegExp = /template$/i,
-        jsonRegExp = /^\s*(?:\{(?:.|\n)*\}|\[(?:.|\n)*\])\s*$/,
+        jsonRegExp = /^\s*(?:\{(?:.|\r\n|\n)*\}|\[(?:.|\r\n|\n)*\])\s*$/,
         jsonFormatRegExp = /^\{(\d+)(:[^\}]+)?\}/,
         dashRegExp = /([A-Z])/g;
 
@@ -2190,10 +2461,10 @@ function pad(number) {
             value = true;
         } else if (value === "false") {
             value = false;
-        } else if (!isNaN(parseFloat(value))) {
+        } else if (numberRegExp.test(value)) {
             value = parseFloat(value);
         } else if (jsonRegExp.test(value) && !jsonFormatRegExp.test(value)) {
-            value = eval("(" + value + ")");
+            value = evil("(" + value + ")");
         }
 
         return value;
@@ -2289,15 +2560,19 @@ function pad(number) {
     };
 
     kendo.rolesFromNamespaces = function(namespaces) {
-        var roles;
+        var roles = [],
+            idx,
+            length;
 
         if (!namespaces[0]) {
             namespaces = [kendo.ui, kendo.dataviz.ui];
         }
 
-        roles = $.map(namespaces, function(namespace) { return namespace.roles; }).reverse();
+        for (idx = 0, length = namespaces.length; idx < length; idx ++) {
+            roles[idx] = namespaces[idx].roles;
+        }
 
-        return extend.apply(null, [{}].concat(roles));
+        return extend.apply(null, [{}].concat(roles.reverse()));
     };
 
     kendo.init = function(element) {
@@ -2327,14 +2602,23 @@ function pad(number) {
         Widget: Widget,
         roles: {},
         progress: function(container, toggle) {
-            var mask = container.find(".k-loading-mask");
+            var mask = container.find(".k-loading-mask"),
+                support = kendo.support,
+                browser = support.browser,
+                isRtl, leftRight, webkitCorrection, containerScrollLeft;
 
             if (toggle) {
                 if (!mask.length) {
+                    isRtl = support.isRtl(container);
+                    leftRight = isRtl ? "right" : "left";
+                    containerScrollLeft = container.scrollLeft();
+                    webkitCorrection = browser.webkit ? (!isRtl ? 0 : container[0].scrollWidth - container.width() - 2 * containerScrollLeft) : 0;
+
                     mask = $("<div class='k-loading-mask'><span class='k-loading-text'>Loading...</span><div class='k-loading-image'/><div class='k-loading-color'/></div>")
                         .width("100%").height("100%")
-                        .prependTo(container)
-                        .css({ top: container.scrollTop(), left: container.scrollLeft() });
+                        .css("top", container.scrollTop())
+                        .css(leftRight, Math.abs(containerScrollLeft) + webkitCorrection)
+                        .prependTo(container);
                 }
             } else if (mask) {
                 mask.remove();
@@ -2398,10 +2682,18 @@ function pad(number) {
         }
     });
 
+    var ContainerNullObject = { bind: function () { return this; } };
+
     var MobileWidget = Widget.extend({
         init: function(element, options) {
             Widget.fn.init.call(this, element, options);
+            this.element.autoApplyNS();
             this.wrapper = this.element;
+        },
+
+        destroy: function() {
+            Widget.fn.destroy.call(this);
+            this.element.kendoDestroy();
         },
 
         options: {
@@ -2410,11 +2702,14 @@ function pad(number) {
 
         events: [],
 
-        viewShow: $.noop,
-
         view: function() {
-            var viewElement = this.element.closest(kendo.roleSelector("view") + "," + kendo.roleSelector("splitview"));
-            return viewElement.data("kendoMobileView") || viewElement.data("kendoMobileSplitView");
+            var viewElement = this.element.closest(kendo.roleSelector("view splitview modalview drawer"));
+            return kendo.widgetInstance(viewElement, kendo.mobile.ui);
+        },
+
+        container: function() {
+            var element = this.element.closest(kendo.roleSelector("view layout modalview drawer"));
+            return kendo.widgetInstance(element, kendo.mobile.ui) || ContainerNullObject;
         }
     });
 
@@ -2436,7 +2731,7 @@ function pad(number) {
         // return the first touch scroller
         return $(elements).map(function(idx, element) {
             element = $(element);
-            if (support.touch && kendo.mobile.ui.Scroller && !element.data("kendoMobileScroller")) {
+            if (support.kineticScrollNeeded && kendo.mobile.ui.Scroller && !element.data("kendoMobileScroller")) {
                 element.kendoMobileScroller(options);
                 return element.data("kendoMobileScroller");
             } else {
@@ -2464,12 +2759,1082 @@ function pad(number) {
         }
 
         $(window).on(support.resize, handler);
+        return handler;
+    };
+
+    kendo.unbindResize = function(callback) {
+        $(window).off(support.resize, callback);
     };
 
     kendo.attrValue = function(element, key) {
         return element.data(kendo.ns + key);
     };
-})(jQuery);
+
+    kendo.days = {
+        Sunday: 0,
+        Monday: 1,
+        Tuesday: 2,
+        Wednesday: 3,
+        Thursday: 4,
+        Friday: 5,
+        Saturday: 6
+    };
+
+    function focusable(element, isTabIndexNotNaN) {
+        var nodeName = element.nodeName.toLowerCase();
+
+        return (/input|select|textarea|button|object/.test(nodeName) ?
+                !element.disabled :
+                "a" === nodeName ?
+                element.href || isTabIndexNotNaN :
+                isTabIndexNotNaN
+               ) &&
+            visible(element);
+    }
+
+    function visible(element) {
+        return !$(element).parents().andSelf().filter(function() {
+            return $.css(this,"visibility") === "hidden" || $.expr.filters.hidden(this);
+        }).length;
+    }
+
+    $.extend($.expr[ ":" ], {
+        focusable: function(element) {
+            var idx = $.attr(element, "tabindex");
+            return focusable(element, !isNaN(idx) && idx > -1);
+        }
+    });
+
+    var MOUSE_EVENTS = ["mousedown", "mousemove", "mouseenter", "mouseleave", "mouseover", "mouseout", "mouseup", "click"];
+    var EXCLUDE_BUST_CLICK_SELECTOR = "label, input, [data-rel=external]";
+
+    var MouseEventNormalizer = {
+        setupMouseMute: function() {
+            var idx = 0,
+                length = MOUSE_EVENTS.length,
+                element = document.documentElement;
+
+            if (MouseEventNormalizer.mouseTrap || !support.eventCapture) {
+                return;
+            }
+
+            MouseEventNormalizer.mouseTrap = true;
+
+            MouseEventNormalizer.bustClick = false;
+            MouseEventNormalizer.captureMouse = false;
+
+            var handler = function(e) {
+                if (MouseEventNormalizer.captureMouse) {
+                    if (e.type === "click") {
+                        if (MouseEventNormalizer.bustClick && !$(e.target).is(EXCLUDE_BUST_CLICK_SELECTOR)) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                        }
+                    } else {
+                        e.stopPropagation();
+                    }
+                }
+            };
+
+            for (; idx < length; idx++) {
+                element.addEventListener(MOUSE_EVENTS[idx], handler, true);
+            }
+        },
+
+        muteMouse: function(e) {
+            MouseEventNormalizer.captureMouse = true;
+            if (e.data.bustClick) {
+                MouseEventNormalizer.bustClick = true;
+            }
+            clearTimeout(MouseEventNormalizer.mouseTrapTimeoutID);
+        },
+
+        unMuteMouse: function() {
+            clearTimeout(MouseEventNormalizer.mouseTrapTimeoutID);
+            MouseEventNormalizer.mouseTrapTimeoutID = setTimeout(function() {
+                MouseEventNormalizer.captureMouse = false;
+                MouseEventNormalizer.bustClick = false;
+            }, 400);
+        }
+    };
+
+    var eventMap = {
+        down: "touchstart mousedown",
+        move: "mousemove touchmove",
+        up: "mouseup touchend touchcancel",
+        cancel: "mouseleave touchcancel"
+    };
+
+    if (support.touch && (support.mobileOS.ios || support.mobileOS.android)) {
+        eventMap = {
+            down: "touchstart",
+            move: "touchmove",
+            up: "touchend touchcancel",
+            cancel: "touchcancel"
+        };
+    }
+
+    if (support.pointers) {
+        eventMap = {
+            down: "MSPointerDown",
+            move: "MSPointerMove",
+            up: "MSPointerUp",
+            cancel: "MSPointerCancel MSPointerLeave"
+        };
+
+        // Create MSPointerEnter/MSPointerLeave events using mouseover/out and event-time checks
+        $.each({
+            MSPointerEnter: "MSPointerOver",
+            MSPointerLeave: "MSPointerOut"
+        }, function( orig, fix ) {
+            $.event.special[ orig ] = {
+                delegateType: fix,
+                bindType: fix,
+
+                handle: function( event ) {
+                    var ret,
+                        target = this,
+                        related = event.relatedTarget,
+                        handleObj = event.handleObj;
+
+                    // For mousenter/leave call the handler if related is outside the target.
+                    // NB: No relatedTarget if the mouse left/entered the browser window
+                    if ( !related || (related !== target && !$.contains( target, related )) ) {
+                        event.type = handleObj.origType;
+                        ret = handleObj.handler.apply( this, arguments );
+                        event.type = fix;
+                    }
+                    return ret;
+                }
+            };
+        });
+    }
+
+
+    var getEventMap = function(e) { return (eventMap[e] || e); },
+        eventRegEx = /([^ ]+)/g;
+
+    kendo.applyEventMap = function(events, ns) {
+        events = events.replace(eventRegEx, getEventMap);
+
+        if (ns) {
+            events = events.replace(eventRegEx, "$1." + ns);
+        }
+
+        return events;
+    };
+
+    var on = $.fn.on;
+
+    function kendoJQuery(selector, context) {
+        return new kendoJQuery.fn.init(selector, context);
+    }
+
+    extend(true, kendoJQuery, $);
+
+    kendoJQuery.fn = kendoJQuery.prototype = new $();
+
+    kendoJQuery.fn.constructor = kendoJQuery;
+
+    kendoJQuery.fn.init = function(selector, context) {
+        if (context && context instanceof $ && !(context instanceof kendoJQuery)) {
+            context = kendoJQuery(context);
+        }
+
+        return $.fn.init.call(this, selector, context, rootjQuery);
+    };
+
+    kendoJQuery.fn.init.prototype = kendoJQuery.fn;
+
+    var rootjQuery = kendoJQuery(document);
+
+    extend(kendoJQuery.fn, {
+        handler: function(handler) {
+            this.data("handler", handler);
+            return this;
+        },
+
+        autoApplyNS: function(ns) {
+            this.data("kendoNS", ns || kendo.guid());
+            return this;
+        },
+
+        on: function() {
+            var that = this,
+                ns = that.data("kendoNS");
+
+            // support for event map signature
+            if (arguments.length === 1) {
+                return on.call(that, arguments[0]);
+            }
+
+            var context = that,
+                args = slice.call(arguments);
+
+            if (typeof args[args.length -1] === UNDEFINED) {
+                args.pop();
+            }
+
+            var callback =  args[args.length - 1],
+                events = kendo.applyEventMap(args[0], ns);
+
+            // setup mouse trap
+            if (support.mouseAndTouchPresent && events.search(/mouse|click/) > -1 && this[0] !== document.documentElement) {
+                MouseEventNormalizer.setupMouseMute();
+
+                var selector = args.length === 2 ? null : args[1],
+                    bustClick = events.indexOf("click") > -1 && events.indexOf("touchend") > -1;
+
+                on.call(this,
+                    {
+                        touchstart: MouseEventNormalizer.muteMouse,
+                        touchend: MouseEventNormalizer.unMuteMouse
+                    },
+                    selector,
+                    {
+                        bustClick: bustClick
+                    });
+            }
+
+            if (typeof callback === STRING) {
+                context = that.data("handler");
+                callback = context[callback];
+
+                args[args.length - 1] = function(e) {
+                    callback.call(context, e);
+                };
+            }
+
+            args[0] = events;
+
+            on.apply(that, args);
+
+            return that;
+        },
+
+        kendoDestroy: function(ns) {
+            ns = ns || this.data("kendoNS");
+
+            if (ns) {
+                this.off("." + ns);
+            }
+
+            return this;
+        }
+    });
+
+    kendo.jQuery = kendoJQuery;
+    kendo.eventMap = eventMap;
+
+    kendo.timezone = (function(){
+        var months =  { Jan: 0, Feb: 1, Mar: 2, Apr: 3, May: 4, Jun: 5, Jul: 6, Aug: 7, Sep: 8, Oct: 9, Nov: 10, Dec: 11 };
+        var days = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+
+        function ruleToDate(year, rule) {
+            var date;
+            var targetDay;
+            var ourDay;
+            var month = rule[3];
+            var on = rule[4];
+            var time = rule[5];
+            var cache = rule[8];
+
+            if (!cache) {
+                rule[8] = cache = {};
+            }
+
+            if (cache[year]) {
+                return cache[year];
+            }
+
+            if (!isNaN(on)) {
+                date = new Date(Date.UTC(year, months[month], on, time[0], time[1], time[2], 0));
+            } else if (on.indexOf("last") === 0) {
+                date = new Date(Date.UTC(year, months[month] + 1, 1, time[0] - 24, time[1], time[2], 0));
+
+                targetDay = days[on.substr(4, 3)];
+                ourDay = date.getUTCDay();
+
+                date.setUTCDate(date.getUTCDate() + targetDay - ourDay - (targetDay > ourDay ? 7 : 0));
+            } else if (on.indexOf(">=") >= 0) {
+                date = new Date(Date.UTC(year, months[month], on.substr(5), time[0], time[1], time[2], 0));
+
+                targetDay = days[on.substr(0, 3)];
+                ourDay = date.getUTCDay();
+
+                date.setUTCDate(date.getUTCDate() + targetDay - ourDay + (targetDay < ourDay ? 7 : 0));
+            }
+
+            return cache[year] = date;
+        }
+
+        function findRule(utcTime, rules, zone) {
+            rules = rules[zone];
+
+            if (!rules) {
+                var time = zone.split(":");
+                var offset = 0;
+
+                if (time.length > 1) {
+                    offset = time[0] * 60 + Number(time[1]);
+                }
+
+                return [-1000000, 'max', '-', 'Jan', 1, [0, 0, 0], offset, '-'];
+            }
+
+            var year = new Date(utcTime).getUTCFullYear();
+
+            rules = jQuery.grep(rules, function(rule) {
+                var from = rule[0];
+                var to = rule[1];
+
+                return from <= year && (to >= year || (from == year && to == "only") || to == "max");
+            });
+
+            rules.push(utcTime);
+
+            rules.sort(function(a, b) {
+                if (typeof a != "number") {
+                    a = Number(ruleToDate(year, a));
+                }
+
+                if (typeof b != "number") {
+                    b = Number(ruleToDate(year, b));
+                }
+
+                return a - b;
+            });
+
+            return rules[jQuery.inArray(utcTime, rules) - 1];
+        }
+
+        function findZone(utcTime, zones, timezone) {
+            zones = zones[timezone];
+
+            if (!zones) {
+                throw new Error('Timezone "' + timezone + '" is either incorrect, or kendo.timezones.min.js is not included.');
+            }
+
+            for (var idx = zones.length - 1; idx >= 0; idx--) {
+                var until = zones[idx][3];
+
+                if (until && utcTime > until) {
+                    break;
+                }
+            }
+
+            var zone = zones[idx + 1];
+
+            if (!zone) {
+                throw new Error('Timezone "' + timezone + '" not found on ' + utcTime + ".");
+            }
+
+            return zone;
+        }
+
+        function zoneAndRule(utcTime, zones, rules, timezone) {
+            if (typeof utcTime != NUMBER) {
+                utcTime = Date.UTC(utcTime.getFullYear(), utcTime.getMonth(),
+                    utcTime.getDate(), utcTime.getHours(), utcTime.getMinutes(),
+                    utcTime.getSeconds(), utcTime.getMilliseconds());
+            }
+
+            var zone = findZone(utcTime, zones, timezone);
+
+            return {
+                zone: zone,
+                rule: findRule(utcTime, rules, zone[1])
+            };
+        }
+
+        function offset(utcTime, timezone) {
+            if (timezone == "Etc/UTC" || timezone == "Etc/GMT") {
+                return 0;
+            }
+
+            var info = zoneAndRule(utcTime, this.zones, this.rules, timezone);
+            var zone = info.zone;
+            var rule = info.rule;
+
+            return rule? zone[0] - rule[6] : zone[0];
+        }
+
+        function abbr(utcTime, timezone) {
+            var info = zoneAndRule(utcTime, this.zones, this.rules, timezone);
+            var zone = info.zone;
+            var rule = info.rule;
+
+            var base = zone[2];
+
+            if (base.indexOf("/") >= 0) {
+                return base.split("/")[rule && rule[6] ? 1 : 0];
+            } else if (base.indexOf("%s") >= 0) {
+                return base.replace("%s", (!rule || rule[7] == "-") ? '' : rule[7]);
+            }
+
+            return base;
+        }
+
+        function convert(date, fromOffset, toOffset) {
+            if (typeof fromOffset == STRING) {
+                fromOffset = this.offset(date, fromOffset);
+            }
+
+            if (typeof toOffset == STRING) {
+                toOffset = this.offset(date, toOffset);
+            }
+
+            var fromLocalOffset = date.getTimezoneOffset();
+
+            date = new Date(date.getTime() + (fromOffset - toOffset) * 60000);
+
+            var toLocalOffset = date.getTimezoneOffset();
+
+            return new Date(date.getTime() + (toLocalOffset - fromLocalOffset) * 60000);
+        }
+
+        function apply(date, timezone) {
+           return this.convert(date, date.getTimezoneOffset(), timezone);
+        }
+
+        function remove(date, timezone) {
+           return this.convert(date, timezone, date.getTimezoneOffset());
+        }
+
+        return {
+           zones: {},
+           rules: {},
+           offset: offset,
+           convert: convert,
+           apply: apply,
+           remove: remove,
+           abbr: abbr
+        };
+    })();
+
+    kendo.date = (function(){
+        var MS_PER_MINUTE = 60000,
+            MS_PER_DAY = 86400000;
+
+        function adjustDST(date, hours) {
+            if (hours === 0 && date.getHours() === 23) {
+                date.setHours(date.getHours() + 2);
+                return true;
+            }
+
+            return false;
+        }
+
+        function setDayOfWeek(date, day, dir) {
+            var hours = date.getHours();
+
+            dir = dir || 1;
+            day = ((day - date.getDay()) + (7 * dir)) % 7;
+
+            date.setDate(date.getDate() + day);
+            adjustDST(date, hours);
+        }
+
+        function dayOfWeek(date, day, dir) {
+            date = new Date(date);
+            setDayOfWeek(date, day, dir);
+            return date;
+        }
+
+        function firstDayOfMonth(date) {
+            return new Date(
+                date.getFullYear(),
+                date.getMonth(),
+                1
+            );
+        }
+
+        function lastDayOfMonth(date) {
+            var last = new Date(date.getFullYear(), date.getMonth() + 1, 0),
+                first = firstDayOfMonth(date),
+                timeOffset = Math.abs(last.getTimezoneOffset() - first.getTimezoneOffset());
+
+            if (timeOffset) {
+                last.setHours(first.getHours() + (timeOffset / 60));
+            }
+
+            return last;
+        }
+
+        function getDate(date) {
+            date = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0);
+            adjustDST(date, 0);
+            return date;
+        }
+
+        function getMilliseconds(date) {
+            return date.getHours() * 60 * MS_PER_MINUTE + date.getMinutes() * MS_PER_MINUTE + date.getSeconds() * 1000 + date.getMilliseconds();
+        }
+
+        function isInTimeRange(value, min, max) {
+            var msMin = getMilliseconds(min),
+                msMax = getMilliseconds(max),
+                msValue;
+
+            if (!value || msMin == msMax) {
+                return true;
+            }
+
+            if (min >= max) {
+                max += MS_PER_DAY;
+            }
+
+            msValue = getMilliseconds(value);
+
+            if (msMin > msValue) {
+                msValue += MS_PER_DAY;
+            }
+
+            if (msMax < msMin) {
+                msMax += MS_PER_DAY;
+            }
+
+            return msValue >= msMin && msValue <= msMax;
+        }
+
+        function isInDateRange(value, min, max) {
+            var msMin = min.getTime(),
+                msMax = max.getTime(),
+                msValue;
+
+            if (msMin >= msMax) {
+                msMax += MS_PER_DAY;
+            }
+
+            msValue = value.getTime();
+
+            return msValue >= msMin && msValue <= msMax;
+        }
+
+        function addDays(date, offset) {
+            var hours = date.getHours();
+                date = new Date(date);
+
+            setTime(date, offset * MS_PER_DAY);
+            adjustDST(date, hours);
+            return date;
+        }
+
+        function setTime(date, time, ignoreDST) {
+            var offset = date.getTimezoneOffset(),
+                offsetDiff;
+
+            date.setTime(date.getTime() + time);
+
+            if (!ignoreDST) {
+                offsetDiff = date.getTimezoneOffset() - offset;
+                date.setTime(date.getTime() + offsetDiff * MS_PER_MINUTE);
+            }
+        }
+
+        function today() {
+            return getDate(new Date());
+        }
+
+        function isToday(date) {
+           return getDate(date).getTime() == today().getTime();
+        }
+
+        return {
+            adjustDST: adjustDST,
+            dayOfWeek: dayOfWeek,
+            setDayOfWeek: setDayOfWeek,
+            getDate: getDate,
+            isInDateRange: isInDateRange,
+            isInTimeRange: isInTimeRange,
+            isToday: isToday,
+            nextDay: function(date) {
+                return addDays(date, 1);
+            },
+            previousDay: function(date) {
+                return addDays(date, -1);
+            },
+            MS_PER_DAY: MS_PER_DAY,
+            MS_PER_MINUTE: MS_PER_MINUTE,
+            setTime: setTime,
+            addDays: addDays,
+            today: today,
+            firstDayOfMonth: firstDayOfMonth,
+            lastDayOfMonth: lastDayOfMonth,
+            getMilliseconds: getMilliseconds
+            //TODO methods: combine date portion and time portion from arguments - date1, date 2
+        };
+    })();
+
+
+    kendo.stripWhitespace = function(element) {
+        var iterator = document.createNodeIterator(element, NodeFilter.SHOW_TEXT, function(node) {
+                return node.parentNode == element ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
+            }, false);
+
+        while (iterator.nextNode()) {
+            if (iterator.referenceNode && !iterator.referenceNode.textContent.trim()) {
+                iterator.referenceNode.parentNode.removeChild(iterator.referenceNode);
+            }
+        }
+    };
+
+})(jQuery, eval);
+
+/*global kendo_module:true */
+if (typeof kendo_module === "undefined") {
+    kendo_module = function(){};
+}
+
+kendo_module({
+    id: "core",
+    name: "Core",
+    category: "framework",
+    description: "The core of the Kendo framework."
+});
+
+kendo_module({
+    id: "router",
+    name: "History",
+    category: "framework",
+    description: "The Router class is responsible for tracking the application state and navigating between the application states.",
+    depends: [ "core" ],
+    hidden: false
+});
+
+(function($, undefined) {
+    var kendo = window.kendo,
+        support = kendo.support,
+        location = window.location,
+        history = window.history,
+        _checkUrlInterval = 50,
+        hashStrip = /^#*/,
+        document = window.document;
+
+    var History = kendo.Observable.extend({
+        start: function(options) {
+            var that = this;
+            options = options || {};
+
+            that.bind(["change"], options);
+
+            if (that._started) {
+                return;
+            }
+            that._started = true;
+            that._pushStateRequested = !!options.pushState;
+            that._pushState = support.pushState && that._pushStateRequested;
+            that.root = options.root || "/";
+            that._interval = 0;
+
+            if (that._normalizeUrl()) {
+                return true;
+            }
+
+            that.current = that._currentLocation();
+            that.locations = [that.current];
+            that._listenToLocationChange();
+        },
+
+        stop: function() {
+            $(window).unbind(".kendo");
+            this.unbind("change");
+            clearInterval(this._interval);
+            this._started = false;
+        },
+
+        change: function(callback) {
+            this.bind('change', callback);
+        },
+
+        navigate: function(to, silent) {
+            var that = this;
+
+            if (to === '#:back') {
+                history.back();
+                return;
+            }
+
+            to = to.replace(hashStrip, '');
+
+            if (that.current === to || that.current === decodeURIComponent(to)) {
+                return;
+            }
+
+            if (!silent) {
+                if (that.trigger("change", { url: to })) {
+                    return;
+                }
+            }
+
+            if (that._pushState) {
+                history.pushState({}, document.title, that._makePushStateUrl(to));
+                that.current = to;
+            } else {
+                location.hash = that.current = to;
+            }
+
+            that.locations.push(that.current);
+        },
+
+        _normalizeUrl: function() {
+            var that = this,
+                pushStateUrl,
+                atRoot = that.root == location.pathname,
+                pushStateUrlNeedsTransform = that._pushStateRequested && !support.pushState && !atRoot,
+                hashUrlNeedsTransform = that._pushState && atRoot && location.hash;
+
+            if (pushStateUrlNeedsTransform) {
+                location.replace(that.root + '#' + that._stripRoot(location.pathname));
+                return true;
+            } else if (hashUrlNeedsTransform) {
+                pushStateUrl = that._makePushStateUrl(location.hash.replace(hashStrip, ''));
+                history.replaceState({}, document.title, pushStateUrl);
+                return false;
+            }
+            return false;
+        },
+
+        _listenToLocationChange: function() {
+            var that = this, _checkUrlProxy = $.proxy(that._checkUrl, that);
+
+            if (this._pushState) {
+                $(window).bind("popstate.kendo", _checkUrlProxy);
+            } else if (support.hashChange) {
+                $(window).bind("hashchange.kendo", _checkUrlProxy);
+            } else {
+                that._interval = setInterval(_checkUrlProxy, _checkUrlInterval);
+            }
+        },
+
+        _checkUrl: function() {
+            var that = this,
+                current = that._currentLocation().replace(hashStrip, ''),
+                back = current === that.locations[that.locations.length - 2];
+
+            if (that.current === current || that.current === decodeURIComponent(current)) {
+                return;
+            }
+
+            if (that.trigger("change", { url: current })) {
+                if (back) {
+                    history.forward();
+                } else {
+                    history.back();
+                }
+                return;
+            }
+
+            that.current = current;
+
+            if (back) {
+                that.locations.pop();
+            } else {
+                that.locations.push(current);
+            }
+        },
+
+        _stripRoot: function(url) {
+            var that = this;
+
+            if (url.indexOf(that.root) === 0) {
+                return (url.substr(that.root.length)).replace(/\/\//g, '/');
+            } else {
+                return url;
+            }
+        },
+
+        _makePushStateUrl: function(address) {
+            var that = this;
+            var regEx = new RegExp("^" + that.root, "i");
+
+            if (!regEx.test(address)) {
+                address = (that.root + address).replace(/\/\//g, '/');
+            }
+
+            return location.protocol + '//' + location.host + address;
+        },
+
+        _currentLocation: function() {
+            var that = this, current;
+
+            if (that._pushState) {
+                current = location.pathname;
+
+                if (location.search) {
+                    current += location.search;
+                }
+
+                return that._stripRoot(current);
+            } else {
+                return location.hash.replace(hashStrip, '');
+            }
+        }
+    });
+
+    kendo.history = new History();
+})(window.kendo.jQuery);
+
+(function() {
+    var kendo = window.kendo,
+        history = kendo.history,
+        Observable = kendo.Observable,
+        INIT = "init",
+        ROUTE_MISSING = "routeMissing",
+        CHANGE = "change",
+        optionalParam = /\((.*?)\)/g,
+        namedParam = /(\(\?)?:\w+/g,
+        splatParam = /\*\w+/g,
+        escapeRegExp = /[\-{}\[\]+?.,\\\^$|#\s]/g;
+
+    function namedParamReplace(match, optional) {
+        return optional ? match : '([^\/]+)';
+    }
+
+    function routeToRegExp(route) {
+        return new RegExp('^' + route
+            .replace(escapeRegExp, '\\$&')
+            .replace(optionalParam, '(?:$1)?')
+            .replace(namedParam, namedParamReplace)
+            .replace(splatParam, '(.*?)') + '$');
+    }
+
+    var Route = kendo.Class.extend({
+        init: function(route, callback) {
+            if (!(route instanceof RegExp)) {
+                route = routeToRegExp(route);
+            }
+
+            this.route = route;
+            this._callback = callback;
+        },
+
+        callback: function(url) {
+            var params = this.route.exec(url).slice(1),
+                idx = 0,
+                length = params.length;
+
+            for (; idx < length; idx ++) {
+                if (typeof params[idx] !== 'undefined') {
+                    params[idx] = decodeURIComponent(params[idx]);
+                }
+            }
+
+            this._callback.apply(null, params);
+        },
+
+        worksWith: function(url) {
+            if (this.route.test(url)) {
+                this.callback(url);
+                return true;
+            } else {
+                return false;
+            }
+        }
+    });
+
+    var Router = Observable.extend({
+        init: function(options) {
+            Observable.fn.init.call(this);
+            this.routes = [];
+            this.pushState = options ? options.pushState : false;
+            if (options && options.root) {
+                this.root = options.root;
+            }
+            this.bind([INIT, ROUTE_MISSING, CHANGE], options);
+        },
+
+        destroy: function() {
+            history.unbind("change", this._urlChangedProxy);
+            this.unbind();
+        },
+
+        start: function() {
+            var that = this,
+                urlChangedProxy = function(e) {
+                    that._urlChanged(e);
+                };
+
+            history.start({
+                change: urlChangedProxy,
+                pushState: that.pushState,
+                root: that.root
+            });
+
+            var initEventObject = { url: history.current || "/" };
+
+            if (!that.trigger(INIT, initEventObject)) {
+                that._urlChanged(initEventObject);
+            }
+
+            this._urlChangedProxy = urlChangedProxy;
+        },
+
+        route: function(route, callback) {
+            this.routes.push(new Route(route, callback));
+        },
+
+        navigate: function(url, silent) {
+            kendo.history.navigate(url, silent);
+        },
+
+        _urlChanged: function(e) {
+            var url = e.url;
+            if (!url) {
+                url = "/";
+            }
+
+            if (this.trigger(CHANGE, {url: e.url})) {
+                e.preventDefault();
+                return;
+            }
+
+            var idx = 0,
+                routes = this.routes,
+                route,
+                length = routes.length;
+
+            for (; idx < length; idx ++) {
+                 route = routes[idx];
+
+                 if (route.worksWith(url)) {
+                    return;
+                 }
+            }
+
+            if (this.trigger(ROUTE_MISSING, { url: url })) {
+                e.preventDefault();
+            }
+        }
+    });
+
+    kendo.Router = Router;
+})();
+
+kendo_module({
+    id: "view",
+    name: "View",
+    category: "framework",
+    description: "The View class instantiates and handles the events of a certain screen from the application.",
+    depends: [ "core", "binder" ],
+    hidden: false
+});
+
+
+(function($, undefined) {
+    var kendo = window.kendo,
+        Observable = kendo.Observable,
+        SCRIPT = "SCRIPT",
+        INIT = "init",
+        SHOW = "show",
+        HIDE = "hide";
+
+    var View = Observable.extend({
+        init: function(content, options) {
+            var that = this;
+            options = options || {};
+
+            Observable.fn.init.call(that);
+            that.content = content;
+            that.tagName = options.tagName || "div";
+            that.model = options.model;
+            that._wrap = options.wrap !== false;
+
+            that.bind([ INIT, SHOW, HIDE ], options);
+        },
+
+        render: function(container) {
+            var that = this,
+                notInitialized = !that.element;
+
+            // The order below matters - kendo.bind should be happen when the element is in the DOM, and SHOW should be triggered after INIT.
+
+            if (notInitialized) {
+                that.element = that._createElement();
+            }
+
+            if (container) {
+                $(container).append(that.element);
+            }
+
+            if (notInitialized) {
+                kendo.bind(that.element, that.model);
+                that.trigger(INIT);
+            }
+
+            if (container) {
+                that.trigger(SHOW);
+            }
+
+            return that.element;
+        },
+
+        hide: function() {
+            this.element.detach();
+            this.trigger(HIDE);
+        },
+
+        destroy: function() {
+            var element = this.element;
+
+            if (element) {
+                kendo.unbind(element);
+                kendo.destroy(element);
+                element.remove();
+            }
+        },
+
+        _createElement: function() {
+            var that = this,
+                element,
+                content;
+
+            content = $(document.getElementById(that.content) || that.content); // support passing id without #
+            element = $("<" + that.tagName + " />").append(content[0].tagName === SCRIPT ? content.html() : content);
+
+            // drop the wrapper if asked - this seems like the easiest (although not very intuitive) way to avoid messing up templates with questionable content, like the one below
+            // <script id="my-template">
+            // foo
+            // <span> Span </span>
+            // </script>
+            if (!that._wrap) {
+               element = element.contents();
+            }
+
+            return element;
+        }
+    });
+
+    var Layout = View.extend({
+        init: function(content, options) {
+            View.fn.init.call(this, content, options);
+            this.regions = {};
+        },
+
+        showIn: function(container, view) {
+            var previousView = this.regions[container];
+
+            if (previousView) {
+                previousView.hide();
+            }
+
+            view.render(this.render().find(container), previousView);
+            this.regions[container] = view;
+        }
+    });
+
+    kendo.Layout = Layout;
+    kendo.View = View;
+})(window.kendo.jQuery);
+
+kendo_module({
+    id: "data.odata",
+    name: "OData",
+    category: "framework",
+    depends: [ "core" ],
+    hidden: true
+});
+
 (function($, undefined) {
     var kendo = window.kendo,
         extend = $.extend,
@@ -2481,6 +3846,7 @@ function pad(number) {
             lt: "lt",
             lte: "le",
             contains : "substringof",
+            doesnotcontain: "substringof",
             endswith: "endswith",
             startswith: "startswith"
         },
@@ -2571,6 +3937,9 @@ function pad(number) {
                             format = "{0}({2}," + format + ")";
                         } else {
                             format = "{0}(" + format + ",{2})";
+                            if (operator === "doesnotcontain") {
+                                format += " eq false";
+                            }
                         }
                     } else {
                         format = "{2} {0} " + format;
@@ -2675,7 +4044,16 @@ function pad(number) {
             }
         }
     });
-})(jQuery);
+})(window.kendo.jQuery);
+
+kendo_module({
+    id: "data.xml",
+    name: "XML",
+    category: "framework",
+    depends: [ "core" ],
+    hidden: true
+});
+
 (function($, undefined) {
     var kendo = window.kendo,
         isArray = $.isArray,
@@ -2691,6 +4069,9 @@ function pad(number) {
             var that = this,
                 total = options.total,
                 model = options.model,
+                parse = options.parse,
+                errors = options.errors,
+                serialize = options.serialize,
                 data = options.data;
 
             if (model) {
@@ -2720,38 +4101,70 @@ function pad(number) {
             }
 
             if (total) {
-                total = that.getter(total);
-                that.total = function(data) {
-                    return parseInt(total(data), 10);
-                };
+                if (typeof total == "string") {
+                    total = that.getter(total);
+                    that.total = function(data) {
+                        return parseInt(total(data), 10);
+                    };
+                } else if (typeof total == "function"){
+                    that.total = total;
+                }
+            }
+
+            if (errors) {
+                if (typeof errors == "string") {
+                    errors = that.getter(errors);
+                    that.errors = function(data) {
+                        return errors(data) || null;
+                    };
+                } else if (typeof errors == "function"){
+                    that.errors = errors;
+                }
             }
 
             if (data) {
-                data = that.xpathToMember(data);
-                that.data = function(value) {
-                    var result = that.evaluate(value, data),
-                        modelInstance;
+                if (typeof data == "string") {
+                    data = that.xpathToMember(data);
+                    that.data = function(value) {
+                        var result = that.evaluate(value, data),
+                            modelInstance;
 
-                    result = isArray(result) ? result : [result];
+                        result = isArray(result) ? result : [result];
 
-                    if (that.model && model.fields) {
-                        modelInstance = new that.model();
+                        if (that.model && model.fields) {
+                            modelInstance = new that.model();
 
-                        return map(result, function(value) {
-                            if (value) {
-                                var record = {}, field;
+                            return map(result, function(value) {
+                                if (value) {
+                                    var record = {}, field;
 
-                                for (field in model.fields) {
-                                    record[field] = modelInstance._parse(field, model.fields[field].field(value));
+                                    for (field in model.fields) {
+                                        record[field] = modelInstance._parse(field, model.fields[field].field(value));
+                                    }
+
+                                    return record;
                                 }
+                            });
+                        }
 
-                                return record;
-                            }
-                        });
-                    }
+                        return result;
+                    };
+                } else if (typeof data == "function") {
+                    that.data = data;
+                }
+            }
 
-                    return result;
+            if (typeof parse == "function") {
+                var xmlParse = that.parse;
+
+                that.parse = function(data) {
+                    var xml = parse.call(that, data);
+                    return xmlParse.call(that, xml);
                 };
+            }
+
+            if (typeof serialize == "function") {
+                that.serialize = serialize;
             }
         },
         total: function(result) {
@@ -2759,6 +4172,9 @@ function pad(number) {
         },
         errors: function(data) {
             return data ? data.errors : null;
+        },
+        serialize: function(data) {
+            return data;
         },
         parseDOM: function(element) {
             var result = {},
@@ -2881,7 +4297,27 @@ function pad(number) {
             xml: XmlDataReader
         }
     });
-})(jQuery);
+})(window.kendo.jQuery);
+
+kendo_module({
+    id: "data",
+    name: "Data source",
+    category: "framework",
+    description: "Powerful component for using local and remote data.Fully supports CRUD, Sorting, Paging, Filtering, Grouping, and Aggregates.",
+    depends: [ "core" ],
+    features: [ {
+        id: "data-odata",
+        name: "OData",
+        description: "Support for accessing Open Data Protocol (OData) services.",
+        depends: [ "data.odata" ]
+    }, {
+        id: "data-XML",
+        name: "XML",
+        description: "Support for binding to XML.",
+        depends: [ "data.xml" ]
+    } ]
+});
+
 (function($, undefined) {
     var extend = $.extend,
         proxy = $.proxy,
@@ -2908,6 +4344,7 @@ function pad(number) {
         GET = "get",
         ERROR = "error",
         REQUESTSTART = "requestStart",
+        PROGRESS = "progress",
         REQUESTEND = "requestEnd",
         crud = [CREATE, READ, UPDATE, DESTROY],
         identity = function(o) { return o; },
@@ -2924,6 +4361,7 @@ function pad(number) {
         toString = {}.toString,
         stableSort = kendo.support.stableSort,
         dateRegExp = /^\/Date\((.*?)\)\/$/,
+        newLineRegExp = /(\r+|\n+)/g,
         quoteRegExp = /(?=['\\])/g;
 
     var ObservableArray = Observable.extend({
@@ -3106,8 +4544,115 @@ function pad(number) {
                 }
             }
             return -1;
+        },
+
+        forEach: function(callback) {
+            var idx = 0,
+                length = this.length;
+
+            for (; idx < length; idx++) {
+                callback(this[idx], idx, this);
+            }
+        },
+
+        map: function(callback) {
+            var idx = 0,
+                result = [],
+                length = this.length;
+
+            for (; idx < length; idx++) {
+                result[idx] = callback(this[idx], idx, this);
+            }
+
+            return result;
+        },
+
+        filter: function(callback) {
+            var idx = 0,
+                result = [],
+                item,
+                length = this.length;
+
+            for (; idx < length; idx++) {
+                item = this[idx];
+                if (callback(item, idx, this)) {
+                    result[result.length] = item;
+                }
+            }
+
+            return result;
+        },
+
+        find: function(callback) {
+            var idx = 0,
+                item,
+                length = this.length;
+
+            for (; idx < length; idx++) {
+                item = this[idx];
+                if (callback(item, idx, this)) {
+                    return item;
+                }
+            }
+        },
+
+        every: function(callback) {
+            var idx = 0,
+                item,
+                length = this.length;
+
+            for (; idx < length; idx++) {
+                item = this[idx];
+                if (!callback(item, idx, this)) {
+                    return false;
+                }
+            }
+
+            return true;
+        },
+
+        some: function(callback) {
+            var idx = 0,
+                item,
+                length = this.length;
+
+            for (; idx < length; idx++) {
+                item = this[idx];
+                if (callback(item, idx, this)) {
+                    return true;
+                }
+            }
+
+            return false;
+        },
+
+        // non-standard collection methods
+        remove: function(item) {
+            this.splice(this.indexOf(item), 1);
         }
     });
+
+    function eventHandler(context, type, field, prefix) {
+        return function(e) {
+            var event = {}, key;
+
+            for (key in e) {
+                event[key] = e[key];
+            }
+
+            if (prefix) {
+                event.field = field + "." + e.field;
+            } else {
+                event.field = field;
+            }
+
+            context.trigger(type, event);
+
+            if (type == CHANGE && context._notifyChange) {
+                context._notifyChange(event);
+            }
+        };
+    }
 
     var ObservableObject = Observable.extend({
         init: function(value) {
@@ -3116,18 +4661,17 @@ function pad(number) {
                 field,
                 parent = function() {
                     return that;
-                },
-                type;
+                };
 
             Observable.fn.init.call(this);
 
             for (field in value) {
                 member = value[field];
-                if (field.charAt(0) != "_") {
-                    type = toString.call(member);
 
+                if (field.charAt(0) != "_") {
                     member = that.wrap(member, field, parent);
                 }
+
                 that[field] = member;
             }
 
@@ -3136,6 +4680,14 @@ function pad(number) {
 
         shouldSerialize: function(field) {
             return this.hasOwnProperty(field) && field !== "_events" && typeof this[field] !== FUNCTION && field !== "uid";
+        },
+
+        forEach: function(f) {
+            for (var i in this) {
+                if (this.shouldSerialize(i)) {
+                    f(this[i], i);
+                }
+            }
         },
 
         toJSON: function() {
@@ -3172,7 +4724,9 @@ function pad(number) {
 
         _set: function(field, value) {
             var that = this;
-            if (field.indexOf(".")) {
+            var composite = field.indexOf(".") >= 0;
+
+            if (composite) {
                 var paths = field.split("."),
                     path = "";
 
@@ -3181,26 +4735,27 @@ function pad(number) {
                     var obj = kendo.getter(path, true)(that);
                     if (obj instanceof ObservableObject) {
                         obj.set(paths.join("."), value);
-                        return;
+                        return composite;
                     }
                     path += ".";
                 }
             }
 
             kendo.setter(field)(that, value);
+
+            return composite;
         },
 
         set: function(field, value) {
             var that = this,
-                current = that[field],
-                parent = function() { return that; };
+                current = kendo.getter(field, true)(that);
 
             if (current !== value) {
+
                 if (!that.trigger("set", { field: field, value: value })) {
-
-                    that._set(field, that.wrap(value, field, parent));
-
-                    that.trigger(CHANGE, { field: field });
+                    if (!that._set(field, that.wrap(value, field, function() { return that; })) || field.indexOf("(") >= 0 || field.indexOf("[") >= 0) {
+                        that.trigger(CHANGE, { field: field });
+                    }
                 }
             }
         },
@@ -3209,42 +4764,33 @@ function pad(number) {
 
         wrap: function(object, field, parent) {
             var that = this,
-                type = toString.call(object),
-                isObservableArray = object instanceof ObservableArray;
+                type = toString.call(object);
 
-            if (object !== null && object !== undefined && type === "[object Object]" && !(object instanceof DataSource) && !isObservableArray) {
-                if (!(object instanceof ObservableObject)) {
-                    object = new ObservableObject(object);
+            if (object != null && (type === "[object Object]" || type === "[object Array]")) {
+                var isObservableArray = object instanceof ObservableArray;
+                var isDataSource = object instanceof DataSource;
+
+                if (type === "[object Object]" && !isDataSource && !isObservableArray) {
+                    if (!(object instanceof ObservableObject)) {
+                        object = new ObservableObject(object);
+                    }
+
+                    if (object.parent() != parent()) {
+                        object.bind(GET, eventHandler(that, GET, field, true));
+                        object.bind(CHANGE, eventHandler(that, CHANGE, field, true));
+                    }
+                } else if (type === "[object Array]" || isObservableArray || isDataSource) {
+                    if (!isObservableArray && !isDataSource) {
+                        object = new ObservableArray(object);
+                    }
+
+                    if (object.parent() != parent()) {
+                        object.bind(CHANGE, eventHandler(that, CHANGE, field, false));
+                    }
                 }
 
                 object.parent = parent;
-
-                (function(field) {
-                    object.bind(GET, function(e) {
-                        e.field = field + "." + e.field;
-                        that.trigger(GET, e);
-                    });
-
-                    object.bind(CHANGE, function(e) {
-                        e.field = field + "." + e.field;
-                        that.trigger(CHANGE, e);
-                    });
-                })(field);
-            } else if (object !== null && (type === "[object Array]" || isObservableArray)) {
-                if (!isObservableArray) {
-                    object = new ObservableArray(object);
-                }
-                object.parent = parent;
-
-                (function(field) {
-                    object.bind(CHANGE, function(e) {
-                        that.trigger(CHANGE, { field: field, index: e.index, items: e.items, action: e.action});
-                    });
-                })(field);
-            } else if (object !== null && object instanceof DataSource) {
-                object._parent = parent; // assign parent to the DataSource if part of observable object
             }
-
 
             return object;
         }
@@ -3291,7 +4837,7 @@ function pad(number) {
             if (typeof value === STRING) {
                 return value.toLowerCase() === "true";
             }
-            return !!value;
+            return value != null ? !!value : value;
         },
 
         "string": function(value) {
@@ -3310,6 +4856,21 @@ function pad(number) {
         "boolean": false,
         "default": ""
     };
+
+    function getFieldByName(obj, name) {
+        var field,
+            fieldName;
+
+        for (fieldName in obj) {
+            field = obj[fieldName];
+            if (isPlainObject(field) && field.field && field.field === name) {
+                return field;
+            } else if (field === name) {
+                return field;
+            }
+        }
+        return null;
+    }
 
     var Model = ObservableObject.extend({
         init: function(data) {
@@ -3338,9 +4899,14 @@ function pad(number) {
 
         _parse: function(field, value) {
             var that = this,
-            parse;
+                fieldName = field,
+                fields = (that.fields || {}),
+                parse;
 
-            field = (that.fields || {})[field];
+            field = fields[field];
+            if (!field) {
+                field = getFieldByName(fields, fieldName);
+            }
             if (field) {
                 parse = field.parse;
                 if (!parse && field.type) {
@@ -3349,6 +4915,14 @@ function pad(number) {
             }
 
             return parse ? parse(value) : value;
+        },
+
+        _notifyChange: function(e) {
+            var action = e.action;
+
+            if (action == "add" || action == "remove") {
+                this.dirty = true;
+            }
         },
 
         editable: function(field) {
@@ -3402,6 +4976,10 @@ function pad(number) {
             field,
             type,
             value,
+            idx,
+            length,
+            fields = {},
+            originalName,
             id = proto.id;
 
         if (id) {
@@ -3416,22 +4994,35 @@ function pad(number) {
             proto.defaults[id] = proto._defaultId = "";
         }
 
+        if (toString.call(proto.fields) === "[object Array]") {
+            for (idx = 0, length = proto.fields.length; idx < length; idx++) {
+                field = proto.fields[idx];
+                if (typeof field === STRING) {
+                    fields[field] = {};
+                } else if (field.field) {
+                    fields[field.field] = field;
+                }
+            }
+            proto.fields = fields;
+        }
+
         for (name in proto.fields) {
             field = proto.fields[name];
             type = field.type || "default";
             value = null;
+            originalName = name;
 
             name = typeof (field.field) === STRING ? field.field : name;
 
             if (!field.nullable) {
-                value = proto.defaults[name] = field.defaultValue !== undefined ? field.defaultValue : defaultValues[type.toLowerCase()];
+                value = proto.defaults[originalName !== name ? originalName : name] = field.defaultValue !== undefined ? field.defaultValue : defaultValues[type.toLowerCase()];
             }
 
             if (options.id === name) {
                 proto._defaultId = value;
             }
 
-            proto.defaults[name] = value;
+            proto.defaults[originalName !== name ? originalName : name] = value;
 
             field.parse = field.parse || parsers[type];
         }
@@ -3454,28 +5045,42 @@ function pad(number) {
             return isFunction(field) ? field : getter(field);
         },
 
-        asc: function(field) {
+        compare: function(field) {
             var selector = this.selector(field);
             return function (a, b) {
                 a = selector(a);
                 b = selector(b);
+
+                if (a == null && b == null) {
+                    return 0;
+                }
+
+                if (a == null) {
+                    return -1;
+                }
+
+                if (b == null) {
+                    return 1;
+                }
+
+                if (a.localeCompare) {
+                    return a.localeCompare(b);
+                }
 
                 return a > b ? 1 : (a < b ? -1 : 0);
             };
         },
 
-        desc: function(field) {
-            var selector = this.selector(field);
-            return function (a, b) {
-                a = selector(a);
-                b = selector(b);
+        create: function(sort) {
+            var compare = sort.compare || this.compare(sort.field);
 
-                return a < b ? 1 : (a > b ? -1 : 0);
-            };
-        },
+            if (sort.dir == "desc") {
+                return function(a, b) {
+                    return compare(b, a, true);
+                };
+            }
 
-        create: function(descriptor) {
-            return this[descriptor.dir.toLowerCase()](descriptor.field);
+            return compare;
         },
 
         combine: function(comparers) {
@@ -3493,7 +5098,7 @@ function pad(number) {
         }
     };
 
-    var PositionComparer = extend({}, Comparer, {
+    var StableComparer = extend({}, Comparer, {
         asc: function(field) {
             var selector = this.selector(field);
             return function (a, b) {
@@ -3508,7 +5113,20 @@ function pad(number) {
                 if (valueA === valueB) {
                     return a.__position - b.__position;
                 }
-                return valueA > valueB ? 1 : (valueA < valueB ? -1 : 0);
+
+                if (valueA == null) {
+                    return -1;
+                }
+
+                if (valueB == null) {
+                    return 1;
+                }
+
+                if (valueA.localeCompare) {
+                    return valueA.localeCompare(valueB);
+                }
+
+                return valueA > valueB ? 1 : -1;
             };
         },
 
@@ -3518,12 +5136,32 @@ function pad(number) {
                 var valueA = selector(a);
                 var valueB = selector(b);
 
+                if (valueA && valueA.getTime && valueB && valueB.getTime) {
+                    valueA = valueA.getTime();
+                    valueB = valueB.getTime();
+                }
+
                 if (valueA === valueB) {
                     return a.__position - b.__position;
                 }
 
-                return valueA < valueB ? 1 : (valueA > valueB ? -1 : 0);
+                if (valueA == null) {
+                    return 1;
+                }
+
+                if (valueB == null) {
+                    return -1;
+                }
+
+                if (valueB.localeCompare) {
+                    return valueB.localeCompare(valueA);
+                }
+
+                return valueA < valueB ? 1 : -1;
             };
+        },
+        create: function(sort) {
+           return this[sort.dir](sort.field);
         }
     });
 
@@ -3540,7 +5178,7 @@ function pad(number) {
     var operators = (function(){
 
         function quote(value) {
-            return value.replace(quoteRegExp, "\\");
+            return value.replace(quoteRegExp, "\\").replace(newLineRegExp, "");
         }
 
         function operator(op, a, b, ignore) {
@@ -3591,7 +5229,7 @@ function pad(number) {
             },
             startswith: function(a, b, ignore) {
                 if (ignore) {
-                    a = a + ".toLowerCase()";
+                    a = "(" + a + " || '').toLowerCase()";
                     if (b) {
                         b = b.toLowerCase();
                     }
@@ -3605,7 +5243,7 @@ function pad(number) {
             },
             endswith: function(a, b, ignore) {
                 if (ignore) {
-                    a = a + ".toLowerCase()";
+                    a = "(" + a + " || '').toLowerCase()";
                     if (b) {
                         b = b.toLowerCase();
                     }
@@ -3615,7 +5253,7 @@ function pad(number) {
                     b = quote(b);
                 }
 
-                return a + ".lastIndexOf('" + b + "') == " + a + ".length - " + (b || "").length;
+                return a + ".indexOf('" + b + "', " + a + ".length - " + (b || "").length + ") >= 0";
             },
             contains: function(a, b, ignore) {
                 if (ignore) {
@@ -3812,14 +5450,24 @@ function pad(number) {
         select: function (selector) {
             return new Query(map(this.data, selector));
         },
-        orderBy: function (selector) {
-            var result = this.data.slice(0),
-            comparer = isFunction(selector) || !selector ? Comparer.asc(selector) : selector.compare;
+        order: function(selector, dir) {
+            var sort = { dir: dir };
 
-            return new Query(result.sort(comparer));
+            if (selector) {
+                if (selector.compare) {
+                    sort.compare = selector.compare;
+                } else {
+                    sort.field = selector;
+                }
+            }
+
+            return new Query(this.data.slice(0).sort(Comparer.create(sort)));
         },
-        orderByDescending: function (selector) {
-            return new Query(this.data.slice(0).sort(Comparer.desc(selector)));
+        orderBy: function(selector) {
+            return this.order(selector, "asc");
+        },
+        orderByDescending: function(selector) {
+            return this.order(selector, "desc");
         },
         sort: function(field, dir, comparer) {
             var idx,
@@ -3950,7 +5598,7 @@ function pad(number) {
                     data[idx].__position = idx;
                 }
 
-                data = new Query(data).sort(field, dir, PositionComparer).toArray();
+                data = new Query(data).sort(field, dir, StableComparer).toArray();
 
                 for (idx = 0, length = data.length; idx < length; idx++) {
                     delete data[idx].__position;
@@ -4001,7 +5649,7 @@ function pad(number) {
         sum: function(accumulator, item, accessor) {
             return (accumulator || 0) + accessor.get(item);
         },
-        count: function(accumulator, item, accessor) {
+        count: function(accumulator) {
             return (accumulator || 0) + 1;
         },
         average: function(accumulator, item, accessor, index, length) {
@@ -4043,7 +5691,7 @@ function pad(number) {
         return result;
     }
 
-    function process(data, options) {
+    Query.process = function(data, options) {
         options = options || {};
 
         var query = new Query(data),
@@ -4079,7 +5727,7 @@ function pad(number) {
             total: total,
             data: query.toArray()
         };
-    }
+    };
 
     function calculateAggregates(data, options) {
         options = options || {};
@@ -4109,7 +5757,9 @@ function pad(number) {
         create: function(options) {
             options.success(options.data);
         },
-        destroy: noop
+        destroy: function(options) {
+            options.success(options.data);
+        }
     });
 
     var RemoteTransport = Class.extend( {
@@ -4252,9 +5902,30 @@ function pad(number) {
         return store[options]();
     };
 
-    function convertRecords(data, getters, modelInstance) {
+    function serializeRecords(data, getters, modelInstance, originalFieldNames, fieldNames) {
         var record,
             getter,
+            originalName,
+            idx,
+            length;
+
+        for (idx = 0, length = data.length; idx < length; idx++) {
+            record = data[idx];
+            for (getter in getters) {
+                originalName = fieldNames[getter];
+
+                if (originalName && originalName !== getter) {
+                    record[originalName] = getters[getter](record);
+                    delete record[getter];
+                }
+            }
+        }
+    }
+
+    function convertRecords(data, getters, modelInstance, originalFieldNames, fieldNames) {
+        var record,
+            getter,
+            originalName,
             idx,
             length;
 
@@ -4262,28 +5933,40 @@ function pad(number) {
             record = data[idx];
             for (getter in getters) {
                 record[getter] = modelInstance._parse(getter, getters[getter](record));
+
+                originalName = fieldNames[getter];
+                if (originalName && originalName !== getter) {
+                    delete record[originalName];
+                }
             }
         }
     }
 
-    function convertGroup(data, getters, modelInstance) {
+    function convertGroup(data, getters, modelInstance, originalFieldNames, fieldNames) {
         var record,
             idx,
+            fieldName,
             length;
 
         for (idx = 0, length = data.length; idx < length; idx++) {
             record = data[idx];
+
+            fieldName = originalFieldNames[record.field];
+            if (fieldName && fieldName != record.field) {
+                record.field = fieldName;
+            }
+
             record.value = modelInstance._parse(record.field, record.value);
 
             if (record.hasSubgroups) {
-                convertGroup(record.items, getters, modelInstance);
+                convertGroup(record.items, getters, modelInstance, originalFieldNames, fieldNames);
             } else {
-                convertRecords(record.items, getters, modelInstance);
+                convertRecords(record.items, getters, modelInstance, originalFieldNames, fieldNames);
             }
         }
     }
 
-    function wrapDataAccess(originalFunction, model, converter, getters) {
+    function wrapDataAccess(originalFunction, model, converter, getters, originalFieldNames, fieldNames) {
         return function(data) {
             data = originalFunction(data);
 
@@ -4292,7 +5975,7 @@ function pad(number) {
                     data = [data];
                 }
 
-                converter(data, getters, new model());
+                converter(data, getters, new model(), originalFieldNames, fieldNames);
             }
 
             return data || [];
@@ -4320,22 +6003,47 @@ function pad(number) {
             if (that.model) {
                 var dataFunction = proxy(that.data, that),
                     groupsFunction = proxy(that.groups, that),
-                    getters = {};
+                    serializeFunction = proxy(that.serialize, that),
+                    originalFieldNames = {},
+                    getters = {},
+                    serializeGetters = {},
+                    fieldNames = {},
+                    shouldSerialize = false,
+                    fieldName;
 
                 model = that.model;
 
                 if (model.fields) {
                     each(model.fields, function(field, value) {
+                        var fromName;
+
+                        fieldName = field;
+
                         if (isPlainObject(value) && value.field) {
-                            getters[value.field] = getter(value.field);
-                        } else {
-                            getters[field] = getter(field);
+                            fieldName = value.field;
+                        } else if (typeof value === STRING) {
+                            fieldName = value;
                         }
+
+                        if (isPlainObject(value) && value.from) {
+                            fromName = value.from;
+                        }
+
+                        shouldSerialize = shouldSerialize || (fromName && fromName !== field) || fieldName !== field;
+
+                        getters[field] = getter(fromName || fieldName);
+                        serializeGetters[field] = getter(field);
+                        originalFieldNames[fromName || fieldName] = field;
+                        fieldNames[field] = fromName || fieldName;
                     });
+
+                    if (!schema.serialize && shouldSerialize) {
+                        that.serialize = wrapDataAccess(serializeFunction, model, serializeRecords, serializeGetters, originalFieldNames, fieldNames);
+                    }
                 }
 
-                that.data = wrapDataAccess(dataFunction, model, convertRecords, getters);
-                that.groups = wrapDataAccess(groupsFunction, model, convertGroup, getters);
+                that.data = wrapDataAccess(dataFunction, model, convertRecords, getters, originalFieldNames, fieldNames);
+                that.groups = wrapDataAccess(groupsFunction, model, convertGroup, getters, originalFieldNames, fieldNames);
             }
         },
         errors: function(data) {
@@ -4347,13 +6055,47 @@ function pad(number) {
             return data.length;
         },
         groups: identity,
-        status: function(data) {
-            return data.status;
-        },
         aggregates: function() {
             return {};
+        },
+        serialize: function(data) {
+            return data;
         }
     });
+
+    function mergeGroups(target, dest, start, count) {
+        var group,
+            idx = 0,
+            items;
+
+        while (dest.length && count) {
+            group = dest[idx];
+            items = group.items;
+
+            if (target && target.field === group.field && target.value === group.value) {
+                if (target.hasSubgroups && target.items.length) {
+                    mergeGroups(target.items[target.items.length - 1], group.items, start, count);
+                } else {
+                    items = items.slice(start, count);
+                    count -= items.length;
+                    target.items = target.items.concat(items);
+                }
+                dest.splice(idx--, 1);
+            } else {
+                items = items.slice(start, count);
+                count -= items.length;
+                group.items = items;
+                if (!group.items.length) {
+                    dest.splice(idx--, 1);
+                }
+            }
+
+            start = 0;
+            if (++idx >= dest.length) {
+                break;
+            }
+        }
+    }
 
     function flattenGroups(data) {
         var idx, length, result = [];
@@ -4367,6 +6109,7 @@ function pad(number) {
         }
         return result;
     }
+
     function wrapGroupItems(data, model) {
         var idx, length, group, items;
         if (model) {
@@ -4392,10 +6135,8 @@ function pad(number) {
                 if (eachGroupItems(data[idx].items, func)) {
                     return true;
                 }
-            } else {
-                if (func(data[idx].items, data[idx])) {
-                    return true;
-                }
+            } else if (func(data[idx].items, data[idx])) {
+                return true;
             }
         }
     }
@@ -4462,9 +6203,68 @@ function pad(number) {
         return -1;
     }
 
+    function fieldNameFromModel(fields, name) {
+        if (fields && !isEmptyObject(fields)) {
+            var descriptor = fields[name];
+            if (isPlainObject(descriptor)) {
+                return descriptor.from || descriptor.field || name;
+            }
+            return fields[name];
+        }
+        return name;
+    }
+
+    function convertFilterDescriptorsField(descriptor, model) {
+        var idx,
+            length,
+            target = {};
+
+        for (var field in descriptor) {
+            if (field !== "filters") {
+                target[field] = descriptor[field];
+            }
+        }
+
+        if (descriptor.filters && descriptor.filters.length) {
+            target.filters = [];
+            for (idx = 0, length = descriptor.filters.length; idx < length; idx++) {
+                target.filters[idx] = convertFilterDescriptorsField(descriptor.filters[idx], model);
+            }
+        } else {
+            target.field = fieldNameFromModel(model.fields, target.field);
+        }
+        return target;
+    }
+
+    function convertDescriptorsField(descriptors, model) {
+        var idx,
+            length,
+            result = [],
+            target,
+            descriptor;
+
+        for (idx = 0, length = descriptors.length; idx < length; idx ++) {
+            target = {};
+
+            descriptor = descriptors[idx];
+
+            for (var field in descriptor) {
+                target[field] = descriptor[field];
+            }
+
+            target.field = fieldNameFromModel(model.fields, target.field);
+
+            if (target.aggregates && isArray(target.aggregates)) {
+                target.aggregates = convertDescriptorsField(target.aggregates, model);
+            }
+            result.push(target);
+        }
+        return result;
+    }
+
     var DataSource = Observable.extend({
         init: function(options) {
-            var that = this, model, transport, data;
+            var that = this, model, data;
 
             if (options) {
                 data = options.data;
@@ -4472,46 +6272,25 @@ function pad(number) {
 
             options = that.options = extend({}, that.options, options);
 
-            extend(that, {
-                _map: {},
-                _prefetch: {},
-                _data: [],
-                _ranges: [],
-                _view: [],
-                _pristine: [],
-                _destroyed: [],
-                _pageSize: options.pageSize,
-                _page: options.page  || (options.pageSize ? 1 : undefined),
-                _sort: normalizeSort(options.sort),
-                _filter: normalizeFilter(options.filter),
-                _group: normalizeGroup(options.group),
-                _aggregate: options.aggregate,
-                _total: options.total
-            });
+            that._map = {};
+            that._prefetch = {};
+            that._data = [];
+            that._pristineData = [];
+            that._ranges = [];
+            that._view = [];
+            that._pristine = [];
+            that._destroyed = [];
+            that._pageSize = options.pageSize;
+            that._page = options.page  || (options.pageSize ? 1 : undefined);
+            that._sort = normalizeSort(options.sort);
+            that._filter = normalizeFilter(options.filter);
+            that._group = normalizeGroup(options.group);
+            that._aggregate = options.aggregate;
+            that._total = options.total;
 
             Observable.fn.init.call(that);
 
-            transport = options.transport;
-
-            if (transport) {
-                transport.read = typeof transport.read === STRING ? { url: transport.read } : transport.read;
-
-                if (options.type) {
-                    if (kendo.data.transports[options.type] && !isPlainObject(kendo.data.transports[options.type])) {
-                       that.transport = new kendo.data.transports[options.type](extend(transport, { data: data }));
-                    } else {
-                        transport = extend(true, {}, kendo.data.transports[options.type], transport);
-                    }
-
-                    options.schema = extend(true, {}, kendo.data.schemas[options.type], options.schema);
-                }
-
-                if (!that.transport) {
-                    that.transport = isFunction(transport.read) ? transport: new RemoteTransport(transport);
-                }
-            } else {
-                that.transport = new LocalTransport({ data: options.data });
-            }
+            that.transport = Transport.create(options, data);
 
             that.reader = new kendo.data.readers[options.schema.type || "json" ](options.schema);
 
@@ -4519,7 +6298,7 @@ function pad(number) {
 
             that._data = that._observe(that._data);
 
-            that.bind([ERROR, CHANGE, REQUESTSTART, SYNC, REQUESTEND], options);
+            that.bind([ERROR, CHANGE, REQUESTSTART, SYNC, REQUESTEND, PROGRESS], options);
         },
 
         options: {
@@ -4532,16 +6311,23 @@ function pad(number) {
             serverFiltering: false,
             serverGrouping: false,
             serverAggregates: false,
-            sendAllFields: true,
             batch: false
         },
 
+        _isServerGrouped: function() {
+            var group = this.group() || [];
+
+            return this.options.serverGrouping && group.length;
+        },
+
         _flatData: function(data) {
-            if (this.options.serverGrouping && this.group().length) {
+            if (this._isServerGrouped()) {
                 return flattenGroups(data);
             }
             return data;
         },
+
+        parent: noop,
 
         get: function(id) {
             var idx, length, data = this._flatData(this._data);
@@ -4565,6 +6351,82 @@ function pad(number) {
                     return data[idx];
                 }
             }
+        },
+
+        indexOf: function(model) {
+            return indexOfModel(this._data, model);
+        },
+
+        at: function(index) {
+            return this._data[index];
+        },
+
+        data: function(value) {
+            var that = this;
+            if (value !== undefined) {
+                that._data = this._observe(value);
+
+                that._ranges = [];
+                that._addRange(that._data);
+
+                that._total = that._data.length;
+
+                that._process(that._data);
+            } else {
+                return that._data;
+            }
+        },
+
+        view: function() {
+            return this._view;
+        },
+
+        add: function(model) {
+            return this.insert(this._data.length, model);
+        },
+
+        _createNewModel: function(model) {
+            if (this.reader.model) {
+                return  new this.reader.model(model);
+            }
+
+            return new ObservableObject(model);
+        },
+
+        insert: function(index, model) {
+            if (!model) {
+                model = index;
+                index = 0;
+            }
+
+            if (!(model instanceof Model)) {
+                model = this._createNewModel(model);
+            }
+
+            if (this._isServerGrouped()) {
+                this._data.splice(index, 0, wrapInEmptyGroup(this.group(), model));
+            } else {
+                this._data.splice(index, 0, model);
+            }
+
+            return model;
+        },
+
+        remove: function(model) {
+            var result,
+                that = this,
+                hasGroups = that._isServerGrouped();
+
+            this._eachItem(that._data, function(items) {
+                result = removeModel(items, model);
+                if (result && hasGroups) {
+                    if (!result.isNew || !result.isNew()) {
+                        that._destroyed.push(result);
+                    }
+                    return true;
+                }
+            });
+            return model;
         },
 
         sync: function() {
@@ -4595,17 +6457,49 @@ function pad(number) {
 
             $.when.apply(null, promises)
                 .then(function() {
-                    var idx,
-                    length;
+                    var idx, length;
 
                     for (idx = 0, length = arguments.length; idx < length; idx++){
                         that._accept(arguments[idx]);
                     }
 
-                    that._change();
+                    that._change({ action: "sync" });
 
                     that.trigger(SYNC);
                 });
+        },
+
+        cancelChanges: function(model) {
+            var that = this;
+
+            if (model instanceof kendo.data.Model) {
+                that._cancelModel(model);
+            } else {
+                that._destroyed = [];
+                that._data = that._observe(that._pristineData);
+                if (that.options.serverPaging) {
+                    that._total = that.reader.total(that._pristine);
+                }
+                that._change();
+            }
+        },
+
+        hasChanges: function() {
+            var idx,
+                length,
+                data = this._data;
+
+            if (this._destroyed.length) {
+                return true;
+            }
+
+            for (idx = 0, length = data.length; idx < length; idx++) {
+                if (data[idx].isNew() || data[idx].dirty) {
+                    return true;
+                }
+            }
+
+            return false;
         },
 
         _accept: function(result) {
@@ -4613,14 +6507,14 @@ function pad(number) {
                 models = result.models,
                 response = result.response,
                 idx = 0,
-                serverGroup = that.options.serverGrouping && that.group() && that.group().length,
-                pristine = that.reader.data(that._pristine),
+                serverGroup = that._isServerGrouped(),
+                pristine = that._pristineData,
                 type = result.type,
                 length;
 
             that.trigger(REQUESTEND, { response: response, type: type });
 
-            if (response) {
+            if (response && !isEmptyObject(response)) {
                 response = that.reader.parse(response);
 
                 if (that._handleCustomErrors(response)) {
@@ -4647,68 +6541,96 @@ function pad(number) {
                     if (type === "create") {
                         pristine.push(serverGroup ? wrapInEmptyGroup(that.group(), models[idx]) : response[idx]);
                     } else if (type === "update") {
-                        if (serverGroup) {
-                            that._updatePristineGroupModel(models[idx], response[idx]);
-                        } else {
-                            extend(pristine[that._pristineIndex(models[idx])], response[idx]);
-                        }
+                        that._updatePristineForModel(models[idx], response[idx]);
                     }
                 } else {
-                    if (serverGroup) {
-                        that._removePristineGroupModel(models[idx]);
-                    } else {
-                        pristine.splice(that._pristineIndex(models[idx]), 1);
-                    }
+                    that._removePristineForModel(models[idx]);
                 }
             }
         },
 
-        _pristineIndex: function(model) {
-            var that = this,
+        _updatePristineForModel: function(model, values) {
+            this._executeOnPristineForModel(model, function(index, items) {
+                kendo.deepExtend(items[index], values);
+            });
+        },
+
+        _executeOnPristineForModel: function(model, callback) {
+            this._eachPristineItem(
+                function(items) {
+                    var index = indexOfPristineModel(items, model);
+                    if (index > -1) {
+                        callback(index, items);
+                        return true;
+                    }
+                });
+        },
+
+        _removePristineForModel: function(model) {
+            this._executeOnPristineForModel(model, function(index, items) {
+                items.splice(index, 1);
+            });
+        },
+
+        _readData: function(data) {
+            var read = !this._isServerGrouped() ? this.reader.data : this.reader.groups;
+            return read(data);
+        },
+
+        _eachPristineItem: function(callback) {
+            this._eachItem(this._pristineData, callback);
+        },
+
+       _eachItem: function(data, callback) {
+            if (data && data.length) {
+                if (this._isServerGrouped()) {
+                    eachGroupItems(data, callback);
+                } else {
+                    callback(data);
+                }
+            }
+        },
+
+        _pristineForModel: function(model) {
+            var pristine,
                 idx,
-                length,
-                pristine = that.reader.data(that._pristine);
+                callback = function(items) {
+                    idx = indexOfPristineModel(items, model);
+                    if (idx > -1) {
+                        pristine = items[idx];
+                        return true;
+                    }
+                };
 
-            for (idx = 0, length = pristine.length; idx < length; idx++) {
-                if (pristine[idx][model.idField] === model.id) {
-                    return idx;
+            this._eachPristineItem(callback);
+
+            return pristine;
+        },
+
+        _cancelModel: function(model) {
+            var pristine = this._pristineForModel(model),
+                idx;
+
+           this._eachItem(this._data, function(items) {
+                idx = indexOfModel(items, model);
+                if (idx != -1) {
+                    if (!model.isNew() && pristine) {
+                        items[idx].accept(pristine);
+                    } else {
+                        items.splice(idx, 1);
+                    }
                 }
-            }
-            return -1;
+            });
         },
 
-        _updatePristineGroupModel: function(model, values) {
-            var pristineData = this.reader.groups(this._pristine),
-                index;
-
-            eachGroupItems(pristineData,
-                function(items, group) {
-                    index = indexOfPristineModel(items, model);
-                    if (index > -1) {
-                        extend(true, items[index], values);
-                        return true;
-                    }
-                });
-        },
-
-        _removePristineGroupModel: function(model) {
-            var pristineData = this.reader.groups(this._pristine),
-                index;
-
-            eachGroupItems(pristineData,
-                function(items, group) {
-                    index = indexOfPristineModel(items, model);
-                    if (index > -1) {
-                        items.splice(index, 1);
-                        return true;
-                    }
-                });
-        },
         _promise: function(data, models, type) {
             var that = this,
             transport = that.transport;
 
             return $.Deferred(function(deferred) {
+
+                that.trigger(REQUESTSTART);
+
                 transport[type].call(transport, extend({
                     success: function(response) {
                         deferred.resolve({
@@ -4717,9 +6639,9 @@ function pad(number) {
                             type: type
                         });
                     },
-                    error: function(response) {
+                    error: function(response, status, error) {
                         deferred.reject(response);
-                        that.trigger(ERROR, response);
+                        that.error(response, status, error);
                     }
                 }, data)
                 );
@@ -4730,135 +6652,101 @@ function pad(number) {
             var that = this,
                 idx,
                 length,
-                promises = [];
+                promises = [],
+                converted = that.reader.serialize(toJSON(data));
 
             if (that.options.batch) {
                 if (data.length) {
-                    promises.push(that._promise( { data: { models: toJSON(data) } }, data , method));
+                    promises.push(that._promise( { data: { models: converted } }, data , method));
                 }
             } else {
                 for (idx = 0, length = data.length; idx < length; idx++) {
-                    promises.push(that._promise( { data: data[idx].toJSON() }, [ data[idx] ], method));
+                    promises.push(that._promise( { data: converted[idx] }, [ data[idx] ], method));
                 }
             }
 
             return promises;
         },
 
-        add: function(model) {
-            return this.insert(this._data.length, model);
-        },
-
-        insert: function(index, model) {
-            if (!model) {
-                model = index;
-                index = 0;
-            }
-
-            if (!(model instanceof Model)) {
-                if (this.reader.model) {
-                    model = new this.reader.model(model);
-                } else {
-                    model = new ObservableObject(model);
-                }
-            }
-
-            if (this.options.serverGrouping && this.group() && this.group().length) {
-                this._data.splice(index, 0, wrapInEmptyGroup(this.group(), model));
-            } else {
-                this._data.splice(index, 0, model);
-            }
-
-            return model;
-        },
-
-        cancelChanges: function(model) {
-            var that = this,
-                pristineIndex,
-                serverGroup = that.options.serverGrouping && that.group() && that.group().length,
-                read = !serverGroup ? that.reader.data : that.reader.groups,
-                pristine = read(that._pristine),
-                index;
-
-            if (model instanceof kendo.data.Model) {
-                if (serverGroup) {
-                    that._cancelGroupModel(model);
-                } else {
-                    index = that.indexOf(model);
-                    pristineIndex = that._pristineIndex(model);
-                    if (index != -1) {
-                        if (pristineIndex != -1 && !model.isNew()) {
-                           that._data[index].accept(pristine[pristineIndex]);
-                        } else {
-                            that._data.splice(index, 1);
-                        }
-                    }
-                }
-            } else {
-                that._destroyed = [];
-                that._data = that._observe(pristine);
-                that._change();
-            }
-        },
-
         read: function(data) {
             var that = this, params = that._params(data);
 
             that._queueRequest(params, function() {
-                that.trigger(REQUESTSTART);
-                that._ranges = [];
-                that.transport.read({
-                    data: params,
-                    success: proxy(that.success, that),
-                    error: proxy(that.error, that)
-                });
+                if (!that.trigger(REQUESTSTART)) {
+                    that.trigger(PROGRESS);
+
+                    that._ranges = [];
+                    that.transport.read({
+                        data: params,
+                        success: proxy(that.success, that),
+                        error: proxy(that.error, that)
+                    });
+                } else {
+                    that._dequeueRequest();
+                }
             });
         },
 
-        _cancelGroupModel: function(model) {
-            var pristineData = this.reader.groups(this._pristine),
-                pristine,
-                idx;
+        success: function(data) {
+            var that = this,
+                options = that.options;
 
-            eachGroupItems(pristineData,
-                function(items, group) {
-                    idx = indexOfPristineModel(items, model);
-                    if (idx > -1) {
-                        pristine = items[idx];
-                        return true;
-                    }
-                });
+            that.trigger(REQUESTEND, { response: data, type: "read" });
 
-            if (idx > -1) {
-                eachGroupItems(this._data, function(items, group) {
-                    idx = indexOfModel(items, model);
-                    if (idx > -1) {
-                        if (!model.isNew()) {
-                            extend(true, items[idx], pristine);
-                        } else {
-                            items.splice(idx, 1);
-                        }
-                    }
-                });
+            data = that.reader.parse(data);
+
+            if (that._handleCustomErrors(data)) {
+                that._dequeueRequest();
+                return;
             }
+
+            that._pristine = isPlainObject(data) ? $.extend(true, {}, data) : data.slice ? data.slice(0) : data;
+
+            that._total = that.reader.total(data);
+
+            if (that._aggregate && options.serverAggregates) {
+                that._aggregateResult = that.reader.aggregates(data);
+            }
+
+            data = that._readData(data);
+
+            that._pristineData = data.slice(0);
+
+            that._data = that._observe(data);
+
+            that._addRange(that._data);
+
+            that._process(that._data);
+            that._dequeueRequest();
         },
 
-        indexOf: function(model) {
-            return indexOfModel(this._data, model);
+        _addRange: function(data) {
+            var that = this,
+                start = that._skip || 0,
+                end = start + that._flatData(data).length;
+
+            that._ranges.push({ start: start, end: end, data: data });
+            that._ranges.sort( function(x, y) { return x.start - y.start; } );
+        },
+
+        error: function(xhr, status, errorThrown) {
+            this._dequeueRequest();
+            this.trigger(REQUESTEND, { });
+            this.trigger(ERROR, { xhr: xhr, status: status, errorThrown: errorThrown });
         },
 
         _params: function(data) {
             var that = this,
-            options =  extend({
-                take: that.take(),
-                skip: that.skip(),
-                page: that.page(),
-                pageSize: that.pageSize(),
-                sort: that._sort,
-                filter: that._filter,
-                group: that._group,
-                aggregate: that._aggregate
-            }, data);
+                options =  extend({
+                    take: that.take(),
+                    skip: that.skip(),
+                    page: that.page(),
+                    pageSize: that.pageSize(),
+                    sort: that._sort,
+                    filter: that._filter,
+                    group: that._group,
+                    aggregate: that._aggregate
+                }, data);
 
             if (!that.options.serverPaging) {
                 delete options.take;
@@ -4866,18 +6754,31 @@ function pad(number) {
                 delete options.page;
                 delete options.pageSize;
             }
+
             if (!that.options.serverGrouping) {
                 delete options.group;
+            } else if (that.reader.model && options.group) {
+                options.group = convertDescriptorsField(options.group, that.reader.model);
             }
+
             if (!that.options.serverFiltering) {
                 delete options.filter;
+            } else if (that.reader.model && options.filter) {
+               options.filter = convertFilterDescriptorsField(options.filter, that.reader.model);
             }
+
             if (!that.options.serverSorting) {
                 delete options.sort;
+            } else if (that.reader.model && options.sort) {
+                options.sort = convertDescriptorsField(options.sort, that.reader.model);
             }
+
             if (!that.options.serverAggregates) {
                 delete options.aggregate;
+            } else if (that.reader.model && options.aggregate) {
+                options.aggregate = convertDescriptorsField(options.aggregate, that.reader.model);
             }
+
             return options;
         },
 
@@ -4900,37 +6801,6 @@ function pad(number) {
             }
         },
 
-        remove: function(model) {
-            var data = this._data;
-
-            if (this.options.serverGrouping && this.group() && this.group().length) {
-                return this._removeGroupItem(data, model);
-            }
-            return removeModel(data, model);
-        },
-
-        _removeGroupItem: function(data, model) {
-            var result,
-                that = this;
-
-            eachGroupItems(data, function(items, group) {
-                result = removeModel(items, model);
-                if (result) {
-                    if (!result.isNew || !result.isNew()) {
-                        that._destroyed.push(result);
-                    }
-                    return true;
-                }
-            });
-            return model;
-        },
-
-        error: function(xhr, status, errorThrown) {
-            this._dequeueRequest();
-            this.trigger(REQUESTEND, { });
-            this.trigger(ERROR, { xhr: xhr, status: status, errorThrown: errorThrown });
-        },
-
         _handleCustomErrors: function(response) {
             if (this.reader.errors) {
                 var errors = this.reader.errors(response);
@@ -4941,49 +6811,6 @@ function pad(number) {
             }
             return false;
         },
-
-        _parent: noop,
-
-        success: function(data) {
-            var that = this,
-                options = that.options,
-                hasGroups = options.serverGrouping === true && that._group && that._group.length > 0;
-
-            that.trigger(REQUESTEND, { response: data, type: "read" });
-
-            data = that.reader.parse(data);
-
-            if (that._handleCustomErrors(data)) {
-                that._dequeueRequest();
-                return;
-            }
-
-            that._pristine = isPlainObject(data) ? $.extend(true, {}, data) : data.slice ? data.slice(0) : data;
-
-            that._total = that.reader.total(data);
-
-            if (that._aggregate && options.serverAggregates) {
-                that._aggregateResult = that.reader.aggregates(data);
-            }
-
-            if (hasGroups) {
-                data = that.reader.groups(data);
-            } else {
-                data = that.reader.data(data);
-            }
-
-            that._data = that._observe(data);
-
-            var start = that._skip || 0,
-            end = start + that._data.length;
-
-            that._ranges.push({ start: start, end: end, data: that._data });
-            that._ranges.sort( function(x, y) { return x.start - y.start; } );
-
-            that._dequeueRequest();
-            that._process(that._data);
-        },
-
         _observe: function(data) {
             var that = this,
                 model = that.reader.model,
@@ -5000,14 +6827,20 @@ function pad(number) {
                 }
             } else {
                 data = new ObservableArray(data, that.reader.model);
-                data.parent = function() { return that._parent(); };
+                data.parent = function() { return that.parent(); };
             }
 
-            if (that.group() && that.group().length && that.options.serverGrouping) {
+            if (that._isServerGrouped()) {
                 wrapGroupItems(data, model);
             }
 
-            return data.bind(CHANGE, proxy(that._change, that));
+            if (that._changeHandler && that._data && that._data instanceof ObservableArray) {
+                that._data.unbind(CHANGE, that._changeHandler);
+            } else {
+                that._changeHandler = proxy(that._change, that);
+            }
+
+            return data.bind(CHANGE, that._changeHandler);
         },
 
         _change: function(e) {
@@ -5026,10 +6859,10 @@ function pad(number) {
             } else {
                 var total = that._total || that.reader.total(that._pristine);
                 if (action === "add") {
-                    total++;
+                    total += e.items.length;
                 } else if (action === "remove") {
-                    total--;
-                } else if (action !== "itemchange" && !that.options.serverPaging) {
+                    total -= e.items.length;
+                } else if (action !== "itemchange" && action !== "sync" && !that.options.serverPaging) {
                     total = that.reader.total(that._pristine);
                 }
 
@@ -5070,7 +6903,7 @@ function pad(number) {
                 that._aggregateResult = calculateAggregates(data, options);
             }
 
-            result = process(data, options);
+            result = Query.process(data, options);
 
             that._view = result.data;
 
@@ -5085,31 +6918,8 @@ function pad(number) {
             that.trigger(CHANGE, e);
         },
 
-        at: function(index) {
-            return this._data[index];
-        },
-
-        data: function(value) {
+        _mergeState: function(options) {
             var that = this;
-            if (value !== undefined) {
-                that._data = this._observe(value);
-
-                that._total = that._data.length;
-
-                that._process(that._data);
-            } else {
-                return that._data;
-            }
-        },
-
-        view: function() {
-            return this._view;
-        },
-
-        query: function(options) {
-            var that = this,
-            result,
-            remote = that.options.serverSorting || that.options.serverPaging || that.options.serverFiltering || that.options.serverGrouping || that.options.serverAggregates;
 
             if (options !== undefined) {
                 that._pageSize = options.pageSize;
@@ -5146,35 +6956,60 @@ function pad(number) {
                     that._aggregate = options.aggregate = normalizeAggregate(options.aggregate);
                 }
             }
+            return options;
+        },
 
-            if (remote || (that._data === undefined || that._data.length === 0)) {
-                that.read(options);
+        query: function(options) {
+            var that = this,
+                result,
+                remote = that.options.serverSorting || that.options.serverPaging || that.options.serverFiltering || that.options.serverGrouping || that.options.serverAggregates;
+
+            if (remote || ((that._data === undefined || that._data.length === 0) && !that._destroyed.length)) {
+                that.read(that._mergeState(options));
             } else {
-                that.trigger(REQUESTSTART);
-                result = process(that._data, options);
+                if (!that.trigger(REQUESTSTART)) {
+                    that.trigger(PROGRESS);
 
-                if (!that.options.serverFiltering) {
-                    if (result.total !== undefined) {
-                        that._total = result.total;
-                    } else {
-                        that._total = that._data.length;
+                    result = Query.process(that._data, that._mergeState(options));
+
+                    if (!that.options.serverFiltering) {
+                        if (result.total !== undefined) {
+                            that._total = result.total;
+                        } else {
+                            that._total = that._data.length;
+                        }
                     }
-                }
 
-                that._view = result.data;
-                that._aggregateResult = calculateAggregates(that._data, options);
-                that.trigger(CHANGE, { items: result.data });
+                    that._view = result.data;
+                    that._aggregateResult = calculateAggregates(that._data, options);
+                    that.trigger(REQUESTEND, { });
+                    that.trigger(CHANGE, { items: result.data });
+                }
             }
         },
 
         fetch: function(callback) {
             var that = this;
 
-            if (callback && isFunction(callback)) {
-                that.one(CHANGE, callback);
-            }
+            return $.Deferred(function(deferred) {
+                var success = function(e) {
+                    that.unbind(ERROR, error);
 
-            that._query();
+                    deferred.resolve();
+
+                    if (callback) {
+                        callback.call(that, e);
+                    }
+                };
+
+                var error = function(e) {
+                    deferred.reject(e);
+                };
+
+                that.one(CHANGE, success);
+                that.one(ERROR, error);
+                that._query();
+            }).promise();
         },
 
         _query: function(options) {
@@ -5325,6 +7160,16 @@ function pad(number) {
             return that._findRange(skip, end).length > 0;
         },
 
+        lastRange: function() {
+            var ranges = this._ranges;
+            return ranges[ranges.length - 1] || { start: 0, end: 0, data: [] };
+        },
+
+        firstItemUid: function() {
+            var ranges = this._ranges;
+            return ranges.length && ranges[0].data.length && ranges[0].data[0].uid;
+        },
+
         range: function(skip, take) {
             skip = math.min(skip || 0, this.total());
             var that = this,
@@ -5392,23 +7237,27 @@ function pad(number) {
                 processed,
                 options = that.options,
                 remote = options.serverSorting || options.serverPaging || options.serverFiltering || options.serverGrouping || options.serverAggregates,
+                flatData,
+                count,
                 length;
 
             for (skipIdx = 0, length = ranges.length; skipIdx < length; skipIdx++) {
                 range = ranges[skipIdx];
                 if (start >= range.start && start <= range.end) {
-                    var count = 0;
+                    count = 0;
 
                     for (takeIdx = skipIdx; takeIdx < length; takeIdx++) {
                         range = ranges[takeIdx];
+                        flatData = that._flatData(range.data);
 
-                        if (range.data.length && start + count >= range.start) {
+                        if (flatData.length && start + count >= range.start) {
                             rangeData = range.data;
                             rangeEnd = range.end;
 
                             if (!remote) {
-                                processed = process(range.data, { sort: that.sort(), filter: that.filter() });
-                                rangeData = processed.data;
+                                var sort = normalizeGroup(that.group() || []).concat(normalizeSort(that.sort() || []));
+                                processed = Query.process(range.data, { sort: sort, filter: that.filter() });
+                                flatData = rangeData = processed.data;
 
                                 if (processed.total !== undefined) {
                                     rangeEnd = processed.total;
@@ -5419,12 +7268,12 @@ function pad(number) {
                             if (start + count > range.start) {
                                 startIndex = (start + count) - range.start;
                             }
-                            endIndex = rangeData.length;
+                            endIndex = flatData.length;
                             if (rangeEnd > end) {
                                 endIndex = endIndex - (rangeEnd - end);
                             }
                             count += endIndex - startIndex;
-                            data = data.concat(rangeData.slice(startIndex, endIndex));
+                            data = that._mergeGroups(data, rangeData, startIndex, endIndex);
 
                             if (end <= range.end && count == end - start) {
                                 return data;
@@ -5437,6 +7286,22 @@ function pad(number) {
             return [];
         },
 
+        _mergeGroups: function(data, range, startIndex, endIndex) {
+            if (this._isServerGrouped()) {
+                var temp = range.toJSON(),
+                    prevGroup;
+
+                if (data.length) {
+                    prevGroup = data[data.length - 1];
+                }
+
+                mergeGroups(prevGroup, temp, startIndex, endIndex);
+
+                return data.concat(temp);
+            }
+            return data.concat(range.slice(startIndex, endIndex));
+        },
+
         skip: function() {
             var that = this;
 
@@ -5447,56 +7312,71 @@ function pad(number) {
         },
 
         take: function() {
+            return this._take || this._pageSize;
+        },
+
+        _prefetchSuccessHandler: function (skip, size, callback) {
             var that = this;
-            return that._take || that._pageSize;
+            return function(data) {
+                var found = false,
+                    range = { start: skip, end: size, data: [] },
+                    idx,
+                    length;
+
+                that._dequeueRequest();
+
+                for (idx = 0, length = that._ranges.length; idx < length; idx++) {
+                    if (that._ranges[idx].start === skip) {
+                        found = true;
+                        range = that._ranges[idx];
+                        break;
+                    }
+                }
+                if (!found) {
+                    that._ranges.push(range);
+                }
+
+
+                that.trigger(REQUESTEND, { response: data, type: "read" });
+
+                data = that.reader.parse(data);
+                range.data = that._observe(that._readData(data));
+                range.end = range.start + that._flatData(range.data).length;
+                that._ranges.sort( function(x, y) { return x.start - y.start; } );
+                that._total = that.reader.total(data);
+                if (callback) {
+                    callback();
+                }
+            };
         },
 
         prefetch: function(skip, take, callback) {
             var that = this,
-            size = math.min(skip + take, that.total()),
-            range = { start: skip, end: size, data: [] },
-            options = {
-                take: take,
-                skip: skip,
-                page: skip / take + 1,
-                pageSize: take,
-                sort: that._sort,
-                filter: that._filter,
-                group: that._group,
-                aggregate: that._aggregate
-            };
+                size = math.min(skip + take, that.total()),
+                options = {
+                    take: take,
+                    skip: skip,
+                    page: skip / take + 1,
+                    pageSize: take,
+                    sort: that._sort,
+                    filter: that._filter,
+                    group: that._group,
+                    aggregate: that._aggregate
+                };
 
             if (!that._rangeExists(skip, size)) {
                 clearTimeout(that._timeout);
 
                 that._timeout = setTimeout(function() {
                     that._queueRequest(options, function() {
-                        that.transport.read({
-                            data: options,
-                            success: function (data) {
-                                that._dequeueRequest();
-                                var found = false;
-                                for (var i = 0, len = that._ranges.length; i < len; i++) {
-                                    if (that._ranges[i].start === skip) {
-                                        found = true;
-                                        range = that._ranges[i];
-                                        break;
-                                    }
-                                }
-                                if (!found) {
-                                    that._ranges.push(range);
-                                }
-
-                                data = that.reader.parse(data);
-                                range.data = that._observe(that.reader.data(data));
-                                range.end = range.start + range.data.length;
-                                that._ranges.sort( function(x, y) { return x.start - y.start; } );
-                                that._total = that.reader.total(data);
-                                if (callback) {
-                                    callback();
-                                }
-                            }
-                        });
+                        if (!that.trigger(REQUESTSTART)) {
+                            that.transport.read({
+                                data: options,
+                                success: that._prefetchSuccessHandler(skip, size, callback)
+                            });
+                        } else {
+                            that._dequeueRequest();
+                        }
                     });
                 }, 100);
             } else if (callback) {
@@ -5518,6 +7398,34 @@ function pad(number) {
             return false;
         }
     });
+
+    var Transport = {};
+
+    Transport.create = function(options, data) {
+        var transport,
+            transportOptions = options.transport;
+
+        if (transportOptions) {
+            transportOptions.read = typeof transportOptions.read === STRING ? { url: transportOptions.read } : transportOptions.read;
+
+            if (options.type) {
+                if (kendo.data.transports[options.type] && !isPlainObject(kendo.data.transports[options.type])) {
+                    transport = new kendo.data.transports[options.type](extend(transportOptions, { data: data }));
+                } else {
+                    transportOptions = extend(true, {}, kendo.data.transports[options.type], transportOptions);
+                }
+
+                options.schema = extend(true, {}, kendo.data.schemas[options.type], options.schema);
+            }
+
+            if (!transport) {
+                transport = isFunction(transportOptions.read) ? transportOptions : new RemoteTransport(transportOptions);
+            }
+        } else {
+            transport = new LocalTransport({ data: options.data });
+        }
+        return transport;
+    };
 
     DataSource.create = function(options) {
         options = options && options.push ? { data: options } : options;
@@ -5572,6 +7480,10 @@ function pad(number) {
         for (idx = 0, length = options.length; idx < length; idx++) {
             record = {};
             option = options[idx];
+
+            if (option.disabled) {
+                continue;
+            }
 
             record[firstField.field] = option.text;
 
@@ -5628,28 +7540,46 @@ function pad(number) {
         init: function(value) {
             var that = this,
                 hasChildren = that.hasChildren || value && value.hasChildren,
-                data = "items",
-                children = {};
+                childrenField = "items",
+                childrenOptions = {};
 
             kendo.data.Model.fn.init.call(that, value);
 
             if (typeof that.children === STRING) {
-               data = that.children;
+                childrenField = that.children;
             }
 
-            children = extend({
+            childrenOptions = {
                 schema: {
-                    data: data,
+                    data: childrenField,
                     model: {
-                        hasChildren: hasChildren
+                        hasChildren: hasChildren,
+                        id: that.idField
                     }
                 }
-            }, that.children);
+            };
 
-            children.data = value;
+            if (typeof that.children !== STRING) {
+                extend(childrenOptions, that.children);
+            }
+
+            var transport = childrenOptions.transport;
+
+            if (transport) {
+                transport.parameterMap = function(data) {
+                    if (that.parentParameterMap) {
+                        data = that.parentParameterMap.call(this, data);
+                    }
+
+                    data[that.idField || "id"] = that.id;
+                    return data;
+                };
+            }
+
+            childrenOptions.data = value;
 
             if (!hasChildren) {
-                hasChildren = children.schema.data;
+                hasChildren = childrenOptions.schema.data;
             }
 
             if (typeof hasChildren === STRING) {
@@ -5660,13 +7590,13 @@ function pad(number) {
                 that.hasChildren = !!hasChildren.call(that, that);
             }
 
-            that._childrenOptions = children;
+            that._childrenOptions = childrenOptions;
 
             if (that.hasChildren) {
                 that._initChildren();
             }
 
-            that._loaded = !!(value && value[data]);
+            that._loaded = !!(value && (value[childrenField] || value._loaded));
         },
 
         _initChildren: function() {
@@ -5674,7 +7604,7 @@ function pad(number) {
 
             if (!(that.children instanceof HierarchicalDataSource)) {
                 that.children = new HierarchicalDataSource(that._childrenOptions);
-                that.children._parent = function(){
+                that.children.parent = function(){
                     return that;
                 };
 
@@ -5682,6 +7612,17 @@ function pad(number) {
                     e.node = e.node || that;
                     that.trigger(CHANGE, e);
                 });
+
+                that.children.bind(ERROR, function(e){
+                    var collection = that.parent();
+
+                    if (collection) {
+                        e.node = e.node || that;
+                        collection.trigger(ERROR, e);
+                    }
+                });
+
+                that._updateChildrenField();
             }
         },
 
@@ -5697,7 +7638,7 @@ function pad(number) {
             var parentNode = this.parentNode(),
                 level = 0;
 
-            while (parentNode) {
+            while (parentNode && parentNode.parentNode) {
                 level++;
                 parentNode = parentNode.parentNode ? parentNode.parentNode() : null;
             }
@@ -5705,13 +7646,19 @@ function pad(number) {
             return level;
         },
 
+        _updateChildrenField: function() {
+            var fieldName = this._childrenOptions.schema.data;
+
+            this[fieldName || "items"] = this.children.data();
+        },
+
         load: function() {
             var that = this,
                 options = {};
 
-            that._initChildren();
+            if (that.hasChildren) {
+                that._initChildren();
 
-            if (!that._loaded || that.hasChildren) {
                 options[that.idField || "id"] = that.id;
 
                 if (!that._loaded) {
@@ -5720,6 +7667,8 @@ function pad(number) {
 
                 that.children.one(CHANGE, function() {
                             that._loaded = true;
+
+                            that._updateChildrenField();
                         })
                         ._query(options);
             }
@@ -5740,9 +7689,26 @@ function pad(number) {
         },
 
         shouldSerialize: function(field) {
-            return Model.fn.shouldSerialize.call(this, field) && field !== "children" && field !== "_loaded" && field !== "hasChildren";
+            return Model.fn.shouldSerialize.call(this, field) &&
+                    field !== "children" &&
+                    field !== "_loaded" &&
+                    field !== "hasChildren" &&
+                    field !== "_childrenOptions";
         }
     });
+
+    function dataMethod(name) {
+        return function() {
+            var data = this._data,
+                result = DataSource.fn[name].apply(this, slice.call(arguments));
+
+            if (this._data != data) {
+                this._attachBubbleHandlers();
+            }
+
+            return result;
+        };
+    }
 
     var HierarchicalDataSource = DataSource.extend({
         init: function(options) {
@@ -5751,6 +7717,20 @@ function pad(number) {
             });
 
             DataSource.fn.init.call(this, extend(true, {}, { schema: { modelBase: node, model: node } }, options));
+
+            if (this.transport) {
+                node.fn.parentParameterMap = this.transport.parameterMap;
+            }
+
+            this._attachBubbleHandlers();
+        },
+
+        _attachBubbleHandlers: function() {
+            var that = this;
+
+            that._data.bind(ERROR, function(e) {
+                that.trigger(ERROR, e);
+            });
         },
 
         remove: function(node){
@@ -5758,7 +7738,7 @@ function pad(number) {
                 dataSource = this,
                 result;
 
-            if (parentNode) {
+            if (parentNode && parentNode._initChildren) {
                 dataSource = parentNode.children;
             }
 
@@ -5771,10 +7751,14 @@ function pad(number) {
             return result;
         },
 
-        insert: function(index, model) {
-            var parentNode = this._parent();
+        success: dataMethod("success"),
 
-            if (parentNode) {
+        data: dataMethod("data"),
+
+        insert: function(index, model) {
+            var parentNode = this.parent();
+
+            if (parentNode && parentNode._initChildren) {
                 parentNode.hasChildren = true;
                 parentNode._initChildren();
             }
@@ -5838,7 +7822,7 @@ function pad(number) {
             children;
 
         for (idx = 0, length = items.length; idx < length; idx++) {
-            record = {};
+            record = { _loaded: true };
             item = items.eq(idx);
 
             textChild = item[0].firstChild;
@@ -5891,6 +7875,10 @@ function pad(number) {
             fields = dataSource.fields,
             list = dataSource.list;
 
+        if (data && data._dataSource) {
+            return data._dataSource;
+        }
+
         if (!data && fields && !dataSource.transport) {
             if (list) {
                 data = inferList(list, fields);
@@ -5901,6 +7889,263 @@ function pad(number) {
 
         return dataSource instanceof HierarchicalDataSource ? dataSource : new HierarchicalDataSource(dataSource);
     };
+
+    var Buffer = kendo.Observable.extend({
+        init: function(dataSource, viewSize, disablePrefetch) {
+            kendo.Observable.fn.init.call(this);
+
+            this._prefetching = false;
+            this.dataSource = dataSource;
+            this.prefetch = !disablePrefetch;
+
+            var buffer = this;
+
+            dataSource.bind("change", function() {
+                buffer._change();
+            });
+
+            this._syncWithDataSource();
+
+            this.setViewSize(viewSize);
+        },
+
+        setViewSize: function(viewSize) {
+            this.viewSize = viewSize;
+            this._recalculate();
+        },
+
+        at: function(index)  {
+            var pageSize = this.pageSize;
+
+            if (index >= this.total()) {
+                this.trigger("endreached", {index: index });
+                return;
+            }
+
+            // out of range request
+            if (index < this.dataOffset || index > this.skip + pageSize) {
+                var offset = Math.floor(index / pageSize) * pageSize;
+                this.range(offset);
+            }
+
+            // prefetch
+            if (index === this.prefetchThreshold) {
+                this._prefetch();
+            }
+
+            // mid-range jump - prefetchThreshold and nextPageThreshold may be equal, do not change to else if
+            if (index === this.midPageThreshold) {
+                this.range(this.nextMidRange);
+            }
+            // next range jump
+            else if (index === this.nextPageThreshold) {
+                this.range(this.nextFullRange);
+            }
+            // pull-back
+            else if (index === this.pullBackThreshold) {
+                if (this.offset === this.skip) { // from full range to mid range
+                    this.range(this.previousMidRange);
+                } else { // from mid range to full range
+                    this.range(this.previousFullRange);
+                }
+            }
+
+            var item = this.dataSource.at(index - this.dataOffset);
+
+            if (item === undefined) {
+                this.trigger("endreached", { index: index });
+            }
+
+            return item;
+        },
+
+        indexOf: function(item) {
+            return this.dataSource.data().indexOf(item) + this.dataOffset;
+        },
+
+        _prefetch: function() {
+            var buffer = this,
+                pageSize = this.pageSize,
+                prefetchOffset = this.skip + pageSize,
+                dataSource = this.dataSource;
+
+            if (!dataSource.inRange(prefetchOffset, pageSize) && !this._prefetching && this.prefetch) {
+                this._prefetching = true;
+                this.trigger("prefetching", { skip: prefetchOffset, take: pageSize });
+
+                dataSource.prefetch(prefetchOffset, pageSize, function() {
+                    buffer._prefetching = false;
+                    buffer.trigger("prefetched", { skip: prefetchOffset, take: pageSize });
+                });
+            }
+        },
+
+        total: function() {
+            return parseInt(this.dataSource.total(), 10);
+        },
+
+        next: function() {
+            var buffer = this,
+                pageSize = buffer.pageSize,
+                offset = buffer.skip - buffer.viewSize, // this calculation relies that the buffer has already jumped into the mid range segment
+                pageSkip = math.max(math.floor(offset / pageSize), 0) * pageSize + pageSize;
+
+            this.offset = offset;
+            this.dataSource.prefetch(pageSkip, pageSize, function() {
+                buffer._goToRange(offset, true);
+            });
+        },
+
+        range: function(offset) {
+            if (this.offset === offset) {
+                return;
+            }
+
+            var buffer = this,
+                pageSize = this.pageSize,
+                pageSkip = math.max(math.floor(offset / pageSize), 0) * pageSize + pageSize,
+                dataSource = this.dataSource;
+
+            this.offset = offset;
+            this._recalculate();
+            if (dataSource.inRange(offset, pageSize)) {
+                this._goToRange(offset);
+            } else if (this.prefetch) {
+                dataSource.prefetch(pageSkip, pageSize, function() {
+                    buffer._goToRange(offset, true);
+                });
+            }
+        },
+
+        syncDataSource: function() {
+            var offset = this.offset;
+            this.offset = null;
+            this.range(offset);
+        },
+
+        _goToRange: function(offset, expanding) {
+            if (this.offset !== offset) {
+                return;
+            }
+
+            this.dataOffset = offset;
+            this._expanding = expanding;
+            this.dataSource.range(offset, this.pageSize);
+        },
+
+        _change: function() {
+            var dataSource = this.dataSource,
+                firstItemUid = dataSource.firstItemUid();
+
+            this.length = dataSource.lastRange().end;
+
+            if (this._firstItemUid !== firstItemUid) {
+                this._syncWithDataSource();
+                this._recalculate();
+                this.trigger("reset", { offset: this.offset });
+            }
+
+            this.trigger("resize");
+
+            if (this._expanding) {
+                this.trigger("expand");
+            }
+
+            delete this._expanding;
+        },
+
+        _syncWithDataSource: function() {
+            var dataSource = this.dataSource;
+
+            this._firstItemUid = dataSource.firstItemUid();
+            this.dataOffset = this.offset = dataSource.skip();
+            this.pageSize = dataSource.pageSize();
+        },
+
+        _recalculate: function() {
+            var pageSize = this.pageSize,
+                offset = this.offset,
+                viewSize = this.viewSize,
+                skip = Math.ceil(offset / pageSize) * pageSize;
+
+            this.skip = skip;
+            this.midPageThreshold = skip + pageSize - 1;
+            this.nextPageThreshold = skip + viewSize - 1;
+            this.prefetchThreshold = skip + Math.floor(pageSize / 3 * 2);
+            this.pullBackThreshold = this.offset - 1;
+
+            this.nextMidRange = skip + pageSize - viewSize;
+            this.nextFullRange = skip;
+            this.previousMidRange = offset - viewSize;
+            this.previousFullRange = skip - pageSize;
+        }
+    });
+
+    var BatchBuffer = kendo.Observable.extend({
+        init: function(dataSource, batchSize) {
+            var batchBuffer = this;
+
+            kendo.Observable.fn.init.call(batchBuffer);
+
+            this.dataSource = dataSource;
+            this.batchSize = batchSize;
+            this._total = 0;
+
+            this.buffer = new Buffer(dataSource, batchSize * 3);
+
+            this.buffer.bind({
+                "endreached": function (e) {
+                    batchBuffer.trigger("endreached", { index: e.index });
+                },
+                "prefetching": function (e) {
+                    batchBuffer.trigger("prefetching", { skip: e.skip, take: e.take });
+                },
+                "prefetched": function (e) {
+                    batchBuffer.trigger("prefetched", { skip: e.skip, take: e.take });
+                },
+                "reset": function () {
+                    batchBuffer._total = 0;
+                    batchBuffer.trigger("reset");
+                },
+                "resize": function () {
+                    batchBuffer._total = this.length / batchBuffer.batchSize;
+                    batchBuffer.trigger("resize", { total: batchBuffer.total(), offset: this.offset });
+                }
+            });
+        },
+
+        syncDataSource: function() {
+            this.buffer.syncDataSource();
+        },
+
+        at: function(index) {
+            var buffer = this.buffer,
+                skip = index * this.batchSize,
+                take = this.batchSize,
+                view = [],
+                item;
+
+            if (buffer.offset > skip) {
+                buffer.at(buffer.offset - 1);
+            }
+
+            for (var i = 0; i < take; i++) {
+                item = buffer.at(skip + i);
+
+                if (item === undefined) {
+                    return;
+                }
+
+                view.push(item);
+            }
+
+            return view;
+        },
+
+        total: function() {
+            return this._total;
+        }
+    });
 
     extend(true, kendo.data, {
         readers: {
@@ -5916,10 +8161,21 @@ function pad(number) {
         RemoteTransport: RemoteTransport,
         Cache: Cache,
         DataReader: DataReader,
-        Model: Model
+        Model: Model,
+        Buffer: Buffer,
+        BatchBuffer: BatchBuffer
     });
-})(jQuery);
-(function ($, unefined) {
+})(window.kendo.jQuery);
+
+kendo_module({
+    id: "binder",
+    name: "MVVM",
+    category: "framework",
+    description: "Model View ViewModel (MVVM) is a design pattern which helps developers separate the Model (the data) from the View (the UI).",
+    depends: [ "core", "data" ]
+});
+
+(function ($, undefined) {
     var kendo = window.kendo,
         Observable = kendo.Observable,
         ObservableObject = kendo.data.ObservableObject,
@@ -5931,6 +8187,7 @@ function pad(number) {
         proxy = $.proxy,
         VALUE = "value",
         SOURCE = "source",
+        EVENTS = "events",
         CHECKED = "checked",
         CHANGE = "change";
 
@@ -5944,12 +8201,13 @@ function pad(number) {
     })();
 
     var Binding = Observable.extend( {
-        init: function(source, path) {
+        init: function(parents, path) {
             var that = this;
 
             Observable.fn.init.call(that);
 
-            that.source = source;
+            that.source = parents[0];
+            that.parents = parents;
             that.path = path;
             that.dependencies = {};
             that.dependencies[path] = true;
@@ -5968,20 +8226,33 @@ function pad(number) {
             }
         },
 
+        _parents: function() {
+            var parents = this.parents;
+            var value = this.get();
+
+            if (value && typeof value.parent == "function") {
+                var parent = value.parent();
+
+                if ($.inArray(parent, parents) < 0) {
+                    parents = [parent].concat(parents);
+                }
+            }
+
+            return parents;
+        },
+
         change: function(e) {
             var dependency,
-                idx,
                 ch,
+                field = e.field,
                 that = this;
 
             if (that.path === "this") {
                 that.trigger(CHANGE, e);
             } else {
                 for (dependency in that.dependencies) {
-                    idx = dependency.indexOf(e.field);
-
-                    if (idx === 0) {
-                       ch = dependency.charAt(e.field.length);
+                    if (dependency.indexOf(field) === 0) {
+                       ch = dependency.charAt(field.length);
 
                        if (!ch || ch === "." || ch === "[") {
                             that.trigger(CHANGE, e);
@@ -5992,31 +8263,44 @@ function pad(number) {
             }
         },
 
-        start: function() {
-            if (this.observable) {
-                this.source.bind("get", this._access);
-            }
+        start: function(source) {
+            source.bind("get", this._access);
         },
 
-        stop: function() {
-            if (this.observable) {
-                this.source.unbind("get", this._access);
-            }
+        stop: function(source) {
+            source.unbind("get", this._access);
         },
 
         get: function() {
+
             var that = this,
                 source = that.source,
-                index,
+                index = 0,
                 path = that.path,
                 result = source;
 
-            that.start();
+            if (!that.observable) {
+                return result;
+            }
 
-            if (that.observable) {
-                result = source.get(path);
+            that.start(that.source);
 
-                // Traverse the observable hierarchy if the binding is not resolved at the current level.
+            result = source.get(path);
+
+            // Traverse the observable hierarchy if the binding is not resolved at the current level.
+            while (result === undefined && source) {
+
+                source = that.parents[++index];
+
+                if (source instanceof ObservableObject) {
+                    result = source.get(path);
+                }
+            }
+
+            // second pass try to get the parent from the object hierarchy
+            if (result === undefined) {
+                source = that.source; //get the initial source
+
                 while (result === undefined && source) {
                     source = source.parent();
 
@@ -6024,35 +8308,36 @@ function pad(number) {
                         result = source.get(path);
                     }
                 }
-
-                // If the result is a function - invoke it
-                if (typeof result === "function") {
-                    index = path.lastIndexOf(".");
-
-                    // If the function is a member of a nested observable object make that nested observable the context (this) of the function
-                    if (index > 0) {
-                        source = source.get(path.substring(0, index));
-                    }
-
-                    // Set the context (this) of the function
-                    result = proxy(result, source);
-
-                    // Invoke the function
-                    result = result(that.source);
-                }
-
-                // If the binding is resolved by a parent object
-                if (source && source !== that.source) {
-
-                    that.currentSource = source; // save parent object
-
-                    // Listen for changes in the parent object
-                    source.unbind(CHANGE, that._change)
-                          .bind(CHANGE, that._change);
-                }
             }
 
-            that.stop();
+            // If the result is a function - invoke it
+            if (typeof result === "function") {
+                index = path.lastIndexOf(".");
+
+                // If the function is a member of a nested observable object make that nested observable the context (this) of the function
+                if (index > 0) {
+                    source = source.get(path.substring(0, index));
+                }
+
+                // Invoke the function
+                that.start(source);
+
+                result = result.call(source, that.source);
+
+                that.stop(source);
+            }
+
+            // If the binding is resolved by a parent object
+            if (source && source !== that.source) {
+
+                that.currentSource = source; // save parent object
+
+                // Listen for changes in the parent object
+                source.unbind(CHANGE, that._change)
+                      .bind(CHANGE, that._change);
+            }
+
+            that.stop(that.source);
 
             return result;
         },
@@ -6075,12 +8360,14 @@ function pad(number) {
         get: function() {
             var source = this.source,
                 path = this.path,
+                index = 0,
                 handler;
 
             handler = source.get(path);
 
             while (!handler && source) {
-                source = source.parent();
+                source = this.parents[++index];
+
                 if (source instanceof ObservableObject) {
                     handler = source.get(path);
                 }
@@ -6102,11 +8389,11 @@ function pad(number) {
         render: function(value) {
             var html;
 
-            this.start();
+            this.start(this.source);
 
             html = kendo.render(this.template, value);
 
-            this.stop();
+            this.stop(this.source);
 
             return html;
         }
@@ -6143,7 +8430,7 @@ function pad(number) {
 
     binders.style = Binder.extend({
         refresh: function(key) {
-            this.element.style[key] = this.bindings.style[key].get();
+            this.element.style[key] = this.bindings.style[key].get() || "";
         }
     });
 
@@ -6155,6 +8442,16 @@ function pad(number) {
                 this.element.setAttribute("disabled", "disabled");
             }
         }
+    });
+
+    binders.readonly = Binder.extend({
+       refresh: function() {
+            if (this.bindings.readonly.get()) {
+                this.element.setAttribute("readonly", "readonly");
+            } else {
+                this.element.removeAttribute("readonly");
+            }
+       }
     });
 
     binders.disabled = Binder.extend({
@@ -6344,6 +8641,7 @@ function pad(number) {
 
         add: function(index, items) {
             var element = this.container(),
+                parents,
                 idx,
                 length,
                 child,
@@ -6353,30 +8651,34 @@ function pad(number) {
             $(clone).html(kendo.render(this.template(), items));
 
             if (clone.children.length) {
+                parents = this.bindings.source._parents();
+
                 for (idx = 0, length = items.length; idx < length; idx++) {
                     child = clone.children[0];
                     element.insertBefore(child, reference || null);
-                    bindElement(child, items[idx], this.options.roles);
+                    bindElement(child, items[idx], this.options.roles, [items[idx]].concat(parents));
                 }
             }
         },
 
         remove: function(index, items) {
-            var idx,
-            element = this.container();
+            var idx, element = this.container();
 
             for (idx = 0; idx < items.length; idx++) {
-                element.removeChild(element.children[index]);
+                var child = element.children[index];
+                unbindElementTree(child);
+                element.removeChild(child);
             }
         },
 
         render: function() {
             var source = this.bindings.source.get(),
-                 idx,
-                 length,
-                 element = this.container(),
-                 template = this.template(),
-                 parent;
+                parents,
+                idx,
+                length,
+                element = this.container(),
+                template = this.template(),
+                parent;
 
             if (!(source instanceof ObservableArray) && toString.call(source) !== "[object Array]") {
                 if (source.parent) {
@@ -6391,11 +8693,15 @@ function pad(number) {
             }
 
             if (this.bindings.template) {
+                unbindElementChildren(element);
+
                 $(element).html(this.bindings.template.render(source));
 
                 if (element.children.length) {
+                    parents = this.bindings.source._parents();
+
                     for (idx = 0, length = source.length; idx < length; idx++) {
-                        bindElement(element.children[idx], source[idx], this.options.roles);
+                        bindElement(element.children[idx], source[idx], this.options.roles, [source[idx]].concat(parents));
                     }
                 }
             }
@@ -6491,6 +8797,7 @@ function pad(number) {
                     element = this.element,
                     source,
                     field = this.options.valueField || this.options.textField,
+                    valuePrimitive = this.options.valuePrimitive,
                     option,
                     valueIndex,
                     value,
@@ -6528,7 +8835,7 @@ function pad(number) {
                 value = this.bindings[VALUE].get();
                 if (value instanceof ObservableArray) {
                     value.splice.apply(value, [0, value.length].concat(values));
-                } else if (value instanceof ObservableObject || !field) {
+                } else if (!valuePrimitive && (value instanceof ObservableObject || !field)) {
                     this.bindings[VALUE].set(values[0]);
                 } else {
                     this.bindings[VALUE].set(values[0].get(field));
@@ -6541,11 +8848,14 @@ function pad(number) {
                     value = this.bindings[VALUE].get(),
                     values = value,
                     field = this.options.valueField || this.options.textField,
+                    found = false,
                     optionValue;
 
                 if (!(values instanceof ObservableArray)) {
                     values = new ObservableArray([value]);
                 }
+
+                element.selectedIndex = -1;
 
                 for (var valueIndex = 0; valueIndex < values.length; valueIndex++) {
                     value = values[valueIndex];
@@ -6556,12 +8866,14 @@ function pad(number) {
 
                     for (optionIndex = 0; optionIndex < options.length; optionIndex++) {
                         optionValue = options[optionIndex].value;
+
                         if (optionValue === "" && value !== "") {
                             optionValue = options[optionIndex].text;
                         }
 
                         if (optionValue == value) {
                             options[optionIndex].selected = true;
+                            found = true;
                         }
                     }
                 }
@@ -6711,7 +9023,7 @@ function pad(number) {
             },
 
             itemChange: function(e) {
-                bindElement(e.item[0], e.data, (e.ns || kendo.ui).roles);
+                bindElement(e.item[0], e.data, this._ns(e.ns), [e.data].concat(this.bindings.source._parents()));
             },
 
             dataBinding: function() {
@@ -6725,6 +9037,15 @@ function pad(number) {
                 }
             },
 
+            _ns: function(ns) {
+                ns = ns || kendo.ui;
+                var all = [ kendo.ui, kendo.dataviz.ui, kendo.mobile.ui ];
+                all.splice($.inArray(ns, all), 1);
+                all.unshift(ns);
+
+                return kendo.rolesFromNamespaces(all);
+            },
+
             dataBound: function(e) {
                 var idx,
                     length,
@@ -6732,7 +9053,7 @@ function pad(number) {
                     items = widget.items(),
                     dataSource = widget.dataSource,
                     view = dataSource.view(),
-                    ns = e.ns || kendo.ui,
+                    parents,
                     groups = dataSource.group() || [];
 
                 if (items.length) {
@@ -6740,8 +9061,10 @@ function pad(number) {
                         view = flattenGroups(view);
                     }
 
+                    parents = this.bindings.source._parents();
+
                     for (idx = 0, length = view.length; idx < length; idx++) {
-                        bindElement(items[idx], view[idx], ns.roles);
+                        bindElement(items[idx], view[idx], this._ns(e.ns), [view[idx]].concat(parents));
                     }
                 }
             },
@@ -6760,10 +9083,13 @@ function pad(number) {
                     widget.bind("dataBound", that._dataBound);
                     widget.bind("itemChange", that._itemChange);
 
-                    if (widget.dataSource instanceof kendo.data.DataSource) {
-                        source = that.bindings.source.get();
+                    source = that.bindings.source.get();
+
+                    if (widget.dataSource instanceof kendo.data.DataSource && widget.dataSource != source) {
                         if (source instanceof kendo.data.DataSource) {
                             widget.setDataSource(source);
+                        } else if (source && source._dataSource) {
+                            widget.setDataSource(source._dataSource);
                         } else {
                             widget.dataSource.data(source);
                         }
@@ -6789,61 +9115,161 @@ function pad(number) {
                 this.widget.first(CHANGE, this._change);
 
                 var value = this.bindings.value.get();
-                this._valueIsObservableObject = value == null || value instanceof ObservableObject;
+
+                this._valueIsObservableObject = !options.valuePrimitive && (value == null || value instanceof ObservableObject);
+                this._valueIsObservableArray = value instanceof ObservableArray;
+                this._initChange = false;
             },
 
             change: function() {
-                var value = this.widget.value();
-                var idx, length;
+                var value = this.widget.value(),
+                    field = this.options.dataValueField || this.options.dataTextField,
+                    isArray = toString.call(value) === "[object Array]",
+                    isObservableObject = this._valueIsObservableObject,
+                    valueIndex, valueLength, values = [],
+                    sourceItem, sourceValue,
+                    idx, length, source;
 
-                var field = this.options.dataValueField || this.options.dataTextField;
+                this._initChange = true;
 
                 if (field) {
-                    var source,
-                        isObservableObject = this._valueIsObservableObject;
 
                     if (this.bindings.source) {
                         source = this.bindings.source.get();
                     }
 
-                    if (value === "" && isObservableObject) {
+                    if (value === "" && (isObservableObject || this.options.valuePrimitive)) {
                         value = null;
                     } else {
                         if (!source || source instanceof kendo.data.DataSource) {
                             source = this.widget.dataSource.view();
                         }
 
+                        if (isArray) {
+                            valueLength = value.length;
+                            values = value.slice(0);
+                        }
+
                         for (idx = 0, length = source.length; idx < length; idx++) {
-                            if (source[idx].get(field) == value) {
-                                if (isObservableObject) {
-                                    value = source[idx];
-                                } else {
-                                    value = source[idx].get(field);
+                            sourceItem = source[idx];
+                            sourceValue = sourceItem.get(field);
+
+                            if (isArray) {
+                                for (valueIndex = 0; valueIndex < valueLength; valueIndex++) {
+                                    if (sourceValue == values[valueIndex]) {
+                                        values[valueIndex] = sourceItem;
+                                        break;
+                                    }
                                 }
+                            } else if (sourceValue == value) {
+                                value = isObservableObject ? sourceItem : sourceValue;
                                 break;
+                            }
+                        }
+
+                        if (values[0]) {
+                            if (this._valueIsObservableArray) {
+                                value = values;
+                            } else if (isObservableObject || !field) {
+                                value = values[0];
+                            } else {
+                                value = values[0].get(field);
                             }
                         }
                     }
                 }
 
                 this.bindings.value.set(value);
+                this._initChange = false;
             },
 
             refresh: function() {
-                var field = this.options.dataValueField || this.options.dataTextField;
-                var value = this.bindings.value.get();
 
-                if (field && value instanceof ObservableObject) {
-                    value = value.get(field);
+                if (!this._initChange) {
+                    var field = this.options.dataValueField || this.options.dataTextField,
+                        value = this.bindings.value.get(),
+                              idx = 0, length,
+                              values = [];
+
+                    if (field) {
+                        if (value instanceof ObservableArray) {
+                            for (length = value.length; idx < length; idx++) {
+                                values[idx] = value[idx].get(field);
+                            }
+                            value = values;
+                        } else if (value instanceof ObservableObject) {
+                            value = value.get(field);
+                        }
+                    }
+                    this.widget.value(value);
                 }
 
-                this.widget.value(value);
+                this._initChange = false;
             },
 
             destroy: function() {
                 this.widget.unbind(CHANGE, this._change);
             }
-        })
+        }),
+
+        multiselect: {
+            value: Binder.extend({
+                init: function(widget, bindings, options) {
+                    Binder.fn.init.call(this, widget.element[0], bindings, options);
+
+                    this.widget = widget;
+                    this._change = $.proxy(this.change, this);
+                    this.widget.first(CHANGE, this._change);
+                    this._initChange = false;
+                },
+
+                change: function() {
+                    var that = this,
+                        value = that.bindings[VALUE].get(),
+                        valuePrimitive = that.options.valuePrimitive,
+                        values = valuePrimitive ? that.widget.value() : that.widget.dataItems();
+
+                    that._initChange = true;
+
+                    if (value instanceof ObservableArray) {
+                        value.splice.apply(value, [0, value.length].concat(values));
+                    } else {
+                        that.bindings[VALUE].set(values);
+                    }
+
+                    that._initChange = false;
+                },
+
+                refresh: function() {
+                    if (!this._initChange) {
+                        var field = this.options.dataValueField || this.options.dataTextField,
+                            value = this.bindings.value.get(),
+                            idx = 0, length,
+                            values = [],
+                            selectedValue;
+
+                        if (field) {
+                            if (value instanceof ObservableArray) {
+                                for (length = value.length; idx < length; idx++) {
+                                    selectedValue = value[idx];
+                                    values[idx] = selectedValue.get ? selectedValue.get(field) : selectedValue;
+                                }
+                                value = values;
+                            } else if (value instanceof ObservableObject) {
+                                value = value.get(field);
+                            }
+                        }
+
+                        this.widget.value(value);
+                    }
+                },
+
+                destroy: function() {
+                    this.widget.unbind(CHANGE, this._change);
+                }
+
+            })
+        }
     };
 
     var BindingTarget = Class.extend( {
@@ -6858,6 +9284,7 @@ function pad(number) {
                 key,
                 hasValue,
                 hasSource,
+                hasEvents,
                 specificBinders = binders[nodeName] || {};
 
             for (key in bindings) {
@@ -6865,6 +9292,8 @@ function pad(number) {
                     hasValue = true;
                 } else if (key == SOURCE) {
                     hasSource = true;
+                } else if (key == EVENTS) {
+                    hasEvents = true;
                 } else {
                     this.applyBinding(key, bindings, specificBinders);
                 }
@@ -6876,6 +9305,10 @@ function pad(number) {
 
             if (hasValue) {
                 this.applyBinding(VALUE, bindings, specificBinders);
+            }
+
+            if (hasEvents) {
+                this.applyBinding(EVENTS, bindings, specificBinders);
             }
         },
 
@@ -6920,7 +9353,8 @@ function pad(number) {
             var that = this,
                 binding,
                 hasValue = false,
-                hasSource = false;
+                hasSource = false,
+                specificBinders = binders.widget[that.target.options.name.toLowerCase()] || {};
 
             for (binding in bindings) {
                 if (binding == VALUE) {
@@ -6937,12 +9371,12 @@ function pad(number) {
             }
 
             if (hasValue) {
-                that.applyBinding(VALUE, bindings);
+                that.applyBinding(VALUE, bindings, specificBinders[VALUE]);
             }
         },
 
-        applyBinding: function(name, bindings) {
-            var binder = binders.widget[name],
+        applyBinding: function(name, bindings, specificBinder) {
+            var binder = specificBinder || binders.widget[name],
                 toDestroy = this.toDestroy,
                 attribute,
                 binding = bindings[name];
@@ -7032,15 +9466,18 @@ function pad(number) {
         return result;
     }
 
-    function bindElement(element, source, roles) {
+    function bindElement(element, source, roles, parents) {
         var role = element.getAttribute("data-" + kendo.ns + "role"),
             idx,
             bind = element.getAttribute("data-" + kendo.ns + "bind"),
             children = element.children,
+            childrenCopy = [],
             deep = true,
             bindings,
             options = {},
             target;
+
+        parents = parents || [source];
 
         if (role || bind) {
             unbindElement(element);
@@ -7054,17 +9491,17 @@ function pad(number) {
             bind = parseBindings(bind.replace(whiteSpaceRegExp, ""));
 
             if (!target) {
-                options = kendo.parseOptions(element, {textField: "", valueField: "", template: "", valueUpdate: CHANGE});
+                options = kendo.parseOptions(element, {textField: "", valueField: "", template: "", valueUpdate: CHANGE, valuePrimitive: false});
                 options.roles = roles;
                 target = new BindingTarget(element, options);
             }
 
             target.source = source;
 
-            bindings = createBindings(bind, source, Binding);
+            bindings = createBindings(bind, parents, Binding);
 
             if (options.template) {
-                bindings.template = new TemplateBinding(source, "", options.template);
+                bindings.template = new TemplateBinding(parents, "", options.template);
             }
 
             if (bindings.click) {
@@ -7078,15 +9515,15 @@ function pad(number) {
             }
 
             if (bind.attr) {
-                bindings.attr = createBindings(bind.attr, source, Binding);
+                bindings.attr = createBindings(bind.attr, parents, Binding);
             }
 
             if (bind.style) {
-                bindings.style = createBindings(bind.style, source, Binding);
+                bindings.style = createBindings(bind.style, parents, Binding);
             }
 
             if (bind.events) {
-                bindings.events = createBindings(bind.events, source, EventBinding);
+                bindings.events = createBindings(bind.events, parents, EventBinding);
             }
 
             target.bind(bindings);
@@ -7097,8 +9534,13 @@ function pad(number) {
         }
 
         if (deep && children) {
+            // https://github.com/telerik/kendo/issues/1240 for the weirdness.
             for (idx = 0; idx < children.length; idx++) {
-                bindElement(children[idx], source, roles);
+                childrenCopy[idx] = children[idx];
+            }
+
+            for (idx = 0; idx < childrenCopy.length; idx++) {
+                bindElement(childrenCopy[idx], source, roles, parents);
             }
         }
     }
@@ -7106,13 +9548,17 @@ function pad(number) {
     function bind(dom, object) {
         var idx,
             length,
+            node,
             roles = kendo.rolesFromNamespaces([].slice.call(arguments, 2));
 
         object = kendo.observable(object);
         dom = $(dom);
 
-        for (idx = 0, length = dom.length; idx < length; idx++ ) {
-            bindElement(dom[idx], object, roles);
+        for (idx = 0, length = dom.length; idx < length; idx++) {
+            node = dom[idx];
+            if (node.nodeType === 1) {
+                bindElement(node, object, roles);
+            }
         }
     }
 
@@ -7133,14 +9579,16 @@ function pad(number) {
     }
 
     function unbindElementTree(element) {
-        var idx,
-            length,
-            children = element.children;
-
         unbindElement(element);
 
+        unbindElementChildren(element);
+    }
+
+    function unbindElementChildren(element) {
+        var children = element.children;
+
         if (children) {
-            for (idx = 0, length = children.length; idx < length; idx++) {
+            for (var idx = 0, length = children.length; idx < length; idx++) {
                 unbindElementTree(children[idx]);
             }
         }
@@ -7179,7 +9627,597 @@ function pad(number) {
         return object;
     };
 
-})(jQuery);
+    kendo.observableHierarchy = function(array) {
+        var dataSource = kendo.data.HierarchicalDataSource.create(array);
+
+        function recursiveRead(data) {
+            var i, children;
+
+            for (i = 0; i < data.length; i++) {
+                data[i]._initChildren();
+
+                children = data[i].children;
+
+                children.fetch();
+
+                data[i].items = children.data();
+
+                recursiveRead(data[i].items);
+            }
+        }
+
+        dataSource.fetch();
+
+        recursiveRead(dataSource.data());
+
+        dataSource._data._dataSource = dataSource;
+
+        return dataSource._data;
+    };
+
+})(window.kendo.jQuery);
+
+kendo_module({
+    id: "userevents",
+    name: "User Events",
+    category: "framework",
+    depends: [ "core" ],
+    hidden: true
+});
+
+(function ($, undefined) {
+    var kendo = window.kendo,
+        support = kendo.support,
+        document = window.document,
+        Class = kendo.Class,
+        Observable = kendo.Observable,
+        now = $.now,
+        extend = $.extend,
+        OS = support.mobileOS,
+        invalidZeroEvents = OS && OS.android,
+        DEFAULT_THRESHOLD = support.browser.ie ? 5 : 0, // WP8 and W8 are very sensitive and always report move.
+
+        // UserEvents events
+        PRESS = "press",
+        SELECT = "select",
+        START = "start",
+        MOVE = "move",
+        END = "end",
+        CANCEL = "cancel",
+        TAP = "tap",
+        RELEASE = "release",
+        GESTURESTART = "gesturestart",
+        GESTURECHANGE = "gesturechange",
+        GESTUREEND = "gestureend",
+        GESTURETAP = "gesturetap";
+
+    function touchDelta(touch1, touch2) {
+        var x1 = touch1.x.location,
+            y1 = touch1.y.location,
+            x2 = touch2.x.location,
+            y2 = touch2.y.location,
+            dx = x1 - x2,
+            dy = y1 - y2;
+
+        return {
+            center: {
+               x: (x1 + x2) / 2,
+               y: (y1 + y2) / 2
+            },
+
+            distance: Math.sqrt(dx*dx + dy*dy)
+        };
+    }
+
+    function getTouches(e) {
+        var touches = [],
+            originalEvent = e.originalEvent,
+            currentTarget = e.currentTarget,
+            idx = 0, length,
+            changedTouches,
+            touch;
+
+        if (e.api) {
+            touches.push({
+                id: 2,  // hardcoded ID for API call;
+                event: e,
+                target: e.target,
+                currentTarget: e.target,
+                location: e
+            });
+        }
+        else if (e.type.match(/touch/)) {
+            changedTouches = originalEvent ? originalEvent.changedTouches : [];
+            for (length = changedTouches.length; idx < length; idx ++) {
+                touch = changedTouches[idx];
+                touches.push({
+                    location: touch,
+                    event: e,
+                    target: touch.target,
+                    currentTarget: currentTarget,
+                    id: touch.identifier
+                });
+            }
+        }
+        else if (support.pointers) {
+            touches.push({
+                location: originalEvent,
+                event: e,
+                target: e.target,
+                currentTarget: currentTarget,
+                id: originalEvent.pointerId
+            });
+        } else {
+            touches.push({
+                id: 1, // hardcoded ID for mouse event;
+                event: e,
+                target: e.target,
+                currentTarget: currentTarget,
+                location: e
+            });
+        }
+
+        return touches;
+    }
+
+    var TouchAxis = Class.extend({
+        init: function(axis, location) {
+            var that = this;
+
+            that.axis = axis;
+
+            that._updateLocationData(location);
+
+            that.startLocation = that.location;
+            that.velocity = that.delta = 0;
+            that.timeStamp = now();
+        },
+
+        move: function(location) {
+            var that = this,
+                offset = location["page" + that.axis],
+                timeStamp = now(),
+                timeDelta = (timeStamp - that.timeStamp) || 1; // Firing manually events in tests can make this 0;
+
+            if (!offset && invalidZeroEvents) {
+                return;
+            }
+
+            that.delta = offset - that.location;
+
+            that._updateLocationData(location);
+
+            that.initialDelta = offset - that.startLocation;
+            that.velocity = that.delta / timeDelta;
+            that.timeStamp = timeStamp;
+        },
+
+        _updateLocationData: function(location) {
+            var that = this, axis = that.axis;
+
+            that.location = location["page" + axis];
+            that.client = location["client" + axis];
+            that.screen = location["screen" + axis];
+        }
+    });
+
+    var Touch = Class.extend({
+        init: function(userEvents, target, touchInfo) {
+            var that = this;
+
+            extend(that, {
+                x: new TouchAxis("X", touchInfo.location),
+                y: new TouchAxis("Y", touchInfo.location),
+                userEvents: userEvents,
+                target: target,
+                currentTarget: touchInfo.currentTarget,
+                initialTouch: touchInfo.target,
+                id: touchInfo.id,
+                _moved: false,
+                _finished: false
+            });
+
+            that.notifyInit = function() {
+                that._trigger(PRESS, touchInfo);
+            };
+        },
+
+        move: function(touchInfo) {
+            var that = this;
+
+            if (that._finished) { return; }
+
+            that.x.move(touchInfo.location);
+            that.y.move(touchInfo.location);
+
+            if (!that._moved) {
+                if (that._withinIgnoreThreshold()) {
+                    return;
+                }
+
+                if (!UserEvents.current || UserEvents.current === that.userEvents) {
+                    that._start(touchInfo);
+                } else {
+                    return that.dispose();
+                }
+            }
+
+            // Event handlers may cancel the drag in the START event handler, hence the double check for pressed.
+            if (!that._finished) {
+                that._trigger(MOVE, touchInfo);
+            }
+        },
+
+        end: function(touchInfo) {
+            var that = this;
+
+            that.endTime = now();
+
+            if (that._finished) { return; }
+
+            if (that._moved) {
+                that._trigger(END, touchInfo);
+            } else {
+                that._trigger(TAP, touchInfo);
+            }
+
+            that._trigger(RELEASE, touchInfo);
+
+            that.dispose();
+        },
+
+        dispose: function() {
+            var that = this,
+                userEvents = that.userEvents,
+                activeTouches = userEvents.touches;
+
+            that._finished = true;
+
+            activeTouches.splice($.inArray(that, activeTouches), 1);
+        },
+
+        skip: function() {
+            this.dispose();
+        },
+
+        cancel: function() {
+            this.dispose();
+        },
+
+        isMoved: function() {
+            return this._moved;
+        },
+
+        _start: function(touchInfo) {
+            this.startTime = now();
+            this._moved = true;
+            this._trigger(START, touchInfo);
+        },
+
+        _trigger: function(name, touchInfo) {
+            var that = this,
+                jQueryEvent = touchInfo.event,
+                data = {
+                    touch: that,
+                    x: that.x,
+                    y: that.y,
+                    target: that.target,
+                    event: jQueryEvent
+                };
+
+            if(that.userEvents.notify(name, data)) {
+                jQueryEvent.preventDefault();
+            }
+        },
+
+        _withinIgnoreThreshold: function() {
+            var xDelta = this.x.initialDelta,
+                yDelta = this.y.initialDelta;
+
+            return Math.sqrt(xDelta * xDelta + yDelta * yDelta) <= this.userEvents.threshold;
+        }
+    });
+
+    function preventTrigger(e) {
+        e.preventDefault();
+
+        var target = $(e.data.root),   // Determine the correct parent to receive the event and bubble.
+            parent = target.closest(".k-widget").parent();
+
+        if (!parent[0]) {
+            parent = target.parent();
+        }
+
+        var fakeEventData = $.extend(true, {}, e, { target: target[0] });
+        parent.trigger($.Event(e.type, fakeEventData));
+    }
+
+    function withEachUpEvent(callback) {
+        var downEvents = kendo.eventMap.up.split(" "),
+            idx = 0,
+            length = downEvents.length;
+
+        for(; idx < length; idx ++) {
+            callback(downEvents[idx]);
+        }
+    }
+
+    var UserEvents = Observable.extend({
+        init: function(element, options) {
+            var that = this,
+                filter,
+                ns = kendo.guid();
+
+            options = options || {};
+            filter = that.filter = options.filter;
+            that.threshold = options.threshold || DEFAULT_THRESHOLD;
+            that.touches = [];
+            that._maxTouches = options.multiTouch ? 2 : 1;
+            that.allowSelection = options.allowSelection;
+            that.captureUpIfMoved = options.captureUpIfMoved;
+            that.eventNS = ns;
+
+            element = $(element).handler(that);
+            Observable.fn.init.call(that);
+
+            extend(that, {
+                element: element,
+                surface: options.global ? $(document.documentElement) : $(options.surface || element),
+                stopPropagation: options.stopPropagation,
+                pressed: false
+            });
+
+            that.surface.handler(that)
+                .on(kendo.applyEventMap("move", ns), "_move")
+                .on(kendo.applyEventMap("up cancel", ns), "_end");
+
+            element.on(kendo.applyEventMap("down", ns), filter, "_start");
+
+            if (support.pointers) {
+                element.css("-ms-touch-action", "pinch-zoom double-tap-zoom");
+            }
+
+            if (options.preventDragEvent) {
+                element.on(kendo.applyEventMap("dragstart", ns), kendo.preventDefault);
+            }
+
+            element.on(kendo.applyEventMap("mousedown selectstart", ns), filter, { root: element }, "_select");
+
+            if (that.captureUpIfMoved && support.eventCapture) {
+                var surfaceElement = that.surface[0],
+                    preventIfMovingProxy = $.proxy(that.preventIfMoving, that);
+
+                withEachUpEvent(function(eventName) {
+                    surfaceElement.addEventListener(eventName, preventIfMovingProxy, true);
+                });
+            }
+
+            that.bind([
+            PRESS,
+            TAP,
+            START,
+            MOVE,
+            END,
+            RELEASE,
+            CANCEL,
+            GESTURESTART,
+            GESTURECHANGE,
+            GESTUREEND,
+            GESTURETAP,
+            SELECT
+            ], options);
+        },
+
+        preventIfMoving: function(e) {
+            if (this._isMoved()) {
+                e.preventDefault();
+            }
+        },
+
+        destroy: function() {
+            var that = this;
+
+            if (that._destroyed) {
+                return;
+            }
+
+            that._destroyed = true;
+
+            if (that.captureUpIfMoved && support.eventCapture) {
+                var surfaceElement = that.surface[0];
+                withEachUpEvent(function(eventName) {
+                    surfaceElement.removeEventListener(eventName, that.preventIfMoving);
+                });
+            }
+
+            that.element.kendoDestroy(that.eventNS);
+            that.surface.kendoDestroy(that.eventNS);
+            that.element.removeData("handler");
+            that.surface.removeData("handler");
+            that._disposeAll();
+
+            that.unbind();
+            delete that.surface;
+            delete that.element;
+        },
+
+        capture: function() {
+            UserEvents.current = this;
+        },
+
+        cancel: function() {
+            this._disposeAll();
+            this.trigger(CANCEL);
+        },
+
+        notify: function(eventName, data) {
+            var that = this,
+                touches = that.touches;
+
+            if (this._isMultiTouch()) {
+                switch(eventName) {
+                    case MOVE:
+                        eventName = GESTURECHANGE;
+                        break;
+                    case END:
+                        eventName = GESTUREEND;
+                        break;
+                    case TAP:
+                        eventName = GESTURETAP;
+                        break;
+                }
+
+                extend(data, {touches: touches}, touchDelta(touches[0], touches[1]));
+            }
+
+            return this.trigger(eventName, data);
+        },
+
+        // API
+        press: function(x, y, target) {
+            this._apiCall("_start", x, y, target);
+        },
+
+        move: function(x, y) {
+            this._apiCall("_move", x, y);
+        },
+
+        end: function(x, y) {
+            this._apiCall("_end", x, y);
+        },
+
+        _isMultiTouch: function() {
+            return this.touches.length > 1;
+        },
+
+        _maxTouchesReached: function() {
+            return this.touches.length >= this._maxTouches;
+        },
+
+        _disposeAll: function() {
+            $.each(this.touches, function() {
+                this.dispose();
+            });
+        },
+
+        _isMoved: function() {
+            return $.grep(this.touches, function(touch) {
+                return touch.isMoved();
+            }).length;
+        },
+
+        _select: function(e) {
+           if (!this.allowSelection || this.trigger(SELECT, { event: e })) {
+                preventTrigger(e);
+           }
+        },
+
+        _start: function(e) {
+            var that = this,
+                idx = 0,
+                filter = that.filter,
+                target,
+                touches = getTouches(e),
+                length = touches.length,
+                touch;
+
+            if (that._maxTouchesReached()) {
+                return;
+            }
+
+            UserEvents.current = null;
+
+            that.currentTarget = e.currentTarget;
+
+            if (that.stopPropagation) {
+                e.stopPropagation();
+            }
+
+            for (; idx < length; idx ++) {
+                if (that._maxTouchesReached()) {
+                    break;
+                }
+
+                touch = touches[idx];
+
+                if (filter) {
+                    target = $(touch.currentTarget); // target.is(filter) ? target : target.closest(filter, that.element);
+                } else {
+                    target = that.element;
+                }
+
+                if (!target.length) {
+                    continue;
+                }
+
+                touch = new Touch(that, target, touch);
+                that.touches.push(touch);
+                touch.notifyInit();
+
+                if (that._isMultiTouch()) {
+                    that.notify("gesturestart", {});
+                }
+            }
+        },
+
+        _move: function(e) {
+            this._eachTouch("move", e);
+        },
+
+        _end: function(e) {
+            this._eachTouch("end", e);
+        },
+
+        _eachTouch: function(methodName, e) {
+            var that = this,
+                dict = {},
+                touches = getTouches(e),
+                activeTouches = that.touches,
+                idx,
+                touch,
+                touchInfo,
+                matchingTouch;
+
+            for (idx = 0; idx < activeTouches.length; idx ++) {
+                touch = activeTouches[idx];
+                dict[touch.id] = touch;
+            }
+
+            for (idx = 0; idx < touches.length; idx ++) {
+                touchInfo = touches[idx];
+                matchingTouch = dict[touchInfo.id];
+
+                if (matchingTouch) {
+                    matchingTouch[methodName](touchInfo);
+                }
+            }
+        },
+
+        _apiCall: function(type, x, y, target) {
+            this[type]({
+                api: true,
+                pageX: x,
+                pageY: y,
+                target: target || this.element,
+                stopPropagation: $.noop,
+                preventDefault: $.noop
+            });
+        }
+    });
+
+    kendo.getTouches = getTouches;
+    kendo.touchDelta = touchDelta;
+    kendo.UserEvents = UserEvents;
+ })(window.kendo.jQuery);
+
+kendo_module({
+    id: "dataviz.core",
+    name: "Core",
+    description: "The DataViz core functions",
+    category: "dataviz",
+    depends: [ "core" ]
+});
+
 (function ($, undefined) {
 
     // Imports ================================================================
@@ -7209,26 +10247,33 @@ function pad(number) {
         CENTER = "center",
         COORD_PRECISION = 3,
         CLIP = "clip",
+        CIRCLE = "circle",
         DEFAULT_FONT = "12px sans-serif",
         DEFAULT_HEIGHT = 400,
         DEFAULT_PRECISION = 6,
         DEFAULT_WIDTH = 600,
-        DEGREE = math.PI / 180,
+        DEG_TO_RAD = math.PI / 180,
         FADEIN = "fadeIn",
         FORMAT_REGEX = /\{\d+:?/,
         HEIGHT = "height",
         ID_PREFIX = "k",
+        ID_POOL_SIZE = 1000,
+        ID_START = 10000,
         INITIAL_ANIMATION_DURATION = 600,
+        INSIDE = "inside",
         LEFT = "left",
         LINEAR = "linear",
         MAX_VALUE = Number.MAX_VALUE,
         MIN_VALUE = -Number.MAX_VALUE,
         NONE = "none",
+        NOTE_CLICK = "noteClick",
+        NOTE_HOVER = "noteHover",
         OUTSIDE = "outside",
         RADIAL = "radial",
         RIGHT = "right",
         SWING = "swing",
         TOP = "top",
+        TRIANGLE = "triangle",
         UNDEFINED = "undefined",
         UPPERCASE_REGEX = /([A-Z])/g,
         WIDTH = "width",
@@ -7237,39 +10282,102 @@ function pad(number) {
         Y = "y",
         ZERO_THRESHOLD = 0.2;
 
-    function getSpacing(value) {
+    function getSpacing(value, defaultSpacing) {
         var spacing = { top: 0, right: 0, bottom: 0, left: 0 };
+
+        defaultSpacing = defaultSpacing || 0;
 
         if (typeof(value) === "number") {
             spacing[TOP] = spacing[RIGHT] = spacing[BOTTOM] = spacing[LEFT] = value;
         } else {
-            spacing[TOP] = value[TOP] || 0;
-            spacing[RIGHT] = value[RIGHT] || 0;
-            spacing[BOTTOM] = value[BOTTOM] || 0;
-            spacing[LEFT] = value[LEFT] || 0;
+            spacing[TOP] = value[TOP] || defaultSpacing;
+            spacing[RIGHT] = value[RIGHT] || defaultSpacing;
+            spacing[BOTTOM] = value[BOTTOM] || defaultSpacing;
+            spacing[LEFT] = value[LEFT] || defaultSpacing;
         }
 
         return spacing;
     }
 
     // Geometric primitives ===================================================
-    var Point2D = Class.extend({
-        init: function(x, y) {
-            var point = this;
-            point.x = round(x || 0, COORD_PRECISION);
-            point.y = round(y || 0, COORD_PRECISION);
-        }
-    });
 
-    var Box2D = Class.extend({
-        init: function(x1, y1, x2, y2) {
-            var box = this;
-            box.x1 = x1 || 0;
-            box.x2 = x2 || 0;
-            box.y1 = y1 || 0;
-            box.y2 = y2 || 0;
+    // TODO: Rename to Point?
+    var Point2D = function(x, y) {
+        var point = this;
+        if (!(point instanceof Point2D)) {
+            return new Point2D(x, y);
+        }
+
+        point.x = round(x || 0, COORD_PRECISION);
+        point.y = round(y || 0, COORD_PRECISION);
+    };
+
+    Point2D.fn = Point2D.prototype = {
+        clone: function() {
+            var point = this;
+
+            return new Point2D(point.x, point.y);
         },
 
+        equals: function(point) {
+            return point && point.x === this.x && point.y === this.y;
+        },
+
+        rotate: function(center, degrees) {
+            var point = this,
+                theta = degrees * DEG_TO_RAD,
+                cosT = math.cos(theta),
+                sinT = math.sin(theta),
+                cx = center.x,
+                cy = center.y,
+                x = point.x,
+                y = point.y;
+
+            point.x = round(
+                cx + (x - cx) * cosT + (y - cy) * sinT,
+                COORD_PRECISION
+            );
+
+            point.y = round(
+                cy + (y - cy) * cosT - (x - cx) * sinT,
+                COORD_PRECISION
+            );
+
+            return point;
+        },
+
+        distanceTo: function(point) {
+            var dx = this.x - point.x,
+                dy = this.y - point.y;
+
+            return math.sqrt(dx * dx + dy * dy);
+        }
+    };
+
+    // Clock-wise, 0 points left
+    Point2D.onCircle = function(c, a, r) {
+        a *= DEG_TO_RAD;
+
+        return new Point2D(
+            c.x - r * math.cos(a),
+            c.y - r * math.sin(a)
+        );
+    };
+
+    var Box2D = function(x1, y1, x2, y2) {
+        var box = this;
+
+        if (!(box instanceof Box2D)) {
+            return new Box2D(x1, y1, x2, y2);
+        }
+
+        box.x1 = x1 || 0;
+        box.x2 = x2 || 0;
+        box.y1 = y1 || 0;
+        box.y2 = y2 || 0;
+    };
+
+    Box2D.fn = Box2D.prototype = {
         width: function() {
             return this.x2 - this.x1;
         },
@@ -7289,6 +10397,7 @@ function pad(number) {
             return box;
         },
 
+        // TODO: Accept point!
         move: function(x, y) {
             var box = this,
                 height = box.height(),
@@ -7407,17 +10516,17 @@ function pad(number) {
         center: function() {
             var box = this;
 
-            return {
-                x: box.x1 + box.width() / 2,
-                y: box.y1 + box.height() / 2
-            };
+            return new Point2D(
+                box.x1 + box.width() / 2,
+                box.y1 + box.height() / 2
+            );
         },
 
-        containsPoint: function(x, y) {
+        containsPoint: function(point) {
             var box = this;
 
-            return x >= box.x1 && x <= box.x2 &&
-                   y >= box.y1 && y <= box.y2;
+            return point.x >= box.x1 && point.x <= box.x2 &&
+                   point.y >= box.y1 && point.y <= box.y2;
         },
 
         points: function() {
@@ -7436,7 +10545,7 @@ function pad(number) {
 
             return [box.x1, box.y1, box.x2, box.y2].join(",");
         }
-    });
+    };
 
     var Ring = Class.extend({
         init: function(center, innerRadius, radius, startAngle, angle) {
@@ -7454,10 +10563,12 @@ function pad(number) {
             return new Ring(r.c, r.ir, r.r, r.startAngle, r.angle);
         },
 
+        // TODO: Rename to midAngle
         middle: function() {
             return this.startAngle + this.angle / 2;
         },
 
+        // TODO: Sounds like a getter
         radius: function(newRadius, innerRadius) {
             var that = this;
 
@@ -7470,9 +10581,10 @@ function pad(number) {
             return that;
         },
 
+        // TODO: Remove and replace with Point2D.onCircle
         point: function(angle, innerRadius) {
             var ring = this,
-                radianAngle = angle * DEGREE,
+                radianAngle = angle * DEG_TO_RAD,
                 ax = math.cos(radianAngle),
                 ay = math.sin(radianAngle),
                 radius = innerRadius ? ring.ir : ring.r,
@@ -7480,6 +10592,49 @@ function pad(number) {
                 y = ring.c.y - (ay * radius);
 
             return new Point2D(x, y);
+        },
+
+        adjacentBox: function(distance, width, height) {
+            var sector = this.clone().expand(distance),
+                midAndle = sector.middle(),
+                midPoint = sector.point(midAndle),
+                hw = width / 2,
+                hh = height / 2,
+                x = midPoint.x - hw,
+                y = midPoint.y - hh,
+                sa = math.sin(midAndle * DEG_TO_RAD),
+                ca = math.cos(midAndle * DEG_TO_RAD);
+
+            if (math.abs(sa) < 0.9) {
+                x += hw * -ca / math.abs(ca);
+            }
+
+            if (math.abs(ca) < 0.9) {
+                y += hh * -sa / math.abs(sa);
+            }
+
+            return new Box2D(x, y, x + width, y + height);
+        },
+
+        containsPoint: function(p) {
+            var ring = this,
+                c = ring.c,
+                ir = ring.ir,
+                r = ring.r,
+                startAngle = ring.startAngle,
+                endAngle = ring.startAngle + ring.angle,
+                dx = p.x - c.x,
+                dy = p.y - c.y,
+                vector = new Point2D(dx, dy),
+                startPoint = ring.point(startAngle),
+                startVector = new Point2D(startPoint.x - c.x, startPoint.y - c.y),
+                endPoint = ring.point(endAngle),
+                endVector = new Point2D(endPoint.x - c.x, endPoint.y - c.y),
+                dist = dx * dx + dy *dy;
+
+            return (startVector.equals(vector) || clockwise(startVector, vector)) &&
+                   !clockwise(endVector, vector) &&
+                   dist >= ir * ir && dist <= r * r;
         },
 
         getBBox: function() {
@@ -7527,6 +10682,7 @@ function pad(number) {
         }
     });
 
+    // TODO: Remove, looks like an alias
     var Sector = Ring.extend({
         init: function(center, radius, startAngle, angle) {
             Ring.fn.init.call(this, center, 0, radius, startAngle, angle);
@@ -7584,7 +10740,7 @@ function pad(number) {
                 box = box ? box.wrap(currentChild.box) : currentChild.box.clone();
             }
 
-            element.box = box;
+            element.box = box || targetBox;
         },
 
         getViewElements: function(view) {
@@ -7602,7 +10758,8 @@ function pad(number) {
                 child = children[i];
 
                 if (!child.discoverable) {
-                    child.options = deepExtend(child.options, { modelId: modelId });
+                    child.options = child.options || {};
+                    child.options.modelId = modelId;
                 }
 
                 viewElements.push.apply(
@@ -7619,12 +10776,32 @@ function pad(number) {
             return viewElements;
         },
 
-        makeDiscoverable: function() {
+        enableDiscovery: function() {
             var element = this,
                 options = element.options;
 
-            options.modelId = uniqueId();
+            options.modelId = IDPool.current.alloc();
             element.discoverable = true;
+        },
+
+        destroy: function() {
+            var element = this,
+                children = element.children,
+                root = element.getRoot(),
+                modelId = element.options.modelId,
+                i;
+
+            if (root && modelId) {
+                if (root.modelMap[modelId]) {
+                    IDPool.current.free(modelId);
+                }
+
+                root.modelMap[modelId] = undefined;
+            }
+
+            for (i = 0; i < children.length; i++) {
+                children[i].destroy();
+            }
         },
 
         getRoot: function() {
@@ -7704,6 +10881,7 @@ function pad(number) {
                             strokeWidth: border.width,
                             dashType: border.dashType,
                             fill: options.background,
+                            fillOpacity: options.opacity,
                             zIndex: options.zIndex })
                     ];
 
@@ -7732,6 +10910,7 @@ function pad(number) {
                 width: 0
             },
             background: "",
+            shrinkToFit: false,
             width: 0,
             height: 0,
             visible: true
@@ -7742,32 +10921,43 @@ function pad(number) {
                 box,
                 contentBox,
                 options = element.options,
-                children = element.children,
                 margin = getSpacing(options.margin),
                 padding = getSpacing(options.padding),
-                border = options.border,
-                borderWidth = border.width;
+                borderWidth = options.border.width,
+                children = element.children,
+                i, item;
+
+            function reflowPaddingBox() {
+                element.align(targetBox, X, options.align);
+                element.align(targetBox, Y, options.vAlign);
+                element.paddingBox = box.clone().unpad(margin).unpad(borderWidth);
+            }
 
             ChartElement.fn.reflow.call(element, targetBox);
 
-            if (children.length === 0) {
+            if (options.width && options.height) {
                 box = element.box = new Box2D(0, 0, options.width, options.height);
             } else {
                 box = element.box;
             }
 
-            contentBox = element.contentBox = box.clone();
-
-            box.pad(padding).pad(borderWidth).pad(margin);
-
-            element.align(targetBox, X, options.align);
-            element.align(targetBox, Y, options.vAlign);
-
-            element.paddingBox = box.clone().unpad(margin).unpad(borderWidth);
+            if (options.shrinkToFit) {
+                reflowPaddingBox();
+                contentBox = element.contentBox = element.paddingBox.clone().unpad(padding);
+            } else {
+                contentBox = element.contentBox = box.clone();
+                box.pad(padding).pad(borderWidth).pad(margin);
+                reflowPaddingBox();
+            }
 
             element.translateChildren(
                 box.x1 - contentBox.x1 + margin.left + borderWidth + padding.left,
                 box.y1 - contentBox.y1 + margin.top + borderWidth + padding.top);
+
+            for (i = 0; i < children.length; i++) {
+                item = children[i];
+                item.reflow(item.box);
+            }
         },
 
         align: function(targetBox, axis, alignment) {
@@ -7803,6 +10993,7 @@ function pad(number) {
             if (!options.visible) {
                 return [];
             }
+
 
             if (boxElement.hasBox()) {
                 elements.push(
@@ -7844,9 +11035,10 @@ function pad(number) {
 
             ChartElement.fn.init.call(text, options);
 
+            text.content = decodeEntities(content);
+
             // Calculate size
-            text.content = content;
-            text.reflow(new Box2D());
+            text.reflow(Box2D());
         },
 
         options: {
@@ -7941,15 +11133,15 @@ function pad(number) {
             var title = this;
             ChartElement.fn.init.call(title, options);
 
+            options = title.options;
             title.append(
-                new TextBox(title.options.text, deepExtend({}, title.options, {
-                    vAlign: title.options.position
+                new TextBox(options.text, deepExtend({}, options, {
+                    vAlign: options.position
                 }))
             );
         },
 
         options: {
-            text: "",
             color: BLACK,
             position: TOP,
             align: CENTER,
@@ -7964,6 +11156,23 @@ function pad(number) {
             title.box.snapTo(targetBox, X);
         }
     });
+
+    Title.buildTitle = function(options, parent, defaultOptions) {
+        var title;
+
+        if (typeof options === "string") {
+            options = { text: options };
+        }
+
+        options = deepExtend({ visible: true }, defaultOptions, options);
+
+        if (options && options.visible && options.text) {
+            title = new Title(options);
+            parent.append(title);
+        }
+
+        return title;
+    };
 
     var AxisLabel = TextBox.extend({
         init: function(value, index, dataItem, options) {
@@ -7986,7 +11195,7 @@ function pad(number) {
                 deepExtend({ id: uniqueId() }, options)
             );
 
-            label.makeDiscoverable();
+            label.enableDiscovery();
         },
 
         formatValue: function(value, options) {
@@ -8047,6 +11256,7 @@ function pad(number) {
 
             axis.createLabels();
             axis.createTitle();
+            axis.createNotes();
         },
 
         options: {
@@ -8086,9 +11296,10 @@ function pad(number) {
             margin: 5,
             visible: true,
             reverse: false,
+            justified: true,
+            notes: {},
 
-            _alignLines: true,
-            _labelsOnTicks: true
+            _alignLines: true
         },
 
         // abstract labelsCount(): Number
@@ -8119,6 +11330,19 @@ function pad(number) {
             }
         },
 
+        // TODO: Redundant - labels are child elements
+        destroy: function() {
+            var axis = this,
+                labels = axis.labels,
+                i;
+
+            for (i = 0; i < labels.length; i++) {
+                labels[i].destroy();
+            }
+
+            ChartElement.fn.destroy.call(axis);
+        },
+
         lineBox: function() {
             var axis = this,
                 options = axis.options,
@@ -8126,21 +11350,21 @@ function pad(number) {
                 vertical = options.vertical,
                 labels = axis.labels,
                 labelSize = vertical ? HEIGHT : WIDTH,
-                labelsOnTicks = options._labelsOnTicks,
+                justified = options.justified,
                 mirror = options.labels.mirror,
                 axisX = mirror ? box.x1 : box.x2,
                 axisY = mirror ? box.y2 : box.y1,
                 startMargin = 0,
-                endMargin = 0;
+                endMargin = options.line.width;
 
-            if (labelsOnTicks && labels.length > 1) {
+            if (justified && labels.length > 1) {
                 startMargin = labels[0].box[labelSize]() / 2;
                 endMargin = last(labels).box[labelSize]() / 2;
             }
 
             return vertical ?
-                new Box2D(axisX, box.y1 + startMargin, axisX, box.y2 - endMargin) :
-                new Box2D(box.x1 + startMargin, axisY, box.x2 - endMargin, axisY);
+                Box2D(axisX, box.y1 + startMargin, axisX, box.y2 - endMargin) :
+                Box2D(box.x1 + startMargin, axisY, box.x2 - endMargin, axisY);
         },
 
         createTitle: function() {
@@ -8158,6 +11382,54 @@ function pad(number) {
                 axis.append(title);
                 axis.title = title;
             }
+        },
+
+        createNotes: function() {
+            var axis = this,
+                options = axis.options,
+                notes = options.notes,
+                items = notes.data || [],
+                noteTemplate, i, text, item, note;
+
+            axis.notes = [];
+
+            for (i = 0; i < items.length; i++) {
+                item = deepExtend({}, notes, items[i]);
+                item.value = axis.parseNoteValue(item.value);
+                text = item.label.text || item.value;
+                if (item.label.template) {
+                    noteTemplate = template(item.label.template);
+                    text = noteTemplate({
+                        value: text
+                    });
+                } else if (item.label.format) {
+                    text = autoFormat(item.label.format, text);
+                }
+
+                note = new Note(deepExtend({}, item, { label: { text: text }}));
+
+                if (note.options.visible) {
+                    if (defined(note.options.position)) {
+                        if (options.vertical && !inArray(note.options.position, [LEFT, RIGHT])) {
+                            note.options.position = options.reverse ? LEFT : RIGHT;
+                        } else if (!options.vertical && !inArray(note.options.position, [TOP, BOTTOM])) {
+                            note.options.position = options.reverse ? BOTTOM : TOP;
+                        }
+                    } else {
+                        if (options.vertical) {
+                            note.options.position = options.reverse ? LEFT : RIGHT;
+                        } else {
+                            note.options.position = options.reverse ? BOTTOM : TOP;
+                        }
+                    }
+                    axis.append(note);
+                    axis.notes.push(note);
+                }
+            }
+        },
+
+        parseNoteValue: function(value) {
+            return value;
         },
 
         renderTicks: function(view) {
@@ -8213,13 +11485,13 @@ function pad(number) {
             return ticks;
         },
 
-        getViewElements: function(view) {
+        renderLine: function(view) {
             var axis = this,
                 options = axis.options,
                 line = options.line,
                 lineBox = axis.lineBox(),
-                childElements = ChartElement.fn.getViewElements.call(axis, view),
-                lineOptions;
+                lineOptions,
+                elements = [];
 
             if (line.width > 0 && line.visible) {
                 lineOptions = {
@@ -8230,16 +11502,24 @@ function pad(number) {
                     align: options._alignLines
                 };
 
-                childElements.push(view.createLine(
+                elements.push(view.createLine(
                     lineBox.x1, lineBox.y1, lineBox.x2, lineBox.y2,
                     lineOptions));
 
-                append(childElements, axis.renderTicks(view));
+                append(elements, axis.renderTicks(view));
             }
 
-            append(childElements, axis.renderPlotBands(view));
+            return elements;
+        },
 
-            return childElements;
+        getViewElements: function(view) {
+            var axis = this,
+                elements = ChartElement.fn.getViewElements.call(axis, view);
+
+            append(elements, axis.renderLine(view));
+            append(elements, axis.renderPlotBands(view));
+
+            return elements;
         },
 
         getActualTickSize: function () {
@@ -8264,16 +11544,13 @@ function pad(number) {
                 plotBands = options.plotBands || [],
                 vertical = options.vertical,
                 result = [],
-                plotArea = axis.parent,
-                slotX,
-                slotY,
-                from,
-                to;
+                plotArea = axis.plotArea,
+                slotX, slotY, from, to;
 
             if (plotBands.length) {
                 result = map(plotBands, function(item) {
-                    from = defined(item.from) ? item.from : MIN_VALUE;
-                    to = defined(item.to) ? item.to : MAX_VALUE;
+                    from = valueOrDefault(item.from, MIN_VALUE);
+                    to = valueOrDefault(item.to, MAX_VALUE);
 
                     if (vertical) {
                         slotX = plotArea.axisX.lineBox();
@@ -8284,12 +11561,76 @@ function pad(number) {
                     }
 
                     return view.createRect(
-                            new Box2D(slotX.x1, slotY.y1, slotX.x2, slotY.y2),
+                            Box2D(slotX.x1, slotY.y1, slotX.x2, slotY.y2),
                             { fill: item.color, fillOpacity: item.opacity, zIndex: -1 });
                 });
             }
 
             return result;
+        },
+
+        renderGridLines: function(view, altAxis) {
+            var axis = this,
+                modelId = axis.plotArea.options.modelId,
+                options = axis.options,
+                vertical = options.vertical,
+                lineBox = altAxis.lineBox(),
+                lineStart = lineBox[vertical ? "x1" : "y1"],
+                lineEnd = lineBox[vertical ? "x2" : "y2" ],
+                majorTicks = axis.getMajorTickPositions(),
+                gridLines = [],
+                gridLine = function (pos, options) {
+                    return {
+                        pos: pos,
+                        options: options
+                    };
+                };
+
+            if (options.majorGridLines.visible) {
+                gridLines = map(majorTicks, function(pos) {
+                                return gridLine(pos, options.majorGridLines);
+                            });
+            }
+
+            if (options.minorGridLines.visible) {
+                gridLines = gridLines.concat(
+                    map(axis.getMinorTickPositions(), function(pos) {
+                        if (options.majorGridLines.visible) {
+                            if (!inArray(pos, majorTicks)) {
+                                return gridLine(pos, options.minorGridLines);
+                            }
+                        } else {
+                            return gridLine(pos, options.minorGridLines);
+                        }
+                    }
+                ));
+            }
+
+            return map(gridLines, function(line) {
+                var gridLineOptions = {
+                        data: { modelId: modelId },
+                        strokeWidth: line.options.width,
+                        stroke: line.options.color,
+                        dashType: line.options.dashType,
+                        zIndex: -1
+                    },
+                    linePos = round(line.pos),
+                    altAxisBox = altAxis.lineBox();
+
+                if (vertical) {
+                    if (!altAxis.options.line.visible || altAxisBox.y1 !== linePos) {
+                        return view.createLine(
+                            lineStart, linePos, lineEnd, linePos,
+                            gridLineOptions);
+                    }
+                } else {
+                    if (!altAxis.options.line.visible || altAxisBox.x1 !== linePos) {
+                        return view.createLine(
+                            linePos, lineStart, linePos, lineEnd,
+                            gridLineOptions);
+                    }
+                }
+            });
         },
 
         reflow: function(box) {
@@ -8302,8 +11643,7 @@ function pad(number) {
                 maxLabelHeight = 0,
                 maxLabelWidth = 0,
                 title = axis.title,
-                label,
-                i;
+                label, i;
 
             for (i = 0; i < count; i++) {
                 label = labels[i];
@@ -8320,45 +11660,41 @@ function pad(number) {
             }
 
             if (vertical) {
-                axis.box = new Box2D(
+                axis.box = Box2D(
                     box.x1, box.y1,
                     box.x1 + maxLabelWidth + space, box.y2
                 );
             } else {
-                axis.box = new Box2D(
+                axis.box = Box2D(
                     box.x1, box.y1,
                     box.x2, box.y1 + maxLabelHeight + space
                 );
             }
 
             axis.arrangeTitle();
-            axis.arrangeLabels(maxLabelWidth, maxLabelHeight);
+            axis.arrangeLabels();
+            axis.arrangeNotes();
         },
 
-        arrangeLabels: function(maxLabelWidth, maxLabelHeight) {
+        arrangeLabels: function() {
             var axis = this,
                 options = axis.options,
                 labelOptions = options.labels,
                 labels = axis.labels,
-                labelsBetweenTicks = !options._labelsOnTicks,
+                labelsBetweenTicks = !options.justified,
                 vertical = options.vertical,
                 lineBox = axis.lineBox(),
                 mirror = options.labels.mirror,
                 tickPositions = axis.getMajorTickPositions(),
-                labelOffset = axis.getActualTickSize() + options.margin,
-                labelBox,
-                labelY,
-                i;
+                labelOffset = axis.getActualTickSize()  + options.margin,
+                labelBox, labelY, i;
 
             for (i = 0; i < labels.length; i++) {
                 var label = labels[i],
                     tickIx = labelOptions.skip + labelOptions.step * i,
                     labelSize = vertical ? label.box.height() : label.box.width(),
                     labelPos = tickPositions[tickIx] - (labelSize / 2),
-                    firstTickPosition,
-                    nextTickPosition,
-                    middle,
-                    labelX;
+                    firstTickPosition, nextTickPosition, middle, labelX;
 
                 if (vertical) {
                     if (labelsBetweenTicks) {
@@ -8395,8 +11731,8 @@ function pad(number) {
                         labelY += labelOffset;
                     }
 
-                    labelBox = new Box2D(firstTickPosition, labelY,
-                                         nextTickPosition, labelY + label.box.height());
+                    labelBox = Box2D(firstTickPosition, labelY,
+                                    nextTickPosition, labelY + label.box.height());
                 }
 
                 label.reflow(labelBox);
@@ -8423,6 +11759,29 @@ function pad(number) {
             }
         },
 
+        arrangeNotes: function() {
+            var axis = this,
+                i, item, slot, value;
+
+            for (i = 0; i < axis.notes.length; i++) {
+                item = axis.notes[i];
+                value = item.options.value;
+                if (defined(value)) {
+                    if (axis.shouldRenderNote(value)) {
+                        item.show();
+                    } else {
+                        item.hide();
+                    }
+
+                    slot = axis.getSlot(value);
+                } else {
+                    item.hide();
+                }
+
+                item.reflow(slot || axis.lineBox());
+            }
+        },
+
         alignTo: function(secondAxis) {
             var axis = this,
                 lineBox = secondAxis.lineBox(),
@@ -8437,6 +11796,353 @@ function pad(number) {
             }
             axis.box[pos + 1] -= axis.lineBox()[pos + 1] - lineBox[pos + 1];
             axis.box[pos + 2] -= axis.lineBox()[pos + 2] - lineBox[pos + 2];
+        }
+    });
+
+    var Note = BoxElement.extend({
+        init: function(options) {
+            var note = this;
+
+            BoxElement.fn.init.call(note, options);
+            note.enableDiscovery();
+
+            note.render();
+        },
+
+        options: {
+            icon: {
+                zIndex: 1,
+                visible: true,
+                type: CIRCLE
+            },
+            label: {
+                zIndex: 2,
+                position: INSIDE,
+                visible: true,
+                align: CENTER,
+                vAlign: CENTER
+            },
+            line: {
+                visible: true,
+                zIndex: 2
+            },
+            visible: true,
+            position: TOP
+        },
+
+        hide: function() {
+            this.options.visible = false;
+        },
+
+        show: function() {
+            this.options.visible = true;
+        },
+
+        render: function() {
+            var note = this,
+                options = note.options,
+                label = options.label,
+                icon = options.icon,
+                size = icon.size,
+                dataModelId = { data: { modelId: options.modelId } },
+                box = Box2D(),
+                marker, width, height;
+
+            if (options.visible) {
+                if (defined(label) && label.visible) {
+                    note.label = new TextBox(label.text || options.value, deepExtend({}, label, dataModelId));
+                    note.append(note.label);
+
+                    if (label.position === INSIDE) {
+                        if (icon.type === CIRCLE) {
+                            size = math.max(note.label.box.width(), note.label.box.height());
+                        } else {
+                            width = note.label.box.width();
+                            height = note.label.box.height();
+                        }
+                        box.wrap(note.label.box);
+                    }
+                }
+
+                icon.width = width || size;
+                icon.height = height || size;
+
+                marker = new ShapeElement(deepExtend({}, icon, dataModelId));
+
+                note.marker = marker;
+                note.append(marker);
+                marker.reflow(Box2D());
+                note.wrapperBox = box.wrap(marker.box);
+            }
+        },
+
+        reflow: function(targetBox) {
+            var note = this,
+                options = note.options,
+                center = targetBox.center(),
+                wrapperBox = note.wrapperBox,
+                length = options.line.length,
+                position = options.position,
+                label = note.label,
+                marker = note.marker,
+                lineStart, box, contentBox;
+
+            if (options.visible) {
+                if (inArray(position, [LEFT, RIGHT])) {
+                    if (position === LEFT) {
+                        contentBox = wrapperBox.alignTo(targetBox, position).translate(-length, targetBox.center().y - wrapperBox.center().y);
+
+                        if (options.line.visible) {
+                            lineStart = Point2D(math.floor(targetBox.x1), center.y);
+                            note.linePoints = [
+                                lineStart,
+                                Point2D(math.floor(contentBox.x2), center.y)
+                            ];
+                            box = contentBox.clone().wrapPoint(lineStart);
+                        }
+                    } else {
+                        contentBox = wrapperBox.alignTo(targetBox, position).translate(length, targetBox.center().y - wrapperBox.center().y);
+
+                        if (options.line.visible) {
+                            lineStart = Point2D(math.floor(targetBox.x2), center.y);
+                            note.linePoints = [
+                                lineStart,
+                                Point2D(math.floor(contentBox.x1), center.y)
+                            ];
+                            box = contentBox.clone().wrapPoint(lineStart);
+                        }
+                    }
+                } else {
+                    if (position === BOTTOM) {
+                        contentBox = wrapperBox.alignTo(targetBox, position).translate(targetBox.center().x - wrapperBox.center().x, length);
+
+                        if (options.line.visible) {
+                            lineStart = Point2D(math.floor(center.x), math.floor(targetBox.y2));
+                            note.linePoints = [
+                                lineStart,
+                                Point2D(math.floor(center.x), math.floor(contentBox.y1))
+                            ];
+                            box = contentBox.clone().wrapPoint(lineStart);
+                        }
+                    } else {
+                        contentBox = wrapperBox.alignTo(targetBox, position).translate(targetBox.center().x - wrapperBox.center().x, -length);
+
+                        if (options.line.visible) {
+                            lineStart = Point2D(math.floor(center.x), math.floor(targetBox.y1));
+                            note.linePoints = [
+                                lineStart,
+                                Point2D(math.floor(center.x), math.floor(contentBox.y2))
+                            ];
+                            box = contentBox.clone().wrapPoint(lineStart);
+                        }
+                    }
+                }
+
+                if (marker) {
+                    marker.reflow(contentBox);
+                }
+
+                if (label) {
+                    label.reflow(contentBox);
+                    if (marker) {
+                        if (options.label.position === OUTSIDE) {
+                            label.box.alignTo(marker.box, position);
+                        }
+                        label.reflow(label.box);
+                    }
+                }
+                note.contentBox = contentBox;
+                note.box = box || contentBox;
+            }
+        },
+
+        getViewElements: function(view) {
+            var note = this,
+                elements = BoxElement.fn.getViewElements.call(note, view),
+                group = view.createGroup({
+                    data: { modelId: note.options.modelId },
+                    zIndex: 1
+                });
+
+            if (note.options.visible) {
+                append(elements, note.createLine(view));
+            }
+
+            group.children = elements;
+
+            return [ group ];
+        },
+
+        createLine: function(view) {
+            var note = this,
+                line = note.options.line;
+
+            return [
+                view.createPolyline(note.linePoints, false, {
+                    stroke: line.color,
+                    strokeWidth: line.width,
+                    dashType: line.dashType,
+                    zIndex: line.zIndex
+                })
+            ];
+        },
+
+        click: function(widget, e) {
+            var args = this.eventArgs(e);
+
+            if (!widget.trigger(NOTE_CLICK, args)) {
+                e.preventDefault();
+            }
+        },
+
+        hover: function(widget, e) {
+            var args = this.eventArgs(e);
+
+            if (!widget.trigger(NOTE_HOVER, args)) {
+                e.preventDefault();
+            }
+        },
+
+        leave: function(widget) {
+            widget._unsetActivePoint();
+        },
+
+        eventArgs: function(e) {
+            var note = this.parent,
+                options = note.options;
+
+            return {
+                element: $(e.target),
+                text: defined(options.label) ? options.label.text : ""
+            };
+        }
+    });
+
+    var ShapeElement = BoxElement.extend({
+        options: {
+            type: CIRCLE,
+            align: CENTER,
+            vAlign: CENTER
+        },
+
+        getViewElements: function(view, renderOptions) {
+            var marker = this,
+                options = marker.options,
+                type = options.type,
+                rotation = options.rotation,
+                box = marker.paddingBox,
+                element,
+                elementOptions,
+                center = box.center(),
+                halfWidth = box.width() / 2,
+                points,
+                i;
+
+            // Make sure that this element will be added in the model map.
+            ChartElement.fn.getViewElements.call(this, view);
+
+            if (!options.visible || !marker.hasBox()) {
+                return [];
+            }
+
+            elementOptions = deepExtend(marker.elementStyle(), renderOptions);
+
+            if (type === CIRCLE) {
+                element = view.createCircle(new Point2D(
+                    round(box.x1 + halfWidth, COORD_PRECISION),
+                    round(box.y1 + box.height() / 2, COORD_PRECISION)
+                ), halfWidth, elementOptions);
+            } else if (type === TRIANGLE) {
+                points = [
+                    new Point2D(box.x1 + halfWidth, box.y1),
+                    new Point2D(box.x1, box.y2),
+                    new Point2D(box.x2, box.y2)
+                ];
+            } else {
+                points = box.points();
+            }
+
+            if (points) {
+                if (rotation) {
+                    for (i = 0; i < points.length; i++) {
+                        points[i].rotate(center, rotation);
+                    }
+                }
+
+                element = view.createPolyline(
+                    points, true, elementOptions
+                );
+            }
+
+            return [ element ];
+        }
+    });
+
+    var PinElement = BoxElement.extend({
+        init: function(options) {
+            var pin = this;
+
+            BoxElement.fn.init.call(pin, options);
+
+            pin.createTextBox();
+        },
+
+        options: {
+            arcAngle: 300,
+            border: {
+                width: 1,
+                color: "red"
+            },
+            label: {
+                zIndex: 2,
+                margin: getSpacing(2),
+                border: {
+                    width: 1,
+                    color: "green"
+                }
+            }
+        },
+
+        createTextBox: function() {
+            var pin = this,
+                options = pin.options,
+                textBox = new TextBox(options.code, options.label);
+
+            pin.append(textBox);
+            pin.textBox = textBox;
+        },
+
+        reflow: function(targetBox) {
+            var pin = this,
+                textBox = pin.textBox;
+
+            pin.box = Box2D(0, 0, textBox.box.height(), textBox.box.height() * 1.5);
+
+            BoxElement.fn.reflow.call(pin, targetBox);
+        },
+
+        getViewElements: function(view) {
+            var pin = this,
+                options = pin.options,
+                center = pin.box.center(),
+                element = view.createPin(new Pin({
+                    origin: new Point2D(center.x, center.y),
+                    radius: pin.textBox.box.height() / 2,
+                    height: pin.textBox.box.height() * 1.5,
+                    rotation: 0,
+                    arcAngle: options.arcAngle
+                }), deepExtend({}, {
+                    fill: "red",
+                    zIndex: 1,
+                    kur: 1,
+                    id: "111"
+                }, options)),
+                elements = [ element ];
+
+
+            append(elements, BoxElement.fn.getViewElements.call(pin, view));
+
+            return elements;
         }
     });
 
@@ -8463,20 +12169,23 @@ function pad(number) {
 
         initDefaults: function(seriesMin, seriesMax, options) {
             var axis = this,
-                autoMin = axis.autoAxisMin(seriesMin, seriesMax),
-                autoMax = axis.autoAxisMax(seriesMin, seriesMax),
+                narrowRange = options.narrowRange,
+                autoMin = axis.autoAxisMin(seriesMin, seriesMax, narrowRange),
+                autoMax = axis.autoAxisMax(seriesMin, seriesMax, narrowRange),
                 majorUnit = autoMajorUnit(autoMin, autoMax),
                 autoOptions = {
                     majorUnit: majorUnit
                 },
                 userSetLimits;
 
-            if (autoMin < 0) {
-                autoMin -= majorUnit;
-            }
+            if (options.roundToMajorUnit !== false) {
+                if (autoMin < 0 && remainderClose(autoMin, majorUnit, 1/3)) {
+                    autoMin -= majorUnit;
+                }
 
-            if (autoMax > 0) {
-                autoMax += majorUnit;
+                if (autoMax > 0 && remainderClose(autoMax, majorUnit, 1/3)) {
+                    autoMax += majorUnit;
+                }
             }
 
             autoOptions.min = floor(autoMin, majorUnit);
@@ -8515,21 +12224,23 @@ function pad(number) {
             return { min: options.min, max: options.max };
         },
 
-        autoAxisMax: function(min, max) {
+        autoAxisMax: function(min, max, narrow) {
+            var axisMax,
+                diff;
+
             if (!min && !max) {
                 return 1;
             }
 
-            var axisMax;
             if (min <= 0 && max <= 0) {
                 max = min == max ? 0 : max;
 
-                var diff = math.abs((max - min) / max);
-                if(diff > ZERO_THRESHOLD) {
+                diff = math.abs((max - min) / max);
+                if(!narrow && diff > ZERO_THRESHOLD) {
                     return 0;
                 }
 
-                axisMax = max - ((min - max) / 2);
+                axisMax = math.min(0, max - ((min - max) / 2));
             } else {
                 min = min == max ? 0 : min;
                 axisMax = max;
@@ -8538,21 +12249,23 @@ function pad(number) {
             return axisMax;
         },
 
-        autoAxisMin: function(min, max) {
+        autoAxisMin: function(min, max, narrow) {
+            var axisMin,
+                diff;
+
             if (!min && !max) {
                 return 0;
             }
 
-            var axisMin;
             if (min >= 0 && max >= 0) {
                 min = min == max ? 0 : min;
 
-                var diff = (max - min) / max;
-                if(diff > ZERO_THRESHOLD) {
+                diff = (max - min) / max;
+                if(!narrow && diff > ZERO_THRESHOLD) {
                     return 0;
                 }
 
-                axisMin = min - ((max - min) / 2);
+                axisMin = math.max(0, min - ((max - min) / 2));
             } else {
                 max = min == max ? 0 : max;
                 axisMin = min;
@@ -8568,7 +12281,7 @@ function pad(number) {
             return math.floor(round(range / stepValue, COORD_PRECISION)) + 1;
         },
 
-        getTickPositions: function(stepValue) {
+        getTickPositions: function(unit, skipUnit) {
             var axis = this,
                 options = axis.options,
                 vertical = options.vertical,
@@ -8577,16 +12290,24 @@ function pad(number) {
                 lineSize = vertical ? lineBox.height() : lineBox.width(),
                 range = options.max - options.min,
                 scale = lineSize / range,
-                step = stepValue * scale,
-                divisions = axis.getDivisions(stepValue),
+                step = unit * scale,
+                skipStep = 0,
+                divisions = axis.getDivisions(unit),
                 dir = (vertical ? -1 : 1) * (reverse ? -1 : 1),
                 startEdge = dir === 1 ? 1 : 2,
                 pos = lineBox[(vertical ? Y : X) + startEdge],
                 positions = [],
                 i;
 
+            if (skipUnit) {
+                skipStep = skipUnit / unit;
+            }
+
             for (i = 0; i < divisions; i++) {
-                positions.push(round(pos, COORD_PRECISION));
+                if (i % skipStep !== 0) {
+                    positions.push(round(pos, COORD_PRECISION));
+                }
+
                 pos = pos + step * dir;
             }
 
@@ -8620,8 +12341,14 @@ function pad(number) {
                 p2,
                 slotBox = new Box2D(lineBox.x1, lineBox.y1, lineBox.x1, lineBox.y1);
 
-            a = defined(a) ? a : options.axisCrossingValue;
-            b = defined(b) ? b : options.axisCrossingValue;
+            if (!defined(a)) {
+                a = b || 0;
+            }
+
+            if (!defined(b)) {
+                b = a || 0;
+            }
+
             a = math.max(math.min(a, options.max), options.min);
             b = math.max(math.min(b, options.max), options.min);
 
@@ -8667,6 +12394,38 @@ function pad(number) {
             return round(value, DEFAULT_PRECISION);
         },
 
+        translateRange: function(delta) {
+            var axis = this,
+                options = axis.options,
+                lineBox = axis.lineBox(),
+                vertical = options.vertical,
+                reverse = options.reverse,
+                size = vertical ? lineBox.height() : lineBox.width(),
+                range = options.max - options.min,
+                scale = size / range,
+                offset = round(delta / scale, DEFAULT_PRECISION);
+
+            if ((vertical || reverse) && !(vertical && reverse )) {
+                offset = -offset;
+            }
+
+            return {
+                min: options.min + offset,
+                max: options.max + offset
+            };
+        },
+
+        scaleRange: function(delta) {
+            var axis = this,
+                options = axis.options,
+                offset = -delta * options.majorUnit;
+
+            return {
+                min: options.min - offset,
+                max: options.max + offset
+            };
+        },
+
         labelsCount: function() {
             return this.getDivisions(this.options.majorUnit);
         },
@@ -8677,6 +12436,11 @@ function pad(number) {
                 value = round(options.min + (index * options.majorUnit), DEFAULT_PRECISION);
 
             return new AxisLabel(value, index, null, labelOptions);
+        },
+
+        shouldRenderNote: function(value) {
+            var range = this.range();
+            return range.min <= value && value <= range.max;
         }
     });
 
@@ -8721,6 +12485,19 @@ function pad(number) {
 
         refresh: $.noop,
 
+        traverse: function(callback) {
+            var element = this,
+                children = element.children,
+                length,
+                i;
+
+            callback(element);
+
+            for (i = 0, length = children.length; i < length; i++) {
+                children[i].traverse(callback);
+            }
+        },
+
         compareChildren: function(a, b) {
             var aValue = a.options.zIndex || 0,
                 bValue = b.options.zIndex || 0;
@@ -8732,6 +12509,17 @@ function pad(number) {
             return a._childIndex - b._childIndex;
         },
 
+        renderId: function() {
+            var element = this,
+                result = "";
+
+            if (element.options.id) {
+                result = element.renderAttr("id", element.options.id);
+            }
+
+            return result;
+        },
+
         renderAttr: function (name, value) {
             return defined(value) ? " " + name + "='" + value + "' " : "";
         },
@@ -8739,9 +12527,7 @@ function pad(number) {
         renderDataAttributes: function() {
             var element = this,
                 data = element.options.data,
-                key,
-                attr,
-                output = "";
+                key, attr, output = "";
 
             for (key in data) {
                 attr = "data-" + key.replace(UPPERCASE_REGEX, "-$1").toLowerCase();
@@ -8761,6 +12547,19 @@ function pad(number) {
             view.definitions = {};
             view.decorators = [];
             view.animations = [];
+        },
+
+        destroy: function() {
+            var animations = this.animations;
+
+            while (animations.length > 0) {
+                animations.shift().destroy();
+            }
+        },
+
+        load: function(model) {
+            var view = this;
+            view.children = model.getViewElements(view);
         },
 
         renderDefinitions: function() {
@@ -8805,20 +12604,14 @@ function pad(number) {
         },
 
         setupAnimations: function() {
-            var animations = this.animations,
-                i,
-                count = animations.length;
-
-            for (i = 0; i < count; i++) {
-                animations[i].setup();
+            for (var i = 0; i < this.animations.length; i++) {
+                this.animations[i].setup();
             }
         },
 
         playAnimations: function() {
-            var animations = this.animations;
-
-            while (animations.length > 0) {
-                animations.shift().play();
+            for (var i = 0; i < this.animations.length; i++) {
+                this.animations[i].play();
             }
         },
 
@@ -8844,6 +12637,22 @@ function pad(number) {
             }
 
             return overlay;
+        },
+
+        setDefaults: function(options) {
+            var viewOptions = this.options;
+
+            options = options || {};
+
+            if (!defined(options.inline)) {
+                options.inline = viewOptions.inline;
+            }
+
+            if (!defined(options.align)) {
+                options.align = viewOptions.align;
+            }
+
+            return options;
         }
     });
 
@@ -8963,11 +12772,12 @@ function pad(number) {
             var anim = this,
                 options = anim.options,
                 element = anim.element,
+                elementId = element.options.id,
+                domElement,
                 delay = options.delay || 0,
                 start = +new Date() + delay,
                 duration = options.duration,
                 finish = start + duration,
-                domElement = doc.getElementById(element.options.id),
                 easing = $.easing[options.easing],
                 wallTime,
                 time,
@@ -8987,10 +12797,16 @@ function pad(number) {
 
                     anim.step(easingPos);
 
+                    if (!domElement || detached(domElement)) {
+                        domElement = getElement(elementId);
+                    }
+
                     element.refresh(domElement);
 
                     if (wallTime < finish) {
-                        requestAnimFrame(loop, domElement);
+                        dataviz.requestFrame(loop);
+                    } else {
+                        anim.destroy();
                     }
                 };
 
@@ -9000,6 +12816,10 @@ function pad(number) {
 
         abort: function() {
             this._stopped = true;
+        },
+
+        destroy: function() {
+            this.abort();
         },
 
         setup: noop,
@@ -9050,6 +12870,13 @@ function pad(number) {
 
             // Expands rectangle to the right
             points[1].x = points[2].x = points[0].x + size;
+        },
+
+        destroy: function() {
+            ElementAnimation.fn.destroy.call(this);
+
+            // Unwrap all child elements
+            this.element.destroy();
         }
     });
 
@@ -9114,11 +12941,11 @@ function pad(number) {
                 };
 
             if (axis === Y) {
-                startPosition = defined(stackBase) ? stackBase :
-                    endState[aboveAxis ? BOTTOM : TOP];
+                startPosition = valueOrDefault(stackBase,
+                    endState[aboveAxis ? BOTTOM : TOP]);
             } else {
-                startPosition = defined(stackBase) ? stackBase :
-                    endState[aboveAxis ? LEFT : RIGHT];
+                startPosition = valueOrDefault(stackBase,
+                    endState[aboveAxis ? LEFT : RIGHT]);
             }
 
             anim.startPosition = startPosition;
@@ -9379,6 +13206,12 @@ function pad(number) {
             color.b = round(color.normalizeByte(color.b * value));
 
             return color;
+        },
+
+        percBrightness: function() {
+            var color = this;
+
+            return math.sqrt(0.241 * color.r * color.r + 0.691 * color.g * color.g + 0.068 * color.b * color.b);
         }
     };
 
@@ -9432,10 +13265,192 @@ function pad(number) {
         yellow: "ffff00", yellowgreen: "9acd32"
     };
 
+    var IDPool = Class.extend({
+        init: function(size, prefix, start) {
+            this._pool = [];
+            this._freed = {};
+            this._size = size;
+            this._id = start;
+            this._prefix = prefix;
+        },
+
+        alloc: function() {
+            var that = this,
+                pool = that._pool,
+                id;
+
+            if (pool.length > 0) {
+                id = pool.pop();
+                that._freed[id] = false;
+            } else {
+                id = that._prefix + that._id++;
+            }
+
+            return id;
+        },
+
+        free: function(id) {
+            var that = this,
+                pool = that._pool,
+                freed = that._freed;
+
+            if (pool.length < that._size && !freed[id]) {
+                pool.push(id);
+
+                freed[id] = true;
+            }
+        }
+    });
+    IDPool.current = new IDPool(ID_POOL_SIZE, ID_PREFIX, ID_START);
+
+    var LRUCache = Class.extend({
+        init: function(size) {
+            this._size = size;
+            this._length = 0;
+            this._map = {};
+        },
+
+        put: function(key, value) {
+            var lru = this,
+                map = lru._map,
+                entry = { key: key, value: value };
+
+            map[key] = entry;
+
+            if (!lru._head) {
+                lru._head = lru._tail = entry;
+            } else {
+                lru._tail.newer = entry;
+                entry.older = lru._tail;
+                lru._tail = entry;
+            }
+
+            if (lru._length >= lru._size) {
+                map[lru._head.key] = null;
+                lru._head = lru._head.newer;
+                lru._head.older = null;
+            } else {
+                lru._length++;
+            }
+        },
+
+        get: function(key) {
+            var lru = this,
+                entry = lru._map[key];
+
+            if (entry) {
+                if (entry === lru._head && entry !== lru._tail) {
+                    lru._head = entry.newer;
+                    lru._head.older = null;
+                }
+
+                if (entry !== lru._tail) {
+                    if (entry.older) {
+                        entry.older.newer = entry.newer;
+                        entry.newer.older = entry.older;
+                    }
+
+                    entry.older = lru._tail;
+                    entry.newer = null;
+
+                    lru._tail.newer = entry;
+                    lru._tail = entry;
+                }
+
+                return entry.value;
+            }
+        }
+    });
+
+    var ViewFactory = function() {
+        this._views = [];
+    };
+
+    ViewFactory.prototype = {
+        register: function(name, type, order) {
+            var views = this._views,
+                defaultView = views[0],
+                entry = {
+                    name: name,
+                    type: type,
+                    order: order
+                };
+
+            if (!defaultView || order < defaultView.order) {
+                views.unshift(entry);
+            } else {
+                views.push(entry);
+            }
+        },
+
+        create: function(options, preferred) {
+            var views = this._views,
+                match = views[0];
+
+            if (preferred) {
+                preferred = preferred.toLowerCase();
+                for (var i = 0; i < views.length; i++) {
+                    if (views[i].name === preferred) {
+                        match = views[i];
+                        break;
+                    }
+                }
+            }
+
+            if (match) {
+                return new match.type(options);
+            }
+
+            kendo.logToConsole(
+                "Warning: KendoUI DataViz cannot render. Possible causes:\n" +
+                "- The browser does not support SVG, VML and Canvas. User agent: " + navigator.userAgent + "\n" +
+                "- The kendo.dataviz.(svg|vml|canvas).js scripts are not loaded");
+        }
+    };
+
+    ViewFactory.current = new ViewFactory();
+
+    var ExportMixin = {
+        svg: function() {
+            if (dataviz.SVGView) {
+                var model = this._getModel(),
+                    view = new dataviz.SVGView(model.options);
+
+                view.load(model);
+
+                return view.render();
+            } else {
+                throw new Error("Unable to create SVGView. Check that kendo.dataviz.svg.js is loaded.");
+            }
+        },
+
+        imageDataURL: function() {
+            if (dataviz.CanvasView) {
+                if (dataviz.supportsCanvas()) {
+                    var model = this._getModel(),
+                        container = document.createElement("div"),
+                        view = new dataviz.CanvasView(model.options);
+
+                    view.load(model);
+
+                    return view.renderTo(container).toDataURL();
+                } else {
+                    kendo.logToConsole(
+                        "Warning: Unable to generate image. The browser does not support Canvas.\n" +
+                        "User agent: " + navigator.userAgent);
+
+                    return null;
+                }
+            } else {
+                throw new Error("Unable to create CanvasView. Check that kendo.dataviz.canvas.js is loaded.");
+            }
+        }
+    };
+
     function measureText(text, style, rotation) {
         var styleHash = getHash(style),
             cacheKey = text + styleHash + rotation,
-            cachedResult = measureText.cache[cacheKey],
+            cachedResult = measureText.cache.get(cacheKey),
             size = {
                 width: 0,
                 height: 0,
@@ -9449,7 +13464,7 @@ function pad(number) {
         var measureBox = measureText.measureBox,
             baselineMarker = measureText.baselineMarker.cloneNode(false);
 
-        if (!measureBox) {
+        if (!measureBox || !measureBox.parentNode) {
             measureBox = measureText.measureBox =
                 $("<div style='position: absolute; top: -4000px; left: -4000px;" +
                               "line-height: normal; visibility: hidden;' />")
@@ -9486,12 +13501,12 @@ function pad(number) {
             size.height = math.max(r1.y, r2.y, r3.y, r4.y) - math.min(r1.y, r2.y, r3.y, r4.y);
         }
 
-        measureText.cache[cacheKey] = size;
+        measureText.cache.put(cacheKey, size);
 
         return size;
     }
 
-    measureText.cache = {};
+    measureText.cache = new LRUCache(1000);
     measureText.baselineMarker =
         $("<div class='" + CSS_PREFIX + "baseline-marker' " +
             "style='display: inline-block; vertical-align: baseline;" +
@@ -9535,23 +13550,18 @@ function pad(number) {
         return hash.sort().join(" ");
     }
 
-    var uniqueId = (function() {
-        // Implements 32-bit Linear feedback shift register
-        var lfsr = 1;
+    function uniqueId() {
+        return IDPool.current.alloc();
+    }
 
-        return function() {
-            lfsr = ((lfsr >>> 1) ^ (-(lfsr & 1) & 0xD0000001)) >>> 0;
-            return ID_PREFIX + lfsr.toString(16);
-        };
-    })();
-
+    // TODO: Replace with Point2D.rotate
     function rotatePoint(x, y, cx, cy, angle) {
-        var theta = angle * DEGREE;
+        var theta = angle * DEG_TO_RAD;
 
-        return {
-            x: cx + (x - cx) * math.cos(theta) + (y - cy) * math.sin(theta),
-            y: cy - (x - cx) * math.sin(theta) + (y - cy) * math.cos(theta)
-        };
+        return new Point2D(
+            cx + (x - cx) * math.cos(theta) + (y - cy) * math.sin(theta),
+            cy - (x - cx) * math.sin(theta) + (y - cy) * math.cos(theta)
+        );
     }
 
     function boxDiff(r, s) {
@@ -9580,21 +13590,21 @@ function pad(number) {
         // . a b c d
 
         // we'll always have rectangles 1, 3, 4 and 6
-        result[0] = new Box2D(b, e, c, f);
-        result[1] = new Box2D(a, f, b, g);
-        result[2] = new Box2D(c, f, d, g);
-        result[3] = new Box2D(b, g, c, h);
+        result[0] = Box2D(b, e, c, f);
+        result[1] = Box2D(a, f, b, g);
+        result[2] = Box2D(c, f, d, g);
+        result[3] = Box2D(b, g, c, h);
 
         // decide which corners
-        if( r.x1 == a && r.y1 == e || s.x1 == a && s.y1 == e )
+        if ( r.x1 == a && r.y1 == e || s.x1 == a && s.y1 == e )
         { // corners 0 and 7
-            result[4] = new Box2D(a, e, b, f);
-            result[5] = new Box2D(c, g, d, h);
+            result[4] = Box2D(a, e, b, f);
+            result[5] = Box2D(c, g, d, h);
         }
         else
         { // corners 2 and 5
-            result[4] = new Box2D(c, e, d, f);
-            result[5] = new Box2D(a, g, b, h);
+            result[4] = Box2D(c, e, d, f);
+            result[5] = Box2D(a, g, b, h);
         }
 
         return $.grep(result, function(box) {
@@ -9607,15 +13617,23 @@ function pad(number) {
             "http://www.w3.org/TR/SVG11/feature#BasicStructure", "1.1");
     }
 
-    var requestAnimFrame =
+    function supportsCanvas() {
+        return !!doc.createElement("canvas").getContext;
+    }
+
+    var requestFrameFn =
         window.requestAnimationFrame       ||
         window.webkitRequestAnimationFrame ||
         window.mozRequestAnimationFrame    ||
         window.oRequestAnimationFrame      ||
         window.msRequestAnimationFrame     ||
-        function(callback, element) {
+        function(callback) {
             setTimeout(callback, ANIMATION_STEP);
         };
+
+    dataviz.requestFrame = function(callback, delay) {
+        return requestFrameFn(callback, delay);
+    };
 
     function inArray(value, array) {
         return indexOf(value, array) != -1;
@@ -9642,12 +13660,23 @@ function pad(number) {
         return math.round(value * power) / power;
     }
 
+    function remainderClose(value, divisor, ratio) {
+        var remainder = round(math.abs(value % divisor), DEFAULT_PRECISION),
+            threshold = divisor * (1 - ratio);
+
+        return remainder === 0 || remainder > threshold;
+    }
+
     function interpolateValue(start, end, progress) {
         return round(start + (end - start) * progress, COORD_PRECISION);
     }
 
     function defined(value) {
         return typeof value !== UNDEFINED;
+    }
+
+    function valueOrDefault(value, defaultValue) {
+        return defined(value) ? value : defaultValue;
     }
 
     function numericComparer(a, b) {
@@ -9671,48 +13700,55 @@ function pad(number) {
         return kendo.toString(value, format);
     }
 
+    function getElement(modelId) {
+        return doc.getElementById(modelId);
+    }
+
+    function detached(element) {
+        var parent = element.parentNode;
+
+        while(parent && parent.parentNode) {
+            parent = parent.parentNode;
+        }
+
+        return parent !== doc;
+    }
+
+    function clockwise(v1, v2) {
+        // True if v2 is clockwise of v1
+        // assuming angles grow in clock-wise direction
+        // (as in the pie and radar charts)
+        return -v1.x * v2.y + v1.y * v2.x < 0;
+    }
+
+    function decodeEntities(text) {
+        if (!text || !text.indexOf || text.indexOf("&") < 0) {
+            return text;
+        } else {
+            var element = decodeEntities._element;
+            element.innerHTML = text;
+            return element.textContent || element.innerText;
+        }
+    }
+    decodeEntities._element = doc.createElement("span");
+
+    function dateComparer(a, b) {
+         if (a && b) {
+             return a.getTime() - b.getTime();
+         }
+
+         return 0;
+    }
+
     // Exports ================================================================
-    /**
-     * @name kendo.dataviz
-     * @namespace Contains Kendo DataViz.
-     */
     deepExtend(kendo.dataviz, {
         init: function(element) {
             kendo.init(element, kendo.dataviz.ui);
         },
-
-        /**
-         * @name kendo.dataviz.ui
-         * @namespace Contains Kendo DataViz UI widgets.
-         */
         ui: {
             roles: {},
             themes: {},
             views: [],
-            defaultView: function() {
-                var i,
-                    views = dataviz.ui.views,
-                    length = views.length;
-
-                for (i = 0; i < length; i++) {
-                    if (views[i].available()) {
-                        return views[i];
-                    }
-                }
-
-                kendo.logToConsole("Warning: KendoUI DataViz cannot render. Possible causes:\n" +
-                                    "- The browser does not support SVG or VML. User agent: " + navigator.userAgent + "\n" +
-                                    "- The kendo.dataviz.svg.js or kendo.dataviz.vml.js scripts are not loaded");
-            },
-            registerView: function(viewType) {
-                var defaultView = dataviz.ui.views[0];
-
-                if (!defaultView || viewType.preference > defaultView.preference) {
-                    dataviz.ui.views.unshift(viewType);
-                } else {
-                    dataviz.ui.views.push(viewType);
-                }
-            },
             plugin: function(widget) {
                 kendo.ui.plugin(widget, dataviz.ui);
             }
@@ -9725,7 +13761,17 @@ function pad(number) {
         DEFAULT_HEIGHT: DEFAULT_HEIGHT,
         DEFAULT_FONT: DEFAULT_FONT,
         INITIAL_ANIMATION_DURATION: INITIAL_ANIMATION_DURATION,
+        NOTE_CLICK: NOTE_CLICK,
+        NOTE_HOVER: NOTE_HOVER,
         CLIP: CLIP,
+        DASH_ARRAYS: {
+            dot: [1.5, 3.5],
+            dash: [4, 3.5],
+            longdash: [8, 3.5],
+            dashdot: [3.5, 3.5, 1.5, 3.5],
+            longdashdot: [8, 3.5, 1.5, 3.5],
+            longdashdotdot: [8, 3.5, 1.5, 3.5, 1.5, 3.5]
+        },
 
         Axis: Axis,
         AxisLabel: AxisLabel,
@@ -9735,29 +13781,40 @@ function pad(number) {
         Color: Color,
         ElementAnimation:ElementAnimation,
         ExpandAnimation: ExpandAnimation,
+        ExportMixin: ExportMixin,
         ArrowAnimation: ArrowAnimation,
         BarAnimation: BarAnimation,
         BarIndicatorAnimatin: BarIndicatorAnimatin,
         FadeAnimation: FadeAnimation,
         FadeAnimationDecorator: FadeAnimationDecorator,
+        IDPool: IDPool,
+        LRUCache: LRUCache,
+        Note: Note,
         NumericAxis: NumericAxis,
         Point2D: Point2D,
+        PinElement: PinElement,
         Ring: Ring,
         Pin: Pin,
         RootElement: RootElement,
         RotationAnimation: RotationAnimation,
         Sector: Sector,
+        ShapeElement: ShapeElement,
         Text: Text,
         TextBox: TextBox,
         Title: Title,
         ViewBase: ViewBase,
         ViewElement: ViewElement,
+        ViewFactory: ViewFactory,
 
         animationDecorator: animationDecorator,
         append: append,
         autoFormat: autoFormat,
         autoMajorUnit: autoMajorUnit,
+        boxDiff: boxDiff,
         defined: defined,
+        decodeEntities: decodeEntities,
+        dateComparer: dateComparer,
+        getElement: getElement,
         getSpacing: getSpacing,
         inArray: inArray,
         interpolateValue: interpolateValue,
@@ -9767,17 +13824,28 @@ function pad(number) {
         round: round,
         ceil: ceil,
         floor: floor,
+        supportsCanvas: supportsCanvas,
         supportsSVG: supportsSVG,
         renderTemplate: renderTemplate,
-        uniqueId: uniqueId
+        uniqueId: uniqueId,
+        valueOrDefault: valueOrDefault
     });
 
-})(jQuery);
+})(window.kendo.jQuery);
+
+kendo_module({
+    id: "dataviz.themes",
+    name: "Themes",
+    description: "Built-in themes for the DataViz widgets",
+    category: "dataviz",
+    depends: [ "dataviz.core" ]
+});
+
 (function () {
 
     // Imports ================================================================
     var kendo = window.kendo,
-        dataviz = kendo.dataviz,
+        ui = kendo.dataviz.ui,
         deepExtend = kendo.deepExtend;
 
     // Constants ==============================================================
@@ -9790,7 +13858,6 @@ function pad(number) {
         SANS16 = "16px " + SANS,
         WHITE = "#fff";
 
-    // Chart themes ============================================================
     var chartBaseTheme = {
             title: {
                 font: SANS16
@@ -9801,11 +13868,129 @@ function pad(number) {
                 }
             },
             seriesDefaults: {
+                visible: true,
                 labels: {
                     font: SANS11
                 },
                 donut: {
                     margin: 1
+                },
+                line: {
+                    width: 4,
+                    aggregate: {
+                        value: "max",
+                        noteText: "first"
+                    }
+                },
+                vericalLine: {
+                    width: 4,
+                    aggregate: {
+                        value: "max",
+                        noteText: "first"
+                    }
+                },
+                scatterLine: {
+                    width: 1
+                },
+                area: {
+                    opacity: 0.4,
+                    markers: {
+                        visible: false,
+                        size: 6
+                    },
+                    line: {
+                        opacity: 1,
+                        width: 0
+                    },
+                    aggregate: {
+                        value: "max",
+                        noteText: "first"
+                    }
+                },
+                verticalArea: {
+                    opacity: 0.4,
+                    markers: {
+                        visible: false,
+                        size: 6
+                    },
+                    line: {
+                        opacity: 1,
+                        width: 0
+                    },
+                    aggregate: {
+                        value: "max",
+                        noteText: "first"
+                    }
+                },
+                radarLine: {
+                    width: 4,
+                    markers: {
+                        visible: false
+                    }
+                },
+                radarArea: {
+                    opacity: 0.5,
+                    markers: {
+                        visible: false,
+                        size: 6
+                    },
+                    line: {
+                        opacity: 1,
+                        width: 0
+                    },
+                    aggregate: {
+                        value: "max",
+                        noteText: "first"
+                    }
+                },
+                candlestick: {
+                    line: {
+                        width: 1,
+                        color: BLACK
+                    },
+                    border: {
+                        width: 1,
+                        _brightness: 0.8
+                    },
+                    gap: 1,
+                    spacing: 0.3,
+                    downColor: WHITE,
+                    aggregate: {
+                        open: "max",
+                        high: "max",
+                        low: "min",
+                        close: "max",
+                        noteText: "first"
+                    },
+                    highlight: {
+                        line: {
+                            width: 2
+                        },
+                        border: {
+                            width: 2,
+                            opacity: 1
+                        }
+                    }
+                },
+                ohlc: {
+                    line: {
+                        width: 1
+                    },
+                    gap: 1,
+                    spacing: 0.3,
+                    aggregate: {
+                        open: "max",
+                        high: "max",
+                        low: "min",
+                        close: "max",
+                        noteText: "first"
+                    },
+                    highlight: {
+                        line: {
+                            width: 3,
+                            opacity: 1
+                        }
+                    }
                 },
                 bubble: {
                     opacity: 0.6,
@@ -9818,11 +14003,55 @@ function pad(number) {
                 },
                 bar: {
                     gap: BAR_GAP,
-                    spacing: BAR_SPACING
+                    spacing: BAR_SPACING,
+                    aggregate: {
+                        value: "max",
+                        noteText: "first"
+                    }
                 },
                 column: {
                     gap: BAR_GAP,
-                    spacing: BAR_SPACING
+                    spacing: BAR_SPACING,
+                    aggregate: {
+                        value: "max",
+                        noteText: "first"
+                    }
+                },
+                bullet: {
+                    gap: BAR_GAP,
+                    spacing: BAR_SPACING,
+                    target: {
+                        color: "#ff0000"
+                    }
+                },
+                verticalBullet: {
+                    gap: BAR_GAP,
+                    spacing: BAR_SPACING,
+                    target: {
+                        color: "#ff0000"
+                    }
+                },
+                notes: {
+                    icon: {
+                        size: 7,
+                        border: {
+                            width: 1
+                        }
+                    },
+                    label: {
+                        padding: 3,
+                        font: SANS12
+                    },
+                    line: {
+                        length: 10,
+                        width: 1
+                    },
+                    visible: true
+                }
+            },
+            categoryAxis: {
+                majorGridLines: {
+                    visible: true
                 }
             },
             axisDefaults: {
@@ -9832,26 +14061,104 @@ function pad(number) {
                 title: {
                     font: SANS16,
                     margin: 5
+                },
+                crosshair: {
+                    tooltip: {
+                        font: SANS12
+                    }
+                },
+                notes: {
+                    icon: {
+                        size: 7,
+                        border: {
+                            width: 1
+                        }
+                    },
+                    label: {
+                        padding: 3,
+                        font: SANS12
+                    },
+                    line: {
+                        length: 10,
+                        width: 1
+                    },
+                    visible: true
                 }
             },
             tooltip: {
                 font: SANS12
+            },
+            navigator: {
+                pane: {
+                    height: 90,
+                    margin: {
+                        top: 10
+                    }
+                }
             }
         };
 
-    var chartThemes = {
-        black: deepExtend({}, chartBaseTheme, {
+    var gaugeBaseTheme = {
+        scale: {
+            labels: {
+                font: SANS12
+            }
+        }
+    };
+
+    var themes = ui.themes,
+        registerTheme = ui.registerTheme = function(themeName, options) {
+            var result = {};
+            // Apply base theme
+            result.chart = deepExtend({}, chartBaseTheme, options.chart);
+            result.gauge = deepExtend({}, gaugeBaseTheme, options.gauge);
+
+            // Copy the line/area chart settings for their vertical counterparts
+            var defaults = result.chart.seriesDefaults;
+            defaults.verticalLine = deepExtend({}, defaults.line);
+            defaults.verticalArea = deepExtend({}, defaults.area);
+
+            defaults.polarArea = deepExtend({}, defaults.radarArea);
+            defaults.polarLine = deepExtend({}, defaults.radarLine);
+
+            themes[themeName] = result;
+        };
+
+    registerTheme("black", {
+        chart: {
             title: {
                 color: WHITE
             },
             legend: {
                 labels: {
                     color: WHITE
+                },
+                inactiveItems: {
+                    labels: {
+                        color: "#919191"
+                    },
+                    markers: {
+                        color: "#919191"
+                    }
                 }
             },
             seriesDefaults: {
                 labels: {
                     color: WHITE
+                },
+                notes: {
+                    icon: {
+                        background: "#3b3b3b",
+                        border: {
+                            color: "#8e8e8e"
+                        }
+                    },
+                    label: {
+                        color: WHITE
+                    },
+                    line: {
+                        color: "#8e8e8e"
+                    }
                 },
                 pie: {
                     overlay: {
@@ -9878,11 +14185,25 @@ function pad(number) {
                         background: "#3d3d3d"
                     }
                 },
-                area: {
-                    opacity: 0.4,
-                    markers: {
-                        visible: false,
-                        size: 6
+                candlestick: {
+                    downColor: "#555",
+                    line: {
+                        color: WHITE
+                    },
+                    border: {
+                        _brightness: 1.5,
+                        opacity: 1
+                    },
+                    highlight: {
+                        border: {
+                            color: WHITE,
+                            opacity: 0.2
+                        }
+                    }
+                },
+                ohlc: {
+                    line: {
+                        color: WHITE
                     }
                 }
             },
@@ -9890,11 +14211,6 @@ function pad(number) {
                 background: "#3d3d3d"
             },
             seriesColors: ["#0081da", "#3aafff", "#99c900", "#ffeb3d", "#b20753", "#ff4195"],
-            categoryAxis: {
-                majorGridLines: {
-                    visible: true
-                }
-            },
             axisDefaults: {
                 line: {
                     color: "#8e8e8e"
@@ -9910,75 +14226,65 @@ function pad(number) {
                 },
                 title: {
                     color: WHITE
-                }
-            },
-            tooltip: {
-                background: "#3d3d3d",
-                color: WHITE,
-                opacity: 0.8
-            }
-        }),
-
-        "default": deepExtend({}, chartBaseTheme, {
-            title: {
-                color: "#8e8e8e"
-            },
-            legend: {
-                labels: {
-                    color: "#232323"
-                }
-            },
-            seriesDefaults: {
-                labels: {
-                    color: BLACK,
-                    background: WHITE,
-                    opacity: 0.5
                 },
-                area: {
-                    opacity: 0.4,
-                    markers: {
-                        visible: false,
-                        size: 6
-                    }
-                }
-            },
-            seriesColors: ["#ff6800", "#a0a700", "#ff8d00", "#678900", "#ffb53c", "#396000"],
-            categoryAxis: {
-                majorGridLines: {
-                    visible: true
-                }
-            },
-            axisDefaults: {
-                line: {
+                crosshair: {
                     color: "#8e8e8e"
                 },
-                labels: {
-                    color: "#232323"
-                },
-                minorGridLines: {
-                    color: "#f0f0f0"
-                },
-                majorGridLines: {
-                    color: "#dfdfdf"
-                },
-                title: {
-                    color: "#232323"
+                notes: {
+                    icon: {
+                        background: "#3b3b3b",
+                        border: {
+                            color: "#8e8e8e"
+                        }
+                    },
+                    label: {
+                        color: WHITE
+                    },
+                    line: {
+                        color: "#8e8e8e"
+                    }
                 }
-            },
-            tooltip: {
-                background: WHITE,
-                color: BLACK,
-                opacity: 0.8
             }
-        }),
+        },
+        gauge: {
+            pointer: {
+                color: "#0070e4"
+            },
+            scale: {
+                rangePlaceholderColor: "#1d1d1d",
 
-        blueopal: deepExtend({}, chartBaseTheme, {
+                labels: {
+                    color: WHITE
+                },
+                minorTicks: {
+                    color: WHITE
+                },
+                majorTicks: {
+                    color: WHITE
+                },
+                line: {
+                    color: WHITE
+                }
+            }
+        }
+    });
+
+    registerTheme("blueopal", {
+        chart: {
             title: {
                 color: "#293135"
             },
             legend: {
                 labels: {
                     color: "#293135"
+                },
+                inactiveItems: {
+                    labels: {
+                        color: "#27A5BA"
+                    },
+                    markers: {
+                        color: "#27A5BA"
+                    }
                 }
             },
             seriesDefaults: {
@@ -9987,20 +14293,28 @@ function pad(number) {
                     background: WHITE,
                     opacity: 0.5
                 },
-                area: {
-                    opacity: 0.4,
-                    markers: {
-                        visible: false,
-                        size: 6
+                candlestick: {
+                    downColor: "#c4d0d5",
+                    line: {
+                        color: "#9aabb2"
+                    }
+                },
+                notes: {
+                    icon: {
+                        background: "transparent",
+                        border: {
+                            color: "#9aabb2"
+                        }
+                    },
+                    label: {
+                        color: "#293135"
+                    },
+                    line: {
+                        color: "#9aabb2"
                     }
                 }
             },
             seriesColors: ["#0069a5", "#0098ee", "#7bd2f6", "#ffb800", "#ff8517", "#e34a00"],
-            categoryAxis: {
-                majorGridLines: {
-                    visible: true
-                }
-            },
             axisDefaults: {
                 line: {
                     color: "#9aabb2"
@@ -10016,22 +14330,317 @@ function pad(number) {
                 },
                 title: {
                     color: "#293135"
+                },
+                crosshair: {
+                    color: "#9aabb2"
+                },
+                notes: {
+                    icon: {
+                        background: "transparent",
+                        border: {
+                            color: "#9aabb2"
+                        }
+                    },
+                    label: {
+                        color: "#293135"
+                    },
+                    line: {
+                        color: "#9aabb2"
+                    }
+                }
+            }
+        },
+        gauge: {
+            pointer: {
+                color: "#005c83"
+            },
+            scale: {
+                rangePlaceholderColor: "#daecf4",
+
+                labels: {
+                    color: "#293135"
+                },
+                minorTicks: {
+                    color: "#293135"
+                },
+                majorTicks: {
+                    color: "#293135"
+                },
+                line: {
+                    color: "#293135"
+                }
+            }
+        }
+    });
+
+    registerTheme("highcontrast", {
+        chart: {
+            title: {
+                color: "#ffffff"
+            },
+            legend: {
+                labels: {
+                    color: "#ffffff"
+                },
+                inactiveItems: {
+                    labels: {
+                        color: "#66465B"
+                    },
+                    markers: {
+                        color: "#66465B"
+                    }
                 }
             },
-            tooltip: {
-                background: WHITE,
-                color: BLACK,
-                opacity: 0.8
+            seriesDefaults: {
+                labels: {
+                    color: "#ffffff"
+                },
+                notes: {
+                    icon: {
+                        background: "transparent",
+                        border: {
+                            color: "#ffffff"
+                        }
+                    },
+                    label: {
+                        color: "#ffffff"
+                    },
+                    line: {
+                        color: "#ffffff"
+                    }
+                },
+                pie: {
+                    overlay: {
+                        gradient: "sharpGlass"
+                    }
+                },
+                donut: {
+                    overlay: {
+                        gradient: "sharpGlass"
+                    }
+                },
+                line: {
+                    markers: {
+                        background: "#2c232b"
+                    }
+                },
+                scatter: {
+                    markers: {
+                        background: "#2c232b"
+                    }
+                },
+                scatterLine: {
+                    markers: {
+                        background: "#2c232b"
+                    }
+                },
+                area: {
+                    opacity: 0.5
+                },
+                candlestick: {
+                    downColor: "#664e62",
+                    line: {
+                        color: "#ffffff"
+                    },
+                    border: {
+                        _brightness: 1.5,
+                        opacity: 1
+                    },
+                    highlight: {
+                        border: {
+                            color: "#ffffff",
+                            opacity: 1
+                        }
+                    }
+                },
+                ohlc: {
+                    line: {
+                        color: "#ffffff"
+                    }
+                }
+            },
+            chartArea: {
+                background: "#2c232b"
+            },
+            seriesColors: ["#a7008f", "#ffb800", "#3aafff", "#99c900", "#b20753", "#ff4195"],
+            axisDefaults: {
+                line: {
+                    color: "#ffffff"
+                },
+                labels: {
+                    color: "#ffffff"
+                },
+                majorGridLines: {
+                    color: "#664e62"
+                },
+                minorGridLines: {
+                    color: "#4f394b"
+                },
+                title: {
+                    color: "#ffffff"
+                },
+                crosshair: {
+                    color: "#ffffff"
+                },
+                notes: {
+                    icon: {
+                        background: "transparent",
+                        border: {
+                            color: "#ffffff"
+                        }
+                    },
+                    label: {
+                        color: "#ffffff"
+                    },
+                    line: {
+                        color: "#ffffff"
+                    }
+                }
             }
-        }),
+        },
+        gauge: {
+            pointer: {
+                color: "#a7008f"
+            },
+            scale: {
+                rangePlaceholderColor: "#2c232b",
 
-        silver: deepExtend({}, chartBaseTheme, {
+                labels: {
+                    color: "#ffffff"
+                },
+                minorTicks: {
+                    color: "#2c232b"
+                },
+                majorTicks: {
+                    color: "#664e62"
+                },
+                line: {
+                    color: "#ffffff"
+                }
+            }
+        }
+    });
+
+    registerTheme("default", {
+        chart: {
+            title: {
+                color: "#8e8e8e"
+            },
+            legend: {
+                labels: {
+                    color: "#232323"
+                },
+                inactiveItems: {
+                    labels: {
+                        color: "#919191"
+                    },
+                    markers: {
+                        color: "#919191"
+                    }
+                }
+            },
+            seriesDefaults: {
+                labels: {
+                    color: BLACK,
+                    background: WHITE,
+                    opacity: 0.5
+                },
+                candlestick: {
+                    downColor: "#dedede",
+                    line: {
+                        color: "#8d8d8d"
+                    }
+                },
+                notes: {
+                    icon: {
+                        background: "transparent",
+                        border: {
+                            color: "#8e8e8e"
+                        }
+                    },
+                    label: {
+                        color: "#232323"
+                    },
+                    line: {
+                        color: "#8e8e8e"
+                    }
+                }
+            },
+            seriesColors: ["#ff6800", "#a0a700", "#ff8d00", "#678900", "#ffb53c", "#396000"],
+            axisDefaults: {
+                line: {
+                    color: "#8e8e8e"
+                },
+                labels: {
+                    color: "#232323"
+                },
+                minorGridLines: {
+                    color: "#f0f0f0"
+                },
+                majorGridLines: {
+                    color: "#dfdfdf"
+                },
+                title: {
+                    color: "#232323"
+                },
+                crosshair: {
+                    color: "#8e8e8e"
+                },
+                notes: {
+                    icon: {
+                        background: "transparent",
+                        border: {
+                            color: "#8e8e8e"
+                        }
+                    },
+                    label: {
+                        color: "#232323"
+                    },
+                    line: {
+                        color: "#8e8e8e"
+                    }
+                }
+            }
+        },
+        gauge: {
+            pointer: {
+                color: "#ea7001"
+            },
+            scale: {
+                rangePlaceholderColor: "#dedede",
+
+                labels: {
+                    color: "#2e2e2e"
+                },
+                minorTicks: {
+                    color: "#2e2e2e"
+                },
+                majorTicks: {
+                    color: "#2e2e2e"
+                },
+                line: {
+                    color: "#2e2e2e"
+                }
+            }
+        }
+    });
+
+    registerTheme("silver", {
+        chart: {
             title: {
                 color: "#4e5968"
             },
             legend: {
                 labels: {
                     color: "#4e5968"
+                },
+                inactiveItems: {
+                    labels: {
+                        color: "#B1BCC8"
+                    },
+                    markers: {
+                        color: "#B1BCC8"
+                    }
                 }
             },
             seriesDefaults: {
@@ -10039,6 +14648,20 @@ function pad(number) {
                     color: "#293135",
                     background: "#eaeaec",
                     opacity: 0.5
+                },
+                notes: {
+                    icon: {
+                        background: "transparent",
+                        border: {
+                            color: "#4e5968"
+                        }
+                    },
+                    label: {
+                        color: "#4e5968"
+                    },
+                    line: {
+                        color: "#4e5968"
+                    }
                 },
                 line: {
                     markers: {
@@ -10065,23 +14688,14 @@ function pad(number) {
                         color: "#A6B1C0"
                     }
                 },
-                area: {
-                    opacity: 0.4,
-                    markers: {
-                        visible: false,
-                        size: 6
-                    }
+                candlestick: {
+                    downColor: "#a6afbe"
                 }
             },
             chartArea: {
                 background: "#eaeaec"
             },
             seriesColors: ["#007bc3", "#76b800", "#ffae00", "#ef4c00", "#a419b7", "#430B62"],
-            categoryAxis: {
-                majorGridLines: {
-                    visible: true
-                }
-            },
             axisDefaults: {
                 line: {
                     color: "#a6b1c0"
@@ -10097,173 +14711,27 @@ function pad(number) {
                 },
                 title: {
                     color: "#4e5968"
-                }
-            },
-            tooltip: {
-                background: WHITE,
-                color: "#4e5968",
-                opacity: 0.8
-            }
-        }),
-
-        metro: deepExtend({}, chartBaseTheme, {
-            title: {
-                color: "#777777"
-            },
-            legend: {
-                labels: {
-                    color: "#777777"
-                }
-            },
-            seriesDefaults: {
-                labels: {
-                    color: BLACK
                 },
-                area: {
-                    opacity: 0.4,
-                    markers: {
-                        visible: false,
-                        size: 6
+                crosshair: {
+                    color: "#a6b1c0"
+                },
+                notes: {
+                    icon: {
+                        background: "transparent",
+                        border: {
+                            color: "#4e5968"
+                        }
+                    },
+                    label: {
+                        color: "#4e5968"
+                    },
+                    line: {
+                        color: "#4e5968"
                     }
                 }
-            },
-            seriesColors: ["#25a0da", "#309b46", "#8ebc00", "#ff6900", "#e61e26", "#d8e404", "#16aba9", "#7e51a1", "#313131", "#ed1691"],
-            categoryAxis: {
-                majorGridLines: {
-                    visible: true
-                }
-            },
-            axisDefaults: {
-                line: {
-                    color: "#c7c7c7"
-                },
-                labels: {
-                    color: "#777777"
-                },
-                minorGridLines: {
-                    color: "#c7c7c7"
-                },
-                majorGridLines: {
-                    color: "#c7c7c7"
-                },
-                title: {
-                    color: "#777777"
-                }
-            },
-            tooltip: {
-                background: WHITE,
-                color: BLACK
             }
-        })
-    };
-
-    // Copy the line/area settings for their vertical counterparts
-    for (var themeName in chartThemes) {
-        var defaults = chartThemes[themeName].seriesDefaults;
-        defaults.verticalLine = deepExtend({}, defaults.line);
-        defaults.verticalArea = deepExtend({}, defaults.area);
-    }
-
-    // Gauge themes ===========================================================
-
-    var gaugeBaseTheme = {
-        scale: {
-            labels: {
-                font: SANS12
-            }
-        }
-    };
-
-    var gaugeThemes = {
-        black: deepExtend({}, gaugeBaseTheme, {
-            pointer: {
-                color: "#0070e4"
-            },
-            scale: {
-                rangePlaceholderColor: "#1d1d1d",
-
-                labels: {
-                    color: WHITE
-                },
-                minorTicks: {
-                    color: WHITE
-                },
-                majorTicks: {
-                    color: WHITE
-                },
-                line: {
-                    color: WHITE
-                }
-            }
-        }),
-
-        blueopal: deepExtend({}, gaugeBaseTheme, {
-            pointer: {
-                color: "#005c83"
-            },
-            scale: {
-                rangePlaceholderColor: "#daecf4",
-
-                labels: {
-                    color: "#293135"
-                },
-                minorTicks: {
-                    color: "#293135"
-                },
-                majorTicks: {
-                    color: "#293135"
-                },
-                line: {
-                    color: "#293135"
-                }
-            }
-        }),
-
-        "default": deepExtend({}, gaugeBaseTheme, {
-            pointer: {
-                color: "#ea7001"
-            },
-            scale: {
-                rangePlaceholderColor: "#dedede",
-
-                labels: {
-                    color: "#2e2e2e"
-                },
-                minorTicks: {
-                    color: "#2e2e2e"
-                },
-                majorTicks: {
-                    color: "#2e2e2e"
-                },
-                line: {
-                    color: "#2e2e2e"
-                }
-            }
-        }),
-
-        metro: deepExtend({}, gaugeBaseTheme, {
-            pointer: {
-                color: "#8ebc00"
-            },
-            scale: {
-                rangePlaceholderColor: "#e6e6e6",
-
-                labels: {
-                    color: "#777"
-                },
-                minorTicks: {
-                    color: "#777"
-                },
-                majorTicks: {
-                    color: "#777"
-                },
-                line: {
-                    color: "#777"
-                }
-            }
-        }),
-
-        silver: deepExtend({}, gaugeBaseTheme, {
+        },
+        gauge: {
             pointer: {
                 color: "#0879c0"
             },
@@ -10283,30 +14751,857 @@ function pad(number) {
                     color: "#515967"
                 }
             }
-        })
-    };
-
-    // Exports ================================================================
-    deepExtend(dataviz.ui.themes, {
-        chart: chartThemes,
-        gauge: gaugeThemes
+        }
     });
 
-})(jQuery);
+    registerTheme("metro", {
+        chart: {
+            title: {
+                color: "#777777"
+            },
+            legend: {
+                labels: {
+                    color: "#777777"
+                },
+                inactiveItems: {
+                    labels: {
+                        color: "#CBCBCB"
+                    },
+                    markers: {
+                        color: "#CBCBCB"
+                    }
+                }
+            },
+            seriesDefaults: {
+                labels: {
+                    color: BLACK
+                },
+                notes: {
+                    icon: {
+                        background: "transparent",
+                        border: {
+                            color: "#777777"
+                        }
+                    },
+                    label: {
+                        color: "#777777"
+                    },
+                    line: {
+                        color: "#777777"
+                    }
+                },
+                candlestick: {
+                    downColor: "#c7c7c7",
+                    line: {
+                        color: "#787878"
+                    }
+                },
+                overlay: {
+                    gradient: "none"
+                },
+                border: {
+                    _brightness: 1
+                }
+            },
+            seriesColors: ["#8ebc00", "#309b46", "#25a0da", "#ff6900", "#e61e26", "#d8e404", "#16aba9", "#7e51a1", "#313131", "#ed1691"],
+            axisDefaults: {
+                line: {
+                    color: "#c7c7c7"
+                },
+                labels: {
+                    color: "#777777"
+                },
+                minorGridLines: {
+                    color: "#c7c7c7"
+                },
+                majorGridLines: {
+                    color: "#c7c7c7"
+                },
+                title: {
+                    color: "#777777"
+                },
+                crosshair: {
+                    color: "#c7c7c7"
+                },
+                notes: {
+                    icon: {
+                        background: "transparent",
+                        border: {
+                            color: "#777777"
+                        }
+                    },
+                    label: {
+                        color: "#777777"
+                    },
+                    line: {
+                        color: "#777777"
+                    }
+                }
+            }
+        },
+        gauge: {
+            pointer: {
+                color: "#8ebc00"
+            },
+            scale: {
+                rangePlaceholderColor: "#e6e6e6",
+
+                labels: {
+                    color: "#777"
+                },
+                minorTicks: {
+                    color: "#777"
+                },
+                majorTicks: {
+                    color: "#777"
+                },
+                line: {
+                    color: "#777"
+                }
+            }
+        }
+    });
+
+    registerTheme("metroblack", {
+        chart: {
+            title: {
+                color: "#ffffff"
+            },
+            legend: {
+                labels: {
+                    color: "#ffffff"
+                },
+                inactiveItems: {
+                    labels: {
+                        color: "#797979"
+                    },
+                    markers: {
+                        color: "#797979"
+                    }
+                }
+            },
+            seriesDefaults: {
+                border: {
+                    _brightness: 1
+                },
+                labels: {
+                    color: "#ffffff"
+                },
+                notes: {
+                    icon: {
+                        background: "transparent",
+                        border: {
+                            color: "#cecece"
+                        }
+                    },
+                    label: {
+                        color: "#ffffff"
+                    },
+                    line: {
+                        color: "#cecece"
+                    }
+                },
+                line: {
+                    markers: {
+                        background: "#0e0e0e"
+                    }
+                },
+                bubble: {
+                    opacity: 0.6
+                },
+                scatter: {
+                    markers: {
+                        background: "#0e0e0e"
+                    }
+                },
+                scatterLine: {
+                    markers: {
+                        background: "#0e0e0e"
+                    }
+                },
+                candlestick: {
+                    downColor: "#828282",
+                    line: {
+                        color: "#ffffff"
+                    }
+                },
+                overlay: {
+                    gradient: "none"
+                }
+            },
+            chartArea: {
+                background: "#0e0e0e"
+            },
+            seriesColors: ["#00aba9", "#309b46", "#8ebc00", "#ff6900", "#e61e26", "#d8e404", "#25a0da", "#7e51a1", "#313131", "#ed1691"],
+            axisDefaults: {
+                line: {
+                    color: "#cecece"
+                },
+                labels: {
+                    color: "#ffffff"
+                },
+                minorGridLines: {
+                    color: "#2d2d2d"
+                },
+                majorGridLines: {
+                    color: "#333333"
+                },
+                title: {
+                    color: "#ffffff"
+                },
+                crosshair: {
+                    color: "#cecece"
+                },
+                notes: {
+                    icon: {
+                        background: "transparent",
+                        border: {
+                            color: "#cecece"
+                        }
+                    },
+                    label: {
+                        color: "#ffffff"
+                    },
+                    line: {
+                        color: "#cecece"
+                    }
+                }
+            }
+        },
+        gauge: {
+            pointer: {
+                color: "#00aba9"
+            },
+            scale: {
+                rangePlaceholderColor: "#2d2d2d",
+
+                labels: {
+                    color: "#ffffff"
+                },
+                minorTicks: {
+                    color: "#333333"
+                },
+                majorTicks: {
+                    color: "#cecece"
+                },
+                line: {
+                    color: "#cecece"
+                }
+            }
+        }
+    });
+
+    registerTheme("moonlight", {
+        chart: {
+            title: {
+                color: "#ffffff"
+            },
+            legend: {
+                labels: {
+                    color: "#ffffff"
+                },
+                inactiveItems: {
+                    labels: {
+                        color: "#A1A7AB"
+                    },
+                    markers: {
+                        color: "#A1A7AB"
+                    }
+                }
+            },
+            seriesDefaults: {
+                labels: {
+                    color: "#ffffff"
+                },
+                notes: {
+                    icon: {
+                        background: "transparent",
+                        border: {
+                            color: "#8c909e"
+                        }
+                    },
+                    label: {
+                        color: "#ffffff"
+                    },
+                    line: {
+                        color: "#8c909e"
+                    }
+                },
+                pie: {
+                    overlay: {
+                        gradient: "sharpBevel"
+                    }
+                },
+                donut: {
+                    overlay: {
+                        gradient: "sharpGlass"
+                    }
+                },
+                line: {
+                    markers: {
+                        background: "#212a33"
+                    }
+                },
+                bubble: {
+                    opacity: 0.6
+                },
+                scatter: {
+                    markers: {
+                        background: "#212a33"
+                    }
+                },
+                scatterLine: {
+                    markers: {
+                        background: "#212a33"
+                    }
+                },
+                area: {
+                    opacity: 0.3
+                },
+                candlestick: {
+                    downColor: "#757d87",
+                    line: {
+                        color: "#ea9d06"
+                    },
+                    border: {
+                        _brightness: 1.5,
+                        opacity: 1
+                    },
+                    highlight: {
+                        border: {
+                            color: WHITE,
+                            opacity: 0.2
+                        }
+                    }
+                },
+                ohlc: {
+                    line: {
+                        color: "#ea9d06"
+                    }
+                }
+            },
+            chartArea: {
+                background: "#212a33"
+            },
+            seriesColors: ["#ffca08", "#ff710f", "#ed2e24", "#ff9f03", "#e13c02", "#a00201"],
+            axisDefaults: {
+                line: {
+                    color: "#8c909e"
+                },
+                minorTicks: {
+                    color: "#8c909e"
+                },
+                majorTicks: {
+                    color: "#8c909e"
+                },
+                labels: {
+                    color: "#ffffff"
+                },
+                majorGridLines: {
+                    color: "#3e424d"
+                },
+                minorGridLines: {
+                    color: "#2f3640"
+                },
+                title: {
+                    color: "#ffffff"
+                },
+                crosshair: {
+                    color: "#8c909e"
+                },
+                notes: {
+                    icon: {
+                        background: "transparent",
+                        border: {
+                            color: "#8c909e"
+                        }
+                    },
+                    label: {
+                        color: "#ffffff"
+                    },
+                    line: {
+                        color: "#8c909e"
+                    }
+                }
+            }
+        },
+        gauge: {
+            pointer: {
+                color: "#f4af03"
+            },
+            scale: {
+                rangePlaceholderColor: "#2f3640",
+
+                labels: {
+                    color: WHITE
+                },
+                minorTicks: {
+                    color: "#8c909e"
+                },
+                majorTicks: {
+                    color: "#8c909e"
+                },
+                line: {
+                    color: "#8c909e"
+                }
+            }
+        }
+    });
+    registerTheme("uniform", {
+        chart: {
+            title: {
+                color: "#686868"
+            },
+            legend: {
+                labels: {
+                    color: "#686868"
+                },
+                inactiveItems: {
+                    labels: {
+                        color: "#B6B6B6"
+                    },
+                    markers: {
+                        color: "#B6B6B6"
+                    }
+                }
+            },
+            seriesDefaults: {
+                labels: {
+                    color: "#686868"
+                },
+                notes: {
+                    icon: {
+                        background: "transparent",
+                        border: {
+                            color: "#9e9e9e"
+                        }
+                    },
+                    label: {
+                        color: "#686868"
+                    },
+                    line: {
+                        color: "#9e9e9e"
+                    }
+                },
+                pie: {
+                    overlay: {
+                        gradient: "sharpBevel"
+                    }
+                },
+                donut: {
+                    overlay: {
+                        gradient: "sharpGlass"
+                    }
+                },
+                line: {
+                    markers: {
+                        background: "#ffffff"
+                    }
+                },
+                bubble: {
+                    opacity: 0.6
+                },
+                scatter: {
+                    markers: {
+                        background: "#ffffff"
+                    }
+                },
+                scatterLine: {
+                    markers: {
+                        background: "#ffffff"
+                    }
+                },
+                area: {
+                    opacity: 0.3
+                },
+                candlestick: {
+                    downColor: "#cccccc",
+                    line: {
+                        color: "#cccccc"
+                    },
+                    border: {
+                        _brightness: 1.5,
+                        opacity: 1
+                    },
+                    highlight: {
+                        border: {
+                            color: "#cccccc",
+                            opacity: 0.2
+                        }
+                    }
+                },
+                ohlc: {
+                    line: {
+                        color: "#cccccc"
+                    }
+                }
+            },
+            chartArea: {
+                background: "#ffffff"
+            },
+            seriesColors: ["#527aa3", "#6f91b3", "#8ca7c2", "#a8bdd1", "#c5d3e0", "#e2e9f0"],
+            axisDefaults: {
+                line: {
+                    color: "#9e9e9e"
+                },
+                minorTicks: {
+                    color: "#aaaaaa"
+                },
+                majorTicks: {
+                    color: "#888888"
+                },
+                labels: {
+                    color: "#686868"
+                },
+                majorGridLines: {
+                    color: "#dadada"
+                },
+                minorGridLines: {
+                    color: "#e7e7e7"
+                },
+                title: {
+                    color: "#686868"
+                },
+                crosshair: {
+                    color: "#9e9e9e"
+                },
+                notes: {
+                    icon: {
+                        background: "transparent",
+                        border: {
+                            color: "#9e9e9e"
+                        }
+                    },
+                    label: {
+                        color: "#686868"
+                    },
+                    line: {
+                        color: "#9e9e9e"
+                    }
+                }
+            }
+        },
+        gauge: {
+            pointer: {
+                color: "#527aa3"
+            },
+            scale: {
+                rangePlaceholderColor: "#e7e7e7",
+
+                labels: {
+                    color: "#686868"
+                },
+                minorTicks: {
+                    color: "#aaaaaa"
+                },
+                majorTicks: {
+                    color: "#888888"
+                },
+                line: {
+                    color: "#9e9e9e"
+                }
+            }
+        }
+    });
+
+    registerTheme("bootstrap", {
+        chart: {
+            title: {
+                color: "#343434"
+            },
+            legend: {
+                labels: {
+                    color: "#343434"
+                },
+                inactiveItems: {
+                    labels: {
+                        color: "#9A9A9A"
+                    },
+                    markers: {
+                        color: "#9A9A9A"
+                    }
+                }
+            },
+            seriesDefaults: {
+                labels: {
+                    color: "#343434"
+                },
+                notes: {
+                    icon: {
+                        background: "transparent",
+                        border: {
+                            color: "#b8b8b8"
+                        }
+                    },
+                    label: {
+                        color: "#343434"
+                    },
+                    line: {
+                        color: "#b8b8b8"
+                    }
+                },
+                pie: {
+                    overlay: {
+                        gradient: "sharpBevel"
+                    }
+                },
+                donut: {
+                    overlay: {
+                        gradient: "sharpGlass"
+                    }
+                },
+                line: {
+                    markers: {
+                        background: "#ffffff"
+                    }
+                },
+                bubble: {
+                    opacity: 0.6
+                },
+                scatter: {
+                    markers: {
+                        background: "#ffffff"
+                    }
+                },
+                scatterLine: {
+                    markers: {
+                        background: "#ffffff"
+                    }
+                },
+                area: {
+                    opacity: 0.3
+                },
+                candlestick: {
+                    downColor: "#d0d0d0",
+                    line: {
+                        color: "#d0d0d0"
+                    },
+                    border: {
+                        _brightness: 1.5,
+                        opacity: 1
+                    },
+                    highlight: {
+                        border: {
+                            color: "#b8b8b8",
+                            opacity: 0.2
+                        }
+                    }
+                },
+                ohlc: {
+                    line: {
+                        color: "#d0d0d0"
+                    }
+                }
+            },
+            chartArea: {
+                background: "#ffffff"
+            },
+            seriesColors: ["#006dcc", "#49AFCD", "#5BB75B", "#FAA732", "#DA4F49", "#363636"],
+            axisDefaults: {
+                line: {
+                    color: "#b8b8b8"
+                },
+                minorTicks: {
+                    color: "#dddddd"
+                },
+                majorTicks: {
+                    color: "#b8b8b8"
+                },
+                labels: {
+                    color: "#343434"
+                },
+                majorGridLines: {
+                    color: "#b8b8b8"
+                },
+                minorGridLines: {
+                    color: "#dddddd"
+                },
+                title: {
+                    color: "#343434"
+                },
+                crosshair: {
+                    color: "#b8b8b8"
+                },
+                notes: {
+                    icon: {
+                        background: "transparent",
+                        border: {
+                            color: "#b8b8b8"
+                        }
+                    },
+                    label: {
+                        color: "#343434"
+                    },
+                    line: {
+                        color: "#b8b8b8"
+                    }
+                }
+            }
+        },
+        gauge: {
+            pointer: {
+                color: "#0044cc"
+            },
+            scale: {
+                rangePlaceholderColor: "#b8b8b8",
+                labels: {
+                    color: "#343434"
+                },
+                minorTicks: {
+                    color: "#dddddd"
+                },
+                majorTicks: {
+                    color: "#b8b8b8"
+                },
+                line: {
+                    color: "#b8b8b8"
+                }
+            }
+        }
+    });
+
+    registerTheme("flat", {
+		 chart: {
+            title: {
+                color: "#4c5356"
+            },
+            legend: {
+                labels: {
+                    color: "#4c5356"
+                },
+                inactiveItems: {
+                    labels: {
+                        color: "#CBCBCB"
+                    },
+                    markers: {
+                        color: "#CBCBCB"
+                    }
+                }
+            },
+            seriesDefaults: {
+                labels: {
+                    color: "#4c5356"
+                },
+                notes: {
+                    icon: {
+                        background: "transparent",
+                        border: {
+                            color: "#cdcdcd"
+                        }
+                    },
+                    label: {
+                        color: "#4c5356"
+                    },
+                    line: {
+                        color: "#cdcdcd"
+                    }
+                },
+                candlestick: {
+                    downColor: "#c7c7c7",
+                    line: {
+                        color: "#787878"
+                    }
+                },
+                area: {
+                    opacity: 0.9
+                },
+                overlay: {
+                    gradient: "none"
+                },
+                border: {
+                    _brightness: 1
+                }
+            },
+            seriesColors: ["#10c4b2", "#ff7663", "#ffb74f", "#a2df53", "#1c9ec4", "#ff63a5", "#1cc47b"],
+            axisDefaults: {
+                line: {
+                    color: "#cdcdcd"
+                },
+                labels: {
+                    color: "#4c5356"
+                },
+                minorGridLines: {
+                    color: "#cdcdcd"
+                },
+                majorGridLines: {
+                    color: "#cdcdcd"
+                },
+                title: {
+                    color: "#4c5356"
+                },
+                crosshair: {
+                    color: "#cdcdcd"
+                },
+                notes: {
+                    icon: {
+                        background: "transparent",
+                        border: {
+                            color: "#cdcdcd"
+                        }
+                    },
+                    label: {
+                        color: "#4c5356"
+                    },
+                    line: {
+                        color: "#cdcdcd"
+                    }
+                }
+            }
+        },
+        gauge: {
+            pointer: {
+                color: "#10c4b2"
+            },
+            scale: {
+                rangePlaceholderColor: "#cdcdcd",
+
+                labels: {
+                    color: "#4c5356"
+                },
+                minorTicks: {
+                    color: "#4c5356"
+                },
+                majorTicks: {
+                    color: "#4c5356"
+                },
+                line: {
+                    color: "#4c5356"
+                }
+            }
+        }
+	});
+
+})(window.kendo.jQuery);
+
+
+kendo_module({
+    id: "dataviz.chart",
+    name: "Chart",
+    category: "dataviz",
+    description: "The Chart widget uses modern browser technologies to " +
+                 "render high-quality data visualizations in the browser.",
+    depends: [ "data", "userevents", "dataviz.core", "dataviz.svg" ],
+    features: [{
+        id: "dataviz.chart-polar",
+        name: "Polar & Radar",
+        description: "Support for Polar and Radar charts.",
+        depends: ["dataviz.chart.polar"]
+    }]
+});
 
 (function ($, undefined) {
     // Imports ================================================================
     var each = $.each,
-        grep = $.grep,
         isArray = $.isArray,
         map = $.map,
         math = Math,
         extend = $.extend,
         proxy = $.proxy,
-        doc = document,
+        isFn = $.isFunction,
 
         kendo = window.kendo,
         Class = kendo.Class,
+        Observable = kendo.Observable,
         DataSource = kendo.data.DataSource,
         Widget = kendo.ui.Widget,
         template = kendo.template,
@@ -10322,10 +15617,12 @@ function pad(number) {
         ChartElement = dataviz.ChartElement,
         Color = dataviz.Color,
         ElementAnimation = dataviz.ElementAnimation,
+        Note = dataviz.Note,
         NumericAxis = dataviz.NumericAxis,
         Point2D = dataviz.Point2D,
         RootElement = dataviz.RootElement,
         Ring = dataviz.Ring,
+        ShapeElement = dataviz.ShapeElement,
         Text = dataviz.Text,
         TextBox = dataviz.TextBox,
         Title = dataviz.Title,
@@ -10333,45 +15630,55 @@ function pad(number) {
         append = dataviz.append,
         autoFormat = dataviz.autoFormat,
         defined = dataviz.defined,
+        dateComparer = dataviz.dateComparer,
+        getElement = dataviz.getElement,
         getSpacing = dataviz.getSpacing,
         inArray = dataviz.inArray,
         interpolateValue = dataviz.interpolateValue,
         last = dataviz.last,
         round = dataviz.round,
         renderTemplate = dataviz.renderTemplate,
-        uniqueId = dataviz.uniqueId;
-
-    var CSS_PREFIX = "k-";
+        uniqueId = dataviz.uniqueId,
+        valueOrDefault = dataviz.valueOrDefault;
 
     // Constants ==============================================================
-    var ABOVE = "above",
+    var NS = ".kendoChart",
+        ABOVE = "above",
         AREA = "area",
+        AUTO = "auto",
+        FIT = "fit",
         AXIS_LABEL_CLICK = dataviz.AXIS_LABEL_CLICK,
         BAR = "bar",
         BAR_BORDER_BRIGHTNESS = 0.8,
         BELOW = "below",
         BLACK = "#000",
+        BOTH = "both",
         BOTTOM = "bottom",
         BUBBLE = "bubble",
+        BULLET = "bullet",
+        CANDLESTICK = "candlestick",
         CATEGORY = "category",
         CENTER = "center",
         CHANGE = "change",
         CIRCLE = "circle",
-        CLICK = "click",
+        CLICK_NS = "click" + NS,
         CLIP = dataviz.CLIP,
+        COLOR = "color",
         COLUMN = "column",
         COORD_PRECISION = dataviz.COORD_PRECISION,
+        CSS_PREFIX = "k-",
         DATABOUND = "dataBound",
         DATE = "date",
-        DATE_REGEXP = /^\/Date\((.*?)\)\/$/,
         DAYS = "days",
         DEFAULT_FONT = dataviz.DEFAULT_FONT,
         DEFAULT_HEIGHT = dataviz.DEFAULT_HEIGHT,
         DEFAULT_PRECISION = dataviz.DEFAULT_PRECISION,
         DEFAULT_WIDTH = dataviz.DEFAULT_WIDTH,
-        DEGREE = math.PI / 180,
         DONUT = "donut",
         DONUT_SECTOR_ANIM_DELAY = 50,
+        DRAG = "drag",
+        DRAG_END = "dragEnd",
+        DRAG_START = "dragStart",
         FADEIN = "fadeIn",
         GLASS = "glass",
         HOURS = "hours",
@@ -10380,61 +15687,93 @@ function pad(number) {
         INSIDE_END = "insideEnd",
         INTERPOLATE = "interpolate",
         LEFT = "left",
+        LEGEND_ITEM_CLICK = "legendItemClick",
+        LEGEND_ITEM_HOVER = "legendItemHover",
         LINE = "line",
         LINE_MARKER_SIZE = 8,
+        MAX_EXPAND_DEPTH = 5,
         MAX_VALUE = Number.MAX_VALUE,
         MIN_VALUE = -Number.MAX_VALUE,
         MINUTES = "minutes",
         MONTHS = "months",
+        MOUSELEAVE_NS = "mouseleave" + NS,
         MOUSEMOVE_TRACKING = "mousemove.tracking",
-        MOUSEOVER = "mouseover",
-        NS = ".kendoChart",
+        MOUSEOVER_NS = "mouseover" + NS,
+        MOUSEOUT_NS = "mouseout" + NS,
+        MOUSEMOVE_NS = "mousemove" + NS,
+        MOUSEMOVE_THROTTLE = 20,
+        MOUSEWHEEL_DELAY = 150,
+        MOUSEWHEEL_NS = "DOMMouseScroll" + NS + " mousewheel" + NS,
+        NOTE_CLICK = dataviz.NOTE_CLICK,
+        NOTE_HOVER = dataviz.NOTE_HOVER,
+        NOTE_TEXT = "noteText",
+        OBJECT = "object",
+        OHLC = "ohlc",
         OUTSIDE_END = "outsideEnd",
         OUTLINE_SUFFIX = "_outline",
         PIE = "pie",
         PIE_SECTOR_ANIM_DELAY = 70,
         PLOT_AREA_CLICK = "plotAreaClick",
-        PRIMARY = "primary",
+        POINTER = "pointer",
         RIGHT = "right",
         ROUNDED_BEVEL = "roundedBevel",
         ROUNDED_GLASS = "roundedGlass",
         SCATTER = "scatter",
         SCATTER_LINE = "scatterLine",
+        SECONDS = "seconds",
+        SELECT_START = "selectStart",
+        SELECT = "select",
+        SELECT_END = "selectEnd",
         SERIES_CLICK = "seriesClick",
         SERIES_HOVER = "seriesHover",
         STRING = "string",
-        TIME_PER_MINUTE = 60000,
+        TIME_PER_SECOND = 1000,
+        TIME_PER_MINUTE = 60 * TIME_PER_SECOND,
         TIME_PER_HOUR = 60 * TIME_PER_MINUTE,
         TIME_PER_DAY = 24 * TIME_PER_HOUR,
+        TIME_PER_WEEK = 7 * TIME_PER_DAY,
         TIME_PER_MONTH = 31 * TIME_PER_DAY,
         TIME_PER_YEAR = 365 * TIME_PER_DAY,
         TIME_PER_UNIT = {
             "years": TIME_PER_YEAR,
             "months": TIME_PER_MONTH,
+            "weeks": TIME_PER_WEEK,
             "days": TIME_PER_DAY,
             "hours": TIME_PER_HOUR,
-            "minutes": TIME_PER_MINUTE
+            "minutes": TIME_PER_MINUTE,
+            "seconds": TIME_PER_SECOND
         },
         TOP = "top",
         TOOLTIP_ANIMATION_DURATION = 150,
         TOOLTIP_OFFSET = 5,
         TOOLTIP_SHOW_DELAY = 100,
-        TRIANGLE = "triangle",
-        VERTICAL_LINE = "verticalLine",
+        TOOLTIP_HIDE_DELAY = 100,
+        TOOLTIP_INVERSE = "tooltip-inverse",
+        TOUCH_START_NS = "touchstart" + NS,
+        VALUE = "value",
         VERTICAL_AREA = "verticalArea",
+        VERTICAL_BULLET = "verticalBullet",
+        VERTICAL_LINE = "verticalLine",
+        WEEKS = "weeks",
         WHITE = "#fff",
         X = "x",
         Y = "y",
         YEARS = "years",
-        ZERO = "zero";
-
-    var CATEGORICAL_CHARTS = [BAR, COLUMN, LINE, VERTICAL_LINE, AREA, VERTICAL_AREA],
-        XY_CHARTS = [SCATTER, SCATTER_LINE, BUBBLE];
+        ZERO = "zero",
+        ZOOM_ACCELERATION = 3,
+        ZOOM_START = "zoomStart",
+        ZOOM = "zoom",
+        ZOOM_END = "zoomEnd",
+        BASE_UNITS = [
+            SECONDS, MINUTES, HOURS, DAYS, WEEKS, MONTHS, YEARS
+        ];
 
     var DateLabelFormats = {
+        seconds: "HH:mm:ss",
         minutes: "HH:mm",
         hours: "HH:mm",
         days: "M/d",
+        weeks: "M/d",
         months: "MMM 'yy",
         years: "yyyy"
     };
@@ -10443,29 +15782,55 @@ function pad(number) {
     var Chart = Widget.extend({
         init: function(element, userOptions) {
             var chart = this,
-                options,
-                themeOptions,
-                themes = dataviz.ui.themes.chart || {},
-                dataSourceOptions = (userOptions || {}).dataSource,
-                themeName;
+                options;
+
+            kendo.destroy(element);
 
             Widget.fn.init.call(chart, element);
             options = deepExtend({}, chart.options, userOptions);
 
-            themeName = options.theme;
-            themeOptions = themeName ? themes[themeName] || themes[themeName.toLowerCase()] : {};
+            chart.element
+                .addClass(CSS_PREFIX + options.name.toLowerCase())
+                .css("position", "relative");
 
-            applyDefaults(options, themeOptions);
+            chart._originalOptions = deepExtend({}, options);
 
-            chart.options = deepExtend({}, themeOptions, options);
-
-            applySeriesColors(chart.options);
+            chart._initTheme(options);
 
             chart.bind(chart.events, chart.options);
 
-            chart.element.addClass("k-chart");
-
             chart.wrapper = chart.element;
+
+            chart._initDataSource(userOptions);
+
+            kendo.notify(chart, dataviz.ui);
+        },
+
+        _initTheme: function(options) {
+            var chart = this,
+                themes = dataviz.ui.themes || {},
+                themeName = options.theme,
+                theme = themes[themeName] || themes[themeName.toLowerCase()],
+                themeOptions = themeName && theme ? theme.chart : {},
+                seriesCopies = [],
+                series = options.series || [],
+                i;
+
+            for (i = 0; i < series.length; i++) {
+                seriesCopies.push($.extend({}, series[i]));
+            }
+            options.series = seriesCopies;
+
+            resolveAxisAliases(options);
+            chart._applyDefaults(options, themeOptions);
+
+            chart.options = deepExtend({}, themeOptions, options);
+            applySeriesColors(chart.options);
+        },
+
+        _initDataSource: function(userOptions) {
+            var chart = this,
+                dataSourceOptions = (userOptions || {}).dataSource;
 
             chart._dataChangeHandler = proxy(chart._onDataChanged, chart);
 
@@ -10473,23 +15838,20 @@ function pad(number) {
                 .create(dataSourceOptions)
                 .bind(CHANGE, chart._dataChangeHandler);
 
+            chart._bindCategories();
+
             chart._redraw();
             chart._attachEvents();
 
-            if (dataSourceOptions && options.autoBind) {
+            if (dataSourceOptions && chart.options.autoBind) {
                 chart.dataSource.fetch();
             }
-
-            kendo.notify(chart, dataviz.ui);
         },
 
         setDataSource: function(dataSource) {
             var chart = this;
 
-            if (chart.dataSource) {
-                chart.dataSource.unbind(CHANGE, chart._dataChangeHandler);
-            }
-
+            chart.dataSource.unbind(CHANGE, chart._dataChangeHandler);
             chart.dataSource = dataSource;
 
             dataSource.bind(CHANGE, chart._dataChangeHandler);
@@ -10504,7 +15866,20 @@ function pad(number) {
             SERIES_CLICK,
             SERIES_HOVER,
             AXIS_LABEL_CLICK,
-            PLOT_AREA_CLICK
+            LEGEND_ITEM_CLICK,
+            LEGEND_ITEM_HOVER,
+            PLOT_AREA_CLICK,
+            DRAG_START,
+            DRAG,
+            DRAG_END,
+            ZOOM_START,
+            ZOOM,
+            ZOOM_END,
+            SELECT_START,
+            SELECT,
+            SELECT_END,
+            NOTE_CLICK,
+            NOTE_HOVER
         ],
 
         items: function() {
@@ -10515,92 +15890,128 @@ function pad(number) {
             name: "Chart",
             theme: "default",
             chartArea: {},
-            title: {
-                visible: true
-            },
             legend: {
                 visible: true,
                 labels: {}
             },
-            categoryAxis: {
-                categories: []
-            },
+            categoryAxis: {},
             autoBind: true,
             seriesDefaults: {
                 type: COLUMN,
                 data: [],
-                groupNameTemplate: "#= group.value + (kendo.dataviz.defined(series.name) ? ': ' + series.name : '') #",
-                labels: {}
+                highlight: {
+                    visible: true
+                },
+                labels: {},
+                negativeValues: {
+                    visible: false
+                }
             },
             series: [],
             tooltip: {
                 visible: false
             },
-            transitions: true
+            transitions: true,
+            valueAxis: {},
+            plotArea: {},
+            title: {},
+            xAxis: {},
+            yAxis: {}
         },
 
         refresh: function() {
             var chart = this;
 
-            applyDefaults(chart.options);
+            chart._applyDefaults(chart.options);
 
-            if (chart.dataSource) {
-                delete chart._sourceSeries;
-                chart._onDataChanged();
+            applySeriesColors(chart.options);
+
+            chart._bindSeries();
+            chart._bindCategories();
+
+            chart.trigger(DATABOUND);
+            chart._redraw();
+        },
+
+        redraw: function(paneName) {
+            var chart = this,
+                pane,
+                plotArea;
+
+            chart._applyDefaults(chart.options);
+
+            if (paneName) {
+                plotArea = chart._model._plotArea;
+                pane = plotArea.findPane(paneName);
+                plotArea.redraw(pane);
             } else {
                 chart._redraw();
             }
         },
 
-        redraw: function() {
-            var chart = this;
-
-            applyDefaults(chart.options);
-
-            chart._redraw();
-        },
-
         _redraw: function() {
             var chart = this,
-                options = chart.options,
-                element = chart.element,
-                model = chart._model = chart._getModel(),
-                viewType = dataviz.ui.defaultView(),
+                model = chart._getModel(),
                 view;
 
+            chart._destroyView();
+
+            chart._model = model;
             chart._plotArea = model._plotArea;
 
-            if (viewType) {
-                view = chart._view = viewType.fromModel(model);
+            view = chart._view =
+                dataviz.ViewFactory.current.create(model.options, chart.options.renderAs);
 
-                element.css("position", "relative");
-                chart._viewElement = view.renderTo(element[0]);
-                chart._tooltip = new dataviz.Tooltip(element, options.tooltip);
+            if (view) {
+                view.load(model);
+                chart._viewElement = chart._renderView(view);
+                chart._tooltip = chart._createTooltip();
                 chart._highlight = new Highlight(view, chart._viewElement);
+                chart._setupSelection();
             }
         },
 
-        svg: function() {
-            var model = this._getModel(),
-                view = dataviz.SVGView.fromModel(model);
+        _sharedTooltip: function() {
+            var chart = this,
+                options = chart.options;
 
-            return view.render();
+            return chart._plotArea instanceof CategoricalPlotArea && options.tooltip.shared;
+        },
+
+        _createTooltip: function() {
+            var chart = this,
+                options = chart.options,
+                element = chart.element,
+                tooltip;
+
+            if (chart._sharedTooltip()) {
+                tooltip = new SharedTooltip(element, chart._plotArea, options.tooltip);
+            } else {
+                tooltip = new Tooltip(element, options.tooltip);
+            }
+
+            return tooltip;
+        },
+
+        _renderView: function() {
+            var chart = this;
+            return chart._view.renderTo(chart.element[0]);
+        },
+
+        _applyDefaults: function(options, themeOptions) {
+            applyAxisDefaults(options, themeOptions);
+            applySeriesDefaults(options, themeOptions);
         },
 
         _getModel: function() {
             var chart = this,
                 options = chart.options,
-                element = chart.element,
-                model = new RootElement(deepExtend({
-                    width: element.width() || DEFAULT_WIDTH,
-                    height: element.height() || DEFAULT_HEIGHT,
-                    transitions: options.transitions
-                    }, options.chartArea)),
+                model = new RootElement(chart._modelOptions()),
                 plotArea;
 
-            if (options.title && options.title.visible && options.title.text) {
-                model.append(new Title(options.title));
-            }
+            model.parent = chart;
+
+            Title.buildTitle(options.title, model);
 
             plotArea = model._plotArea = chart._createPlotArea();
             if (options.legend.visible) {
@@ -10612,52 +16023,272 @@ function pad(number) {
             return model;
         },
 
-        _createPlotArea: function() {
+        _modelOptions: function() {
             var chart = this,
                 options = chart.options,
-                series = options.series,
-                i,
-                length = series.length,
-                currentSeries,
-                categoricalSeries = [],
-                xySeries = [],
-                pieSeries = [],
-                donutSeries = [],
-                plotArea;
+                element = chart.element,
+                height = math.floor(element.height()),
+                width = math.floor(element.width());
 
-            for (i = 0; i < length; i++) {
-                currentSeries = series[i];
+            return deepExtend({
+                width: width || DEFAULT_WIDTH,
+                height: height || DEFAULT_HEIGHT,
+                transitions: options.transitions
+            }, options.chartArea);
+        },
 
-                if (inArray(currentSeries.type, CATEGORICAL_CHARTS)) {
-                    categoricalSeries.push(currentSeries);
-                } else if (inArray(currentSeries.type, XY_CHARTS)) {
-                    xySeries.push(currentSeries);
-                } else if (currentSeries.type === PIE) {
-                    pieSeries.push(currentSeries);
-                } else if (currentSeries.type === DONUT) {
-                    donutSeries.push(currentSeries);
+        _createPlotArea: function() {
+            var chart = this,
+                options = chart.options;
+
+            return PlotAreaFactory.current.create(options.series, options);
+        },
+
+        _setupSelection: function() {
+            var chart = this,
+                plotArea = chart._plotArea,
+                axes = plotArea.axes,
+                selections = chart._selections = [],
+                selection, i, axis,
+                min, max, options;
+
+            if (!chart._selectStartHandler) {
+                chart._selectStartHandler = proxy(chart._selectStart, chart);
+                chart._selectHandler = proxy(chart._select, chart);
+                chart._selectEndHandler = proxy(chart._selectEnd, chart);
+            }
+
+            for (i = 0; i < axes.length; i++) {
+                axis = axes[i];
+                options = axis.options;
+                if (axis instanceof CategoryAxis && options.select && !options.vertical) {
+                    min = 0;
+                    max = options.categories.length - 1;
+
+                    if (axis instanceof DateCategoryAxis) {
+                        min = options.categories[min];
+                        max = options.categories[max];
+                    }
+
+                    if (!options.justified) {
+                        if (axis instanceof DateCategoryAxis) {
+                            max = addDuration(max, 1, options.baseUnit, options.weekStartDay);
+                        } else {
+                            max++;
+                        }
+                    }
+
+                    selection = new Selection(chart, axis,
+                        deepExtend({ min: min, max: max }, options.select)
+                    );
+
+                    selection.bind(SELECT_START, chart._selectStartHandler);
+                    selection.bind(SELECT, chart._selectHandler);
+                    selection.bind(SELECT_END, chart._selectEndHandler);
+
+                    selections.push(selection);
                 }
             }
+        },
 
-            if (pieSeries.length > 0) {
-                plotArea = new PiePlotArea(pieSeries, options);
-            } else if (donutSeries.length > 0) {
-                plotArea = new DonutPlotArea(donutSeries, options);
-            } else if (xySeries.length > 0) {
-                plotArea = new XYPlotArea(xySeries, options);
-            } else {
-                plotArea = new CategoricalPlotArea(categoricalSeries, options);
-            }
+        _selectStart: function(e) {
+            return this.trigger(SELECT_START, e);
+        },
 
-            return plotArea;
+        _select: function(e) {
+            return this.trigger(SELECT, e);
+        },
+
+        _selectEnd: function(e) {
+            return this.trigger(SELECT_END, e);
         },
 
         _attachEvents: function() {
             var chart = this,
                 element = chart.element;
 
-            element.on(CLICK + NS, proxy(chart._click, chart));
-            element.on(MOUSEOVER + NS, proxy(chart._mouseOver, chart));
+            element.on(CLICK_NS, proxy(chart._click, chart));
+            element.on(MOUSEOVER_NS, proxy(chart._mouseover, chart));
+            element.on(MOUSEOUT_NS, proxy(chart._mouseout, chart));
+            element.on(MOUSEWHEEL_NS, proxy(chart._mousewheel, chart));
+            element.on(TOUCH_START_NS, proxy(chart._tap, chart));
+            element.on(MOUSELEAVE_NS, proxy(chart._mouseleave, chart));
+            if (chart._plotArea.crosshairs.length || (chart._tooltip && chart._sharedTooltip())) {
+                element.on(MOUSEMOVE_NS, proxy(chart._mousemove, chart));
+            }
+
+            if (kendo.UserEvents) {
+                chart._userEvents = new kendo.UserEvents(element, {
+                    global: true,
+                    threshold: 5,
+                    filter: ":not(.k-selector)",
+                    multiTouch: false,
+                    start: proxy(chart._start, chart),
+                    move: proxy(chart._move, chart),
+                    end: proxy(chart._end, chart)
+                });
+            }
+        },
+
+        _mouseout: function(e) {
+            var chart = this,
+                element = chart._model.modelMap[e.target.getAttribute("data-model-id")];
+
+            if (element && element.leave) {
+                element.leave(chart, e);
+            }
+        },
+
+        _start: function(e) {
+            var chart = this,
+                events = chart._events;
+
+            if (defined(events[DRAG_START] || events[DRAG] || events[DRAG_END])) {
+                chart._startNavigation(e, DRAG_START);
+            }
+        },
+
+        _move: function(e) {
+            var chart = this,
+                state = chart._navState,
+                axes,
+                ranges = {},
+                i, currentAxis, axisName, axis, delta;
+
+            if (state) {
+                e.preventDefault();
+
+                axes = state.axes;
+
+                for (i = 0; i < axes.length; i++) {
+                    currentAxis = axes[i];
+                    axisName = currentAxis.options.name;
+                    if (axisName) {
+                        axis = currentAxis.options.vertical ? e.y : e.x;
+                        delta = axis.startLocation - axis.location;
+
+                        if (delta !== 0) {
+                            ranges[currentAxis.options.name] =
+                                currentAxis.translateRange(delta);
+                        }
+                    }
+                }
+
+                state.axisRanges = ranges;
+                chart.trigger(DRAG, {
+                   axisRanges: ranges,
+                   originalEvent: e
+                });
+            }
+        },
+
+        _end: function(e) {
+            this._endNavigation(e, DRAG_END);
+        },
+
+        _mousewheel: function(e) {
+            var chart = this,
+                origEvent = e.originalEvent,
+                prevented,
+                delta = mwDelta(e),
+                totalDelta,
+                state = chart._navState,
+                axes,
+                i,
+                currentAxis,
+                axisName,
+                ranges = {};
+
+            if (!state) {
+                prevented = chart._startNavigation(origEvent, ZOOM_START);
+                if (!prevented) {
+                    state = chart._navState;
+                }
+            }
+
+            if (state) {
+                totalDelta = state.totalDelta || delta;
+                state.totalDelta = totalDelta + delta;
+
+                axes = chart._navState.axes;
+
+                for (i = 0; i < axes.length; i++) {
+                    currentAxis = axes[i];
+                    axisName = currentAxis.options.name;
+                    if (axisName) {
+                        ranges[axisName] = currentAxis.scaleRange(totalDelta);
+                    }
+                }
+
+                chart.trigger(ZOOM, {
+                    delta: delta,
+                    axisRanges: ranges,
+                    originalEvent: e
+                });
+
+                if (chart._mwTimeout) {
+                    clearTimeout(chart._mwTimeout);
+                }
+
+                chart._mwTimeout = setTimeout(function() {
+                    chart._endNavigation(e, ZOOM_END);
+                }, MOUSEWHEEL_DELAY);
+            }
+        },
+
+        _startNavigation: function(e, chartEvent) {
+            var chart = this,
+                coords = chart._eventCoordinates(e),
+                plotArea = chart._model._plotArea,
+                pane = plotArea.findPointPane(coords),
+                axes = plotArea.axes.slice(0),
+                i,
+                currentAxis,
+                inAxis = false,
+                prevented;
+
+            if (!pane) {
+                return;
+            }
+
+            for (i = 0; i < axes.length; i++) {
+                currentAxis = axes[i];
+                if (currentAxis.box.containsPoint(coords)) {
+                    inAxis = true;
+                    break;
+                }
+            }
+
+            if (!inAxis && plotArea.backgroundBox().containsPoint(coords)) {
+                prevented = chart.trigger(chartEvent, {
+                    axisRanges: axisRanges(axes),
+                    originalEvent: e
+                });
+
+                if(prevented) {
+                    chart._userEvents.cancel();
+                } else {
+                    chart._suppressHover = true;
+                    chart._unsetActivePoint();
+                    chart._navState = {
+                        pane: pane,
+                        axes: axes
+                    };
+                }
+            }
+        },
+
+        _endNavigation: function(e, chartEvent) {
+            var chart = this;
+
+            if (chart._navState) {
+                chart.trigger(chartEvent, {
+                    axisRanges: chart._navState.axisRanges,
+                    originalEvent: e
+                });
+                chart._suppressHover = false;
+                chart._navState = null;
+            }
         },
 
         _getChartElement: function(e) {
@@ -10678,16 +16309,25 @@ function pad(number) {
         },
 
         _eventCoordinates: function(e) {
+            var chart = this,
+                isTouch = defined((e.x || {}).client),
+                clientX = isTouch ? e.x.client : e.clientX,
+                clientY = isTouch ? e.y.client : e.clientY;
+
+            return chart._toModelCoordinates(clientX, clientY);
+        },
+
+        _toModelCoordinates: function(clientX, clientY) {
             var element = this.element,
                 offset = element.offset(),
                 paddingLeft = parseInt(element.css("paddingLeft"), 10),
                 paddingTop = parseInt(element.css("paddingTop"), 10),
                 win = $(window);
 
-            return {
-                x: e.clientX - offset.left - paddingLeft + win.scrollLeft(),
-                y: e.clientY - offset.top - paddingTop + win.scrollTop()
-            };
+            return new Point2D(
+                clientX - offset.left - paddingLeft + win.scrollLeft(),
+                clientY - offset.top - paddingTop + win.scrollTop()
+            );
         },
 
         _click: function(e) {
@@ -10703,44 +16343,54 @@ function pad(number) {
             }
         },
 
-        _mouseOver: function(e) {
+        _startHover: function(e) {
             var chart = this,
                 tooltip = chart._tooltip,
                 highlight = chart._highlight,
-                tooltipOptions,
+                tooltipOptions = chart.options.tooltip,
                 point;
 
-            if (!highlight || highlight.overlayElement === e.target) {
+            if (chart._suppressHover || !highlight ||
+                inArray(e.target, highlight._overlays) || chart._sharedTooltip()) {
                 return;
             }
 
             point = chart._getChartElement(e);
             if (point && point.hover) {
                 point.hover(chart, e);
-                chart._activePoint = point;
+                if (!e.isDefaultPrevented()) {
+                    chart._activePoint = point;
 
-                tooltipOptions = deepExtend({}, chart.options.tooltip, point.options.tooltip);
-                if (tooltipOptions.visible) {
-                    tooltip.show(point);
+                    tooltipOptions = deepExtend({}, tooltipOptions, point.options.tooltip);
+                    if (tooltipOptions.visible) {
+                        tooltip.show(point);
+                    }
+
+                    highlight.show(point);
+
+                    return true;
                 }
-
-                highlight.show(point);
-
-                $(doc.body).on(MOUSEMOVE_TRACKING, proxy(chart._mouseMove, chart));
             }
         },
 
-        _mouseMove: function(e) {
+        _mouseover: function(e) {
+            var chart = this;
+
+            if (chart._startHover(e)) {
+                $(document).on(MOUSEMOVE_TRACKING, proxy(chart._mouseMoveTracking, chart));
+            }
+        },
+
+        _mouseMoveTracking: function(e) {
             var chart = this,
+                options = chart.options,
                 tooltip = chart._tooltip,
                 highlight = chart._highlight,
                 coords = chart._eventCoordinates(e),
                 point = chart._activePoint,
-                tooltipOptions,
-                owner,
-                seriesPoint;
+                tooltipOptions, owner, seriesPoint;
 
-            if (chart._plotArea.box.containsPoint(coords.x, coords.y)) {
+            if (chart._plotArea.box.containsPoint(coords)) {
                 if (point && point.series && (point.series.type === LINE || point.series.type === AREA)) {
                     owner = point.parent;
                     seriesPoint = owner.getNearestPoint(coords.x, coords.y, point.seriesIx);
@@ -10748,18 +16398,111 @@ function pad(number) {
                         seriesPoint.hover(chart, e);
                         chart._activePoint = seriesPoint;
 
-                        tooltipOptions = deepExtend({}, chart.options.tooltip, point.options.tooltip);
+                        tooltipOptions = deepExtend({}, options.tooltip, point.options.tooltip);
                         if (tooltipOptions.visible) {
                             tooltip.show(seriesPoint);
                         }
+
                         highlight.show(seriesPoint);
                     }
                 }
             } else {
-                $(doc.body).off(MOUSEMOVE_TRACKING);
+                $(document).off(MOUSEMOVE_TRACKING);
+                chart._unsetActivePoint();
+            }
+        },
 
-                delete chart._activePoint;
+        _mousemove: function(e) {
+            var chart = this,
+                now = new Date(),
+                timestamp = chart._mousemove.timestamp;
+
+            if (!timestamp || now - timestamp > MOUSEMOVE_THROTTLE) {
+                var coords = chart._eventCoordinates(e);
+
+                chart._trackCrosshairs(coords);
+
+                if (chart._sharedTooltip()) {
+                    chart._trackSharedTooltip(coords);
+                }
+
+                chart._mousemove.timestamp = now;
+            }
+        },
+
+        _trackCrosshairs: function(coords) {
+            var crosshairs = this._plotArea.crosshairs,
+                i,
+                current;
+
+            for (i = 0; i < crosshairs.length; i++) {
+                current = crosshairs[i];
+
+                if (current.box.containsPoint(coords)) {
+                    current.showAt(coords);
+                } else {
+                    current.hide();
+                }
+            }
+        },
+
+        _trackSharedTooltip: function(coords) {
+            var chart = this,
+                options = chart.options,
+                plotArea = chart._plotArea,
+                categoryAxis = plotArea.categoryAxis,
+                tooltip = chart._tooltip,
+                tooltipOptions = options.tooltip,
+                highlight = chart._highlight,
+                index, points;
+
+            index = categoryAxis.pointCategoryIndex(coords);
+            if (index !== chart._tooltipCategoryIx) {
+                points = plotArea.pointsByCategoryIndex(index);
+
+                if (points.length > 0) {
+                    if (tooltipOptions.visible) {
+                        tooltip.showAt(points, coords);
+                    }
+
+                    highlight.show(points);
+                } else {
+                    tooltip.hide();
+                }
+
+                chart._tooltipCategoryIx = index;
+            }
+        },
+
+        _mouseleave: function() {
+            var chart = this,
+                plotArea = chart._plotArea,
+                crosshairs = plotArea.crosshairs,
+                tooltip = chart._tooltip,
+                highlight = chart._highlight,
+                i;
+
+            for (i = 0; i < crosshairs.length; i++) {
+                crosshairs[i].hide();
+            }
+
+            setTimeout(proxy(tooltip.hide, tooltip), TOOLTIP_HIDE_DELAY);
+            highlight.hide();
+            chart._tooltipCategoryIx = null;
+        },
+
+        _unsetActivePoint: function() {
+            var chart = this,
+                tooltip = chart._tooltip,
+                highlight = chart._highlight;
+
+            chart._activePoint = null;
+
+            if (tooltip) {
                 tooltip.hide();
+            }
+
+            if (highlight) {
                 highlight.hide();
             }
         },
@@ -10778,15 +16521,11 @@ function pad(number) {
             for (seriesIx = 0; seriesIx < seriesLength; seriesIx++) {
                 currentSeries = series[seriesIx];
 
-                if (currentSeries.field || (currentSeries.xField && currentSeries.yField)) {
-                    currentSeries.data = data;
-
-                    [].push.apply(processedSeries, grouped ?
-                        chart._createGroupedSeries(currentSeries, data) :
-                        [ currentSeries ]
-                    );
+                if (chart._isBindable(currentSeries) && grouped) {
+                    append(processedSeries,
+                           groupSeries(currentSeries, data));
                 } else {
-                    processedSeries.push(currentSeries);
+                    processedSeries.push(currentSeries || []);
                 }
             }
 
@@ -10795,62 +16534,233 @@ function pad(number) {
 
             applySeriesColors(chart.options);
 
-            chart._bindCategories(grouped ? data[0].items : data);
+            chart._bindSeries();
+            chart._bindCategories();
 
             chart.trigger(DATABOUND);
             chart._redraw();
         },
 
-        _createGroupedSeries: function(series, data) {
-            var groupSeries = [],
-                nameTemplate,
-                group,
+        _bindSeries: function() {
+            var chart = this,
+                data = chart.dataSource.view(),
+                series = chart.options.series,
+                seriesIx,
+                seriesLength = series.length,
+                currentSeries,
                 groupIx,
-                dataLength = data.length,
-                seriesClone;
+                seriesData;
 
-            if (series.groupNameTemplate) {
-                nameTemplate = template(series.groupNameTemplate);
-            }
+            for (seriesIx = 0; seriesIx < seriesLength; seriesIx++) {
+                currentSeries = series[seriesIx];
 
-            for (groupIx = 0; groupIx < dataLength; groupIx++) {
-                seriesClone = deepExtend({}, series);
-                seriesClone.color = undefined;
-                groupSeries.push(seriesClone);
+                if (chart._isBindable(currentSeries)) {
+                    groupIx = currentSeries._groupIx;
+                    seriesData = defined(groupIx) ? (data[groupIx] || {}).items : data;
 
-                group = data[groupIx];
-                seriesClone.data = group.items;
-
-                if (nameTemplate) {
-                    seriesClone.name = nameTemplate({
-                        series: seriesClone, group: group
-                    });
-                }
-            }
-
-            return groupSeries;
-        },
-
-        _bindCategories: function(data) {
-            var categoryAxis = this.options.categoryAxis,
-                i,
-                category,
-                row,
-                length = data.length;
-
-            if (categoryAxis.field) {
-                for (i = 0; i < length; i++) {
-                    row = data[i];
-
-                    category = getField(categoryAxis.field, row);
-                    if (i === 0) {
-                        categoryAxis.categories = [category];
-                        categoryAxis.dataItems = [row];
-                    } else {
-                        categoryAxis.categories.push(category);
-                        categoryAxis.dataItems.push(row);
+                    if (currentSeries.autoBind !== false) {
+                        currentSeries.data = seriesData;
                     }
                 }
+            }
+        },
+
+        _bindCategories: function() {
+            var chart = this,
+                data = chart.dataSource.view() || [],
+                grouped = (chart.dataSource.group() || []).length > 0,
+                categoriesData = data,
+                options = chart.options,
+                definitions = [].concat(options.categoryAxis),
+                axisIx,
+                axis;
+
+            if (grouped) {
+                if (data.length) {
+                    categoriesData = data[0].items;
+                }
+            }
+
+            for (axisIx = 0; axisIx < definitions.length; axisIx++) {
+                axis = definitions[axisIx];
+                if (axis.autoBind !== false) {
+                    chart._bindCategoryAxis(axis, categoriesData, axisIx);
+                }
+            }
+        },
+
+        _bindCategoryAxis: function(axis, data, axisIx) {
+            var count = (data || []).length,
+                categoryIx,
+                category,
+                row;
+
+            if (axis.field) {
+                axis.categories = [];
+                for (categoryIx = 0; categoryIx < count; categoryIx++) {
+                    row = data[categoryIx];
+
+                    category = getField(axis.field, row);
+                    if (categoryIx === 0) {
+                        axis.categories = [category];
+                        axis.dataItems = [row];
+                    } else {
+                        axis.categories.push(category);
+                        axis.dataItems.push(row);
+                    }
+                }
+            } else {
+                this._bindCategoryAxisFromSeries(axis, axisIx);
+            }
+        },
+
+        _bindCategoryAxisFromSeries: function(axis, axisIx) {
+            var chart = this,
+                items = [],
+                result,
+                series = chart.options.series,
+                seriesLength = series.length,
+                seriesIx,
+                s,
+                onAxis,
+                data,
+                dataIx,
+                dataLength,
+                dataRow,
+                category,
+                uniqueCategories = {},
+                getFn,
+                dateAxis;
+
+            for (seriesIx = 0; seriesIx < seriesLength; seriesIx++) {
+                s = series[seriesIx];
+                onAxis = s.categoryAxis === axis.name || (!s.categoryAxis && axisIx === 0);
+                data = s.data;
+                dataLength = data.length;
+
+                if (s.categoryField && onAxis && dataLength > 0) {
+                    dateAxis = isDateAxis(axis, getField(s.categoryField, data[0]));
+                    getFn = dateAxis ? getDateField : getField;
+
+                    for (dataIx = 0; dataIx < dataLength; dataIx++) {
+                        dataRow = data[dataIx];
+                        category = getFn(s.categoryField, dataRow);
+
+                        if (dateAxis || !uniqueCategories[category]) {
+                            items.push([category, dataRow]);
+
+                            if (!dateAxis) {
+                                uniqueCategories[category] = true;
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (items.length > 0) {
+                if (dateAxis) {
+                    items = uniqueDates(items, function(a, b) {
+                        return dateComparer(a[0], b[0]);
+                    });
+                }
+
+                result = transpose(items);
+                axis.categories = result[0];
+                axis.dataItems = result[1];
+            }
+        },
+
+        _isBindable: function(series) {
+            var valueFields = SeriesBinder.current.valueFields(series),
+                result = true,
+                field, i;
+
+            for (i = 0; i < valueFields.length; i++) {
+                field = valueFields[i];
+                if (field === VALUE) {
+                    field = "field";
+                } else {
+                    field = field + "Field";
+                }
+
+                if (!series[field]) {
+                    result = false;
+                    break;
+                }
+            }
+
+            return result;
+        },
+
+        _tap: function(e) {
+            var chart = this;
+
+            if (!chart._startHover(e)) {
+                chart._unsetActivePoint();
+            }
+
+            chart._click(e);
+        },
+
+        _legendItemClick: function(seriesIndex, pointIndex) {
+            var chart = this,
+                plotArea = chart._plotArea,
+                currentSeries = (plotArea.srcSeries || plotArea.series)[seriesIndex],
+                point, transitionsState;
+
+            if (inArray(currentSeries.type, [PIE, DONUT])) {
+                point = currentSeries.data[pointIndex];
+                if (!defined(point.visible)) {
+                    point.visible = false;
+                } else {
+                    point.visible = !point.visible;
+                }
+            } else {
+                currentSeries.visible = !currentSeries.visible;
+            }
+
+            if (chart.options.transitions) {
+                chart.options.transitions = false;
+                transitionsState = true;
+            }
+            chart.redraw();
+            if (transitionsState) {
+                chart.options.transitions = true;
+            }
+        },
+
+        _legendItemHover: function(seriesIndex, pointIndex) {
+            var chart = this,
+                plotArea = chart._plotArea,
+                highlight = chart._highlight,
+                currentSeries = (plotArea.srcSeries || plotArea.series)[seriesIndex],
+                index, items;
+
+            if (inArray(currentSeries.type, [PIE, DONUT])) {
+                index = pointIndex;
+            } else {
+                index = seriesIndex;
+            }
+
+            items = plotArea.pointsBySeriesIndex(index);
+            highlight.show(items);
+        },
+
+        setOptions: function(options) {
+            var chart = this;
+
+            chart._originalOptions = deepExtend(chart._originalOptions, options);
+            chart.options = deepExtend({}, chart._originalOptions);
+            chart._sourceSeries = null;
+
+            Widget.fn.setOptions.call(chart, options);
+
+            chart._initTheme(chart.options);
+
+            if (options.dataSource) {
+                chart.setDataSource(
+                    DataSource.create(options.dataSource)
+                );
             }
         },
 
@@ -10858,13 +16768,252 @@ function pad(number) {
             var chart = this,
                 dataSource = chart.dataSource;
 
-            chart.wrapper.off(NS);
+            chart.element.off(NS);
             dataSource.unbind(CHANGE, chart._dataChangeHandler);
+            $(document).off(MOUSEMOVE_TRACKING);
+
+            if (chart._userEvents) {
+                chart._userEvents.destroy();
+            }
+
+            chart._destroyView();
 
             Widget.fn.destroy.call(chart);
+        },
+
+        _destroyView: function() {
+            var chart = this,
+                pool = dataviz.IDPool.current,
+                model = chart._model,
+                view = chart._view,
+                viewElement = chart._viewElement,
+                selections = chart._selections;
+
+            if (model) {
+                model.destroy();
+            }
+
+            if (view) {
+                view.traverse(function(element) {
+                    var id = element.options.id;
+                    if (id) {
+                        pool.free(id);
+                    }
+                });
+                view.destroy();
+            }
+
+            if (viewElement) {
+                $("[id]", viewElement).each(function() {
+                    pool.free($(this).attr("id"));
+                });
+            }
+
+
+            if (selections) {
+                while (selections.length > 0) {
+                    selections.shift().destroy();
+                }
+            }
         }
     });
+    deepExtend(Chart.fn, dataviz.ExportMixin);
 
+    var PlotAreaFactory = Class.extend({
+        init: function() {
+            this._registry = [];
+        },
+
+        register: function(type, seriesTypes) {
+            this._registry.push({
+                type: type,
+                seriesTypes: seriesTypes
+            });
+        },
+
+        create: function(srcSeries, options) {
+            var registry = this._registry,
+                match = registry[0],
+                i,
+                entry,
+                series;
+
+            for (i = 0; i < registry.length; i++) {
+                entry = registry[i];
+                series = filterSeriesByType(srcSeries, entry.seriesTypes);
+
+                if (series.length > 0) {
+                    match = entry;
+                    break;
+                }
+            }
+
+            return new match.type(series, options);
+        }
+    });
+    PlotAreaFactory.current = new PlotAreaFactory();
+
+    var SeriesBinder = Class.extend({
+        init: function() {
+            this._valueFields = {};
+            this._otherFields = {};
+            this._nullValues = {};
+        },
+
+        register: function(seriesTypes, valueFields, otherFields) {
+            var binder = this,
+                i,
+                type;
+
+            valueFields = valueFields || [VALUE];
+
+            for (i = 0; i < seriesTypes.length; i++) {
+                type = seriesTypes[i];
+
+                binder._valueFields[type] = valueFields;
+                binder._otherFields[type] = otherFields;
+                binder._nullValues[type] = binder._makeNullValue(valueFields);
+            }
+        },
+
+        valueFields: function(series) {
+            return this._valueFields[series.type] || [VALUE];
+        },
+
+        otherFields: function(series) {
+            return this._otherFields[series.type] || [VALUE];
+        },
+
+        bindPoint: function(series, pointIx) {
+            var binder = this,
+                data = series.data,
+                pointData = data[pointIx],
+                result = { value: pointData },
+                fields,
+                fieldData,
+                srcValueFields,
+                srcPointFields,
+                valueFields = binder.valueFields(series),
+                otherFields = binder._otherFields[series.type],
+                value;
+
+            if (pointData === null || !defined(pointData)) {
+                value = binder._nullValues[series.type];
+            } else if (isArray(pointData)) {
+                fieldData = pointData.slice(valueFields.length);
+                value = binder._bindFromArray(pointData, valueFields);
+                fields = binder._bindFromArray(fieldData, otherFields);
+            } else if (typeof pointData === OBJECT) {
+                srcValueFields = binder._mapSeriesFieldsByIndex(series, valueFields);
+                srcPointFields = binder._mapSeriesFieldsByIndex(series, otherFields);
+
+                value = binder._bindFromObject(pointData, valueFields, srcValueFields);
+                fields = binder._bindFromObject(pointData, otherFields, srcPointFields);
+            }
+
+            if (defined(value)) {
+                if (valueFields.length === 1) {
+                    value = value[valueFields[0]];
+                }
+
+                result.value = value;
+            }
+
+            result.fields = fields || {};
+
+            return result;
+        },
+
+        _makeNullValue: function(fields) {
+            var value = {},
+                i,
+                length = fields.length,
+                fieldName;
+
+            for (i = 0; i < length; i++) {
+                fieldName = fields[i];
+                value[fieldName] = null;
+            }
+
+            return value;
+        },
+
+        _bindFromArray: function(array, fields) {
+            var value = {},
+                i,
+                length;
+
+            if (fields) {
+                length = math.min(fields.length, array.length);
+
+                for (i = 0; i < length; i++) {
+                    value[fields[i]] = array[i];
+                }
+            }
+
+            return value;
+        },
+
+        _bindFromObject: function(object, fields, srcFields) {
+            var value = {},
+                i,
+                length,
+                fieldName,
+                srcFieldName;
+
+            if (fields) {
+                length = fields.length;
+                srcFields = srcFields || fields;
+
+                for (i = 0; i < length; i++) {
+                    fieldName = fields[i];
+                    srcFieldName = srcFields[i];
+                    value[fieldName] = getField(srcFieldName, object);
+                }
+            }
+
+            return value;
+        },
+
+        _mapSeriesFieldsByIndex: function(series, fields) {
+            var i, length, fieldName,
+                sourceFields, sourceFieldName;
+
+            if (fields) {
+                length = fields.length;
+                sourceFields = [];
+
+                for (i = 0; i < length; i++) {
+                    fieldName = fields[i];
+                    sourceFieldName = fieldName === VALUE ? "field" : fieldName + "Field";
+
+                    sourceFields.push(series[sourceFieldName] || fieldName);
+                }
+            }
+
+            return sourceFields;
+        },
+
+        _mapSeriesFields: function(series, fields) {
+            var i, length, fieldName,
+                sourceFields, sourceFieldName;
+
+            if (fields) {
+                length = fields.length;
+                sourceFields = {};
+
+                for (i = 0; i < length; i++) {
+                    fieldName = fields[i];
+                    sourceFieldName = fieldName === VALUE ? "field" : fieldName + "Field";
+
+                    sourceFields[fieldName] = series[sourceFieldName] || fieldName;
+                }
+            }
+
+            return sourceFields;
+        }
+    });
+    SeriesBinder.current = new SeriesBinder();
 
     var BarLabel = ChartElement.extend({
         init: function(content, options) {
@@ -10965,6 +17114,54 @@ function pad(number) {
         }
     });
 
+    var LegendLabel = Text.extend({
+        init: function(item, options) {
+            var label = this;
+
+            label.item = item;
+
+            Text.fn.init.call(label, item.text,
+                deepExtend({ id: uniqueId(), cursor: { style: POINTER } }, options)
+            );
+
+            label.enableDiscovery();
+        },
+
+        click: function(widget, e) {
+            var args = this.eventArgs(e);
+
+            if (!widget.trigger(LEGEND_ITEM_CLICK, args)) {
+                e.preventDefault();
+                widget._legendItemClick(args.seriesIndex, args.pointIndex);
+            }
+        },
+
+        hover: function(widget, e) {
+            var args = this.eventArgs(e);
+
+            if (!widget.trigger(LEGEND_ITEM_HOVER, args)) {
+                e.preventDefault();
+                widget._legendItemHover(args.seriesIndex, args.pointIndex);
+            }
+        },
+
+        leave: function(widget) {
+            widget._unsetActivePoint();
+        },
+
+        eventArgs: function(e) {
+            var item = this.item;
+
+            return {
+                element: $(e.target),
+                text: item.text,
+                series: item.series,
+                seriesIndex: item.series.index,
+                pointIndex: item.pointIndex
+            };
+        }
+    });
+
     var Legend = ChartElement.extend({
         init: function(options) {
             var legend = this;
@@ -10987,22 +17184,24 @@ function pad(number) {
                 width: 0
             },
             background: "",
-            zIndex: 1
+            zIndex: 1,
+            markers: {
+                border: {
+                    width: 1
+                }
+            }
         },
 
         createLabels: function() {
             var legend = this,
                 items = legend.options.items,
                 count = items.length,
-                label,
-                name,
-                i;
+                i, item;
 
             for (i = 0; i < count; i++) {
-                name = items[i].name;
-                    label = new Text(name, legend.options.labels);
-
-                legend.append(label);
+                item = items[i];
+                legend.append(new LegendLabel(item, deepExtend({},
+                    legend.options.labels, { color: item.labelColor } )));
             }
         },
 
@@ -11037,20 +17236,15 @@ function pad(number) {
                 markerSize = legend.markerSize(),
                 group = view.createGroup({ zIndex: options.zIndex }),
                 border = options.border || {},
-                padding,
-                markerBox,
-                labelBox,
-                color,
-                label,
-                box,
-                i;
+                padding, markerBox, labelBox, color,
+                label, box, i;
 
             append(group.children, ChartElement.fn.getViewElements.call(legend, view));
 
             for (i = 0; i < count; i++) {
-                color = items[i].color;
+                color = items[i].markerColor;
                 label = children[i];
-                markerBox = new Box2D();
+                markerBox = Box2D();
                 box = label.box;
 
                 labelBox = labelBox ? labelBox.wrap(box) : box.clone();
@@ -11066,7 +17260,15 @@ function pad(number) {
 
                 markerBox.y2 = markerBox.y1 + markerSize;
 
-                group.children.push(view.createRect(markerBox, { fill: color, stroke: color }));
+                group.children.push(view.createRect(markerBox, {
+                    fill: color,
+                    stroke: color,
+                    strokeWidth: options.markers.border.width,
+                    data: { modelId: label.options.modelId },
+                    cursor: {
+                        style: POINTER
+                    }
+                }));
             }
 
             if (children.length > 0) {
@@ -11077,8 +17279,8 @@ function pad(number) {
                     stroke: border.width ? border.color : "",
                     strokeWidth: border.width,
                     dashType: border.dashType,
-                    fill: options.background })
-                );
+                    fill: options.background
+                }));
             }
 
             return [ group ];
@@ -11090,12 +17292,9 @@ function pad(number) {
                 children = legend.children,
                 childrenCount = children.length,
                 labelBox = children[0].box.clone(),
-                offsetX,
-                offsetY,
                 margin = getSpacing(options.margin),
                 markerSpace = legend.markerSize() * 2,
-                label,
-                i;
+                offsetX, offsetY, label, i;
 
             // Position labels below each other
             for (i = 1; i < childrenCount; i++) {
@@ -11151,7 +17350,7 @@ function pad(number) {
 
                 boxWidth += label.box.width() + markerWidth;
                 if (boxWidth > plotAreaWidth - markerWidth) {
-                    label.box = new Box2D(box.x1, box.y2,
+                    label.box = Box2D(box.x1, box.y2,
                         box.x1 + label.box.width(), box.y2 + label.box.height());
                     boxWidth = label.box.width() + markerWidth;
                     labelY = label.box.y1;
@@ -11218,6 +17417,17 @@ function pad(number) {
     });
 
     var CategoryAxis = Axis.extend({
+        init: function(options) {
+            var axis = this;
+
+            Axis.fn.init.call(axis, options);
+
+            options = axis.options;
+            options.categories = options.categories.slice(0);
+
+            axis._ticks = {};
+        },
+
         options: {
             type: CATEGORY,
             categories: [],
@@ -11228,8 +17438,7 @@ function pad(number) {
                 color: BLACK
             },
             zIndex: 1,
-
-            _labelsOnTicks: false
+            justified: false
         },
 
         range: function() {
@@ -11240,9 +17449,13 @@ function pad(number) {
             var axis = this,
                 options = axis.options,
                 vertical = options.vertical,
-                size = vertical ? axis.box.height() : axis.box.width(),
-                step = size / itemsCount,
-                pos = vertical ? axis.box.y1 : axis.box.x1,
+                justified = options.justified,
+                lineBox = axis.lineBox(),
+                size = vertical ? lineBox.height() : lineBox.width(),
+                intervals = itemsCount - (justified ? 1 : 0),
+                step = size / intervals,
+                dim = vertical ? Y : X,
+                pos = lineBox[dim + 1],
                 positions = [],
                 i;
 
@@ -11251,48 +17464,79 @@ function pad(number) {
                 pos += step;
             }
 
-            positions.push(vertical ? axis.box.y2 : axis.box.x2);
+            if (!justified) {
+                positions.push(lineBox[dim + 2]);
+            }
 
             return options.reverse ? positions.reverse() : positions;
         },
 
         getMajorTickPositions: function() {
-            var axis = this;
-
-            return axis.getTickPositions(axis.options.categories.length);
+            return this.getTicks().majorTicks;
         },
 
         getMinorTickPositions: function() {
-            var axis = this;
+            return this.getTicks().minorTicks;
+        },
 
-            return axis.getTickPositions(axis.options.categories.length * 2);
+        getTicks: function() {
+            var axis = this,
+                cache = axis._ticks,
+                options = axis.options,
+                count = options.categories.length,
+                reverse = options.reverse,
+                justified = options.justified,
+                lineBox = axis.lineBox(),
+                hash;
+
+            hash = lineBox.getHash() + count + reverse + justified;
+            if (cache._hash !== hash) {
+                cache._hash = hash;
+                cache.majorTicks = axis.getTickPositions(count);
+                cache.minorTicks = axis.getTickPositions(count * 2);
+            }
+
+            return cache;
         },
 
         getSlot: function(from, to) {
             var axis = this,
                 options = axis.options,
+                majorTicks = axis.getMajorTickPositions(),
                 reverse = options.reverse,
-                vertical = options.vertical,
-                valueAxis = vertical ? Y : X,
+                justified = options.justified,
+                valueAxis = options.vertical ? Y : X,
                 lineBox = axis.lineBox(),
-                slotBox = new Box2D(lineBox.x1, lineBox.y1, lineBox.x1, lineBox.y1),
                 lineStart = lineBox[valueAxis + (reverse ? 2 : 1)],
-                size = vertical ? lineBox.height() : lineBox.width(),
-                categoriesLength = math.max(1, options.categories.length),
-                step = (reverse ? -1 : 1) * (size / categoriesLength),
+                lineEnd = lineBox[valueAxis + (reverse ? 1 : 2)],
+                slotBox = lineBox.clone(),
+                intervals = math.max(1, majorTicks.length - (justified ? 0 : 1)),
                 p1,
                 p2,
                 slotSize;
 
-            from = math.min(math.max(0, from), categoriesLength);
-            to = defined(to) ? to : from;
-            to = math.max(math.min(categoriesLength, to), from);
-            p1 = lineStart + (from * step);
-            p2 = p1 + step;
+            from = valueOrDefault(from, 0);
+            to = valueOrDefault(to, from);
+            from = limitValue(from, 0, intervals);
+            to = limitValue(to - 1, from, intervals);
+            // Fixes transient bug caused by iOS 6.0 JIT
+            // (one can never be too sure)
+            to = math.max(from, to);
+
+            p1 = from === 0 ? lineStart : (majorTicks[from] || lineEnd);
+            p2 = justified ? p1 : majorTicks[to];
             slotSize = to - from;
 
-            if (slotSize > 0 || (from == to && categoriesLength == from)) {
-                p2 = p1 + (slotSize * step);
+            if (slotSize > 0 || (from === to)) {
+                p2 = majorTicks[to + 1] || lineEnd;
+            }
+
+            if (justified) {
+                if (from === intervals) {
+                    p1 = p2;
+                } else {
+                    p2 = p1;
+                }
             }
 
             slotBox[valueAxis + 1] = reverse ? p2 : p1;
@@ -11301,30 +17545,96 @@ function pad(number) {
             return slotBox;
         },
 
-        getCategory: function(point) {
+        pointCategoryIndex: function(point) {
             var axis = this,
                 options = axis.options,
                 reverse = options.reverse,
                 vertical = options.vertical,
                 valueAxis = vertical ? Y : X,
                 lineBox = axis.lineBox(),
-                lineStart = lineBox[valueAxis + (reverse ? 2 : 1)],
-                lineSize = vertical ? lineBox.height() : lineBox.width(),
-                intervals = math.max(1, options.categories.length - 1),
-                offset = (reverse ? -1 : 1) * (point[valueAxis] - lineStart),
-                step = intervals / lineSize,
-                categoriesOffset = round(offset * step),
-                categoryIx;
+                lineStart = lineBox[valueAxis + 1],
+                lineEnd = lineBox[valueAxis + 2],
+                pos = point[valueAxis],
+                majorTicks = axis.getMajorTickPositions(),
+                diff = MAX_VALUE,
+                tickPos, nextTickPos, i, categoryIx;
 
-            if (offset < 0 || offset > lineSize) {
+            if (pos < lineStart || pos > lineEnd) {
                 return null;
             }
 
-            categoryIx = vertical ?
-                intervals - categoriesOffset:
-                categoriesOffset;
+            for (i = 0; i < majorTicks.length; i++) {
+                tickPos = majorTicks[i];
+                nextTickPos = majorTicks[i + 1];
 
-            return options.categories[categoryIx];
+                if (!defined(nextTickPos)) {
+                    nextTickPos = reverse ? lineStart : lineEnd;
+                }
+
+                if (reverse) {
+                    tickPos = nextTickPos;
+                    nextTickPos = majorTicks[i];
+                }
+
+                if (options.justified) {
+                    if (pos === nextTickPos) {
+                        categoryIx = math.max(0, vertical ? majorTicks.length - i - 1 : i + 1);
+                        break;
+                    }
+
+                    if (math.abs(pos - tickPos) < diff) {
+                        diff = pos - tickPos;
+                        categoryIx = i;
+                    }
+                } else {
+                    if (pos >= tickPos && pos <= nextTickPos) {
+                        categoryIx = i;
+                        break;
+                    }
+                }
+            }
+
+            return categoryIx;
+        },
+
+        getCategory: function(point) {
+            var index = this.pointCategoryIndex(point);
+
+            if (index === null) {
+                return null;
+            }
+            return this.options.categories[index];
+        },
+
+        categoryIndex: function(value) {
+            return indexOf(value, this.options.categories);
+        },
+
+        translateRange: function(delta) {
+            var axis = this,
+                options = axis.options,
+                lineBox = axis.lineBox(),
+                size = options.vertical ? lineBox.height() : lineBox.width(),
+                range = options.categories.length,
+                scale = size / range,
+                offset = round(delta / scale, DEFAULT_PRECISION);
+
+            return {
+                min: offset,
+                max: range + offset
+            };
+        },
+
+        scaleRange: function(scale) {
+            var axis = this,
+                options = axis.options,
+                range = options.categories.length,
+                delta = scale * range;
+
+            return {
+                min: -delta,
+                max: range + delta
+            };
         },
 
         labelsCount: function() {
@@ -11335,9 +17645,13 @@ function pad(number) {
             var axis = this,
                 options = axis.options,
                 dataItem = options.dataItems ? options.dataItems[index] : null,
-                category = defined(options.categories[index]) ? options.categories[index] : "";
+                category = valueOrDefault(options.categories[index], "");
 
             return new AxisLabel(category, index, dataItem, labelOptions);
+        },
+
+        shouldRenderNote: function() {
+            return this.options.categories.length;
         }
     });
 
@@ -11349,18 +17663,31 @@ function pad(number) {
 
     var DateCategoryAxis = CategoryAxis.extend({
         init: function(options) {
-            var axis = this;
+            var axis = this,
+                baseUnit,
+                useDefault;
 
             options = options || {};
 
-            deepExtend(options, {
+            options = deepExtend({
+                roundToBaseUnit: true
+            }, options, {
+                categories: toDate(options.categories),
                 min: toDate(options.min),
                 max: toDate(options.max)
             });
 
-            options = axis.applyDefaults(options);
+            if (options.categories && options.categories.length > 0) {
+                baseUnit = (options.baseUnit || "").toLowerCase();
+                useDefault = baseUnit !== FIT && !inArray(baseUnit, BASE_UNITS);
+                if (useDefault) {
+                    options.baseUnit = axis.defaultBaseUnit(options);
+                }
 
-            if (options.categories.length > 0) {
+                if (baseUnit === FIT || options.baseUnitStep === AUTO) {
+                    axis.autoBaseUnit(options);
+                }
+
                 axis.groupCategories(options);
             }
 
@@ -11371,12 +17698,74 @@ function pad(number) {
             type: DATE,
             labels: {
                 dateFormats: DateLabelFormats
+            },
+            autoBaseUnitSteps: {
+                seconds: [1, 2, 5, 15, 30],
+                minutes: [1, 2, 5, 15, 30],
+                hours: [1, 2, 3],
+                days: [1, 2, 3],
+                weeks: [1, 2],
+                months: [1, 2, 3, 6],
+                years: [1, 2, 3, 5, 10, 25, 50]
+            },
+            maxDateGroups: 10
+        },
+
+        shouldRenderNote: function(value) {
+            var axis = this,
+                range = axis.range(),
+                categories = axis.options.categories || [];
+
+            return dateComparer(value, range.min) >= 0 && dateComparer(value, range.max) <= 0 && categories.length;
+        },
+
+        parseNoteValue: function(value) {
+            return toDate(value);
+        },
+
+        translateRange: function(delta) {
+            var axis = this,
+                range = CategoryAxis.fn.translateRange.call(axis, delta),
+                options = axis.options,
+                baseUnit = options.baseUnit,
+                offset = math.round(range.min),
+                weekStartDay = options.weekStartDay;
+
+            return {
+                min: addDuration(options.min, offset, baseUnit, weekStartDay),
+                max: addDuration(options.max, offset, baseUnit, weekStartDay)
+            };
+        },
+
+        scaleRange: function(delta) {
+            var axis = this,
+                options = axis.options,
+                rounds = math.abs(delta),
+                range = axis.range(),
+                from = range.min,
+                to = range.max,
+                step;
+
+            if (options.categories.length > 0) {
+                while (rounds--) {
+                    range = dateDiff(from, to);
+                    step = math.round(range * 0.1);
+                    if (delta < 0) {
+                        from = addTicks(from, step);
+                        to = addTicks(to, -step);
+                    } else {
+                        from = addTicks(from, -step);
+                        to = addTicks(to, step);
+                    }
+                }
+
+                return { min: from, max: to };
             }
         },
 
-        applyDefaults: function(options) {
+        defaultBaseUnit: function(options) {
             var categories = options.categories,
-                count = categories.length,
+                count = defined(categories) ? categories.length : 0,
                 categoryIx,
                 cat,
                 diff,
@@ -11385,10 +17774,10 @@ function pad(number) {
                 unit;
 
             for (categoryIx = 0; categoryIx < count; categoryIx++) {
-                cat = toDate(categories[categoryIx]);
+                cat = categories[categoryIx];
 
                 if (cat && lastCat) {
-                    diff = cat - lastCat;
+                    diff = dateDiff(cat, lastCat);
                     if (diff > 0) {
                         minDiff = math.min(minDiff, diff);
 
@@ -11396,12 +17785,16 @@ function pad(number) {
                             unit = YEARS;
                         } else if (minDiff >= TIME_PER_MONTH - TIME_PER_DAY * 3) {
                             unit = MONTHS;
+                        } else if (minDiff >= TIME_PER_WEEK) {
+                            unit = WEEKS;
                         } else if (minDiff >= TIME_PER_DAY) {
                             unit = DAYS;
                         } else if (minDiff >= TIME_PER_HOUR) {
                             unit = HOURS;
-                        } else {
+                        } else if (minDiff >= TIME_PER_MINUTE) {
                             unit = MINUTES;
+                        } else {
+                            unit = SECONDS;
                         }
                     }
                 }
@@ -11409,61 +17802,200 @@ function pad(number) {
                 lastCat = cat;
             }
 
-            if (!options.baseUnit) {
-                delete options.baseUnit;
+            return unit || DAYS;
+        },
+
+        range: function(options) {
+            options = options || this.options;
+
+            var categories = options.categories,
+                autoUnit = options.baseUnit === FIT,
+                baseUnit = autoUnit ? BASE_UNITS[0] : options.baseUnit,
+                baseUnitStep = options.baseUnitStep || 1,
+                min = toTime(options.min),
+                max = toTime(options.max),
+                categoryLimits = sparseArrayLimits(categories),
+                minCategory = toTime(categoryLimits.min),
+                maxCategory = toTime(categoryLimits.max);
+
+            if (options.roundToBaseUnit) {
+                return { min: addDuration(min || minCategory, 0, baseUnit, options.weekStartDay),
+                         max: addDuration(max || maxCategory, baseUnitStep, baseUnit, options.weekStartDay) };
+            } else {
+                return { min: toDate(min || minCategory),
+                         max: toDate(max || maxCategory) };
+            }
+        },
+
+        autoBaseUnit: function(options) {
+            var axis = this,
+                range = axis.range(deepExtend({}, options, { baseUnitStep: 1 })),
+                autoUnit = options.baseUnit === FIT,
+                autoUnitIx = 0,
+                baseUnit = autoUnit ? BASE_UNITS[autoUnitIx++] : options.baseUnit,
+                span = range.max - range.min,
+                units = span / TIME_PER_UNIT[baseUnit],
+                totalUnits = units,
+                maxDateGroups = options.maxDateGroups || axis.options.maxDateGroups,
+                autoBaseUnitSteps = deepExtend(
+                    {}, axis.options.autoBaseUnitSteps, options.autoBaseUnitSteps
+                ),
+                unitSteps,
+                step,
+                nextStep;
+
+            while (!step || units > maxDateGroups) {
+                unitSteps = unitSteps || autoBaseUnitSteps[baseUnit].slice(0);
+                nextStep = unitSteps.shift();
+
+                if (nextStep) {
+                    step = nextStep;
+                    units = totalUnits / step;
+                } else if (baseUnit === last(BASE_UNITS)) {
+                    step = math.ceil(totalUnits / maxDateGroups);
+                    break;
+                } else if (autoUnit) {
+                    baseUnit = BASE_UNITS[autoUnitIx++] || last(BASE_UNITS);
+                    totalUnits = span / TIME_PER_UNIT[baseUnit];
+                    unitSteps = null;
+                } else {
+                    if (units > maxDateGroups) {
+                        step = math.ceil(totalUnits / maxDateGroups);
+                    }
+                    break;
+                }
             }
 
-            return deepExtend({ baseUnit: unit || DAYS }, options);
+            options.baseUnitStep = step;
+            options.baseUnit = baseUnit;
+        },
+
+        getMajorTickPositions: function() {
+            var axis = this,
+                options = axis.options,
+                categories = options.categories,
+                positions = [];
+
+            if (options.roundToBaseUnit || categories.length === 0) {
+                positions = CategoryAxis.fn.getMajorTickPositions.call(axis);
+            } else {
+                var vertical = options.vertical,
+                    reverse = options.reverse,
+                    lineBox = axis.lineBox(),
+                    lineSize = vertical ? lineBox.height() : lineBox.width(),
+                    startTime = categories[0].getTime(),
+                    range = axis.range(axis.options),
+                    timeRange = range.max - range.min,
+                    scale = lineSize / timeRange,
+                    divisions = categories.length,
+                    dir = (vertical ? -1 : 1) * (reverse ? -1 : 1),
+                    startEdge = dir === 1 ? 1 : 2,
+                    endEdge = dir === 1 ? 2 : 1,
+                    startPos = lineBox[(vertical ? Y : X) + startEdge],
+                    endPos = lineBox[(vertical ? Y : X) + endEdge],
+                    pos = startPos,
+                    i,
+                    timePos;
+
+                for (i = 0; i < divisions; i++) {
+                    timePos = categories[i] - startTime;
+                    pos = startPos + timePos * scale * dir;
+                    positions.push(round(pos, COORD_PRECISION));
+                }
+
+                if (last(positions) !== endPos) {
+                    positions.push(endPos);
+                }
+            }
+
+            return positions;
         },
 
         groupCategories: function(options) {
             var axis = this,
-                categories = toDate(options.categories),
+                categories = options.categories,
+                maxCategory = toDate(sparseArrayMax(categories)),
                 baseUnit = options.baseUnit,
-                min = toTime(options.min),
-                max = toTime(options.max),
-                minCategory = toTime(sparseArrayMin(categories)),
-                maxCategory = toTime(sparseArrayMax(categories)),
-                start = floorDate(min || minCategory, baseUnit),
-                end = ceilDate((max || maxCategory) + 1, baseUnit),
+                baseUnitStep = options.baseUnitStep || 1,
+                range = axis.range(options),
+                max = range.max,
                 date,
                 nextDate,
-                groups = [],
-                categoryMap = [],
-                categoryIndicies,
-                categoryIx,
-                categoryDate;
+                groups = [];
 
-            for (date = start; date < end; date = nextDate) {
+            for (date = range.min; date < max; date = nextDate) {
                 groups.push(date);
-                nextDate = addDuration(date, 1, baseUnit);
 
-                categoryIndicies = [];
-                for (categoryIx = 0; categoryIx < categories.length; categoryIx++) {
-                    categoryDate = toDate(categories[categoryIx]);
-                    if (categoryDate && categoryDate >= date && categoryDate < nextDate) {
-                        categoryIndicies.push(categoryIx);
-                    }
+                nextDate = addDuration(date, baseUnitStep, baseUnit, options.weekStartDay);
+                if (nextDate > maxCategory && !options.max) {
+                    break;
                 }
-
-                categoryMap.push(categoryIndicies);
             }
 
-            options.min = groups[0];
-            options.max = last(groups);
+            if (!options.roundToBaseUnit && !dateEquals(last(groups), max)) {
+                groups.push(max);
+            }
+
+            options.srcCategories = categories;
             options.categories = groups;
-            axis.categoryMap = categoryMap;
         },
 
         createAxisLabel: function(index, labelOptions) {
             var options = this.options,
                 dataItem = options.dataItems ? options.dataItems[index] : null,
                 date = options.categories[index],
-                unitFormat = labelOptions.dateFormats[options.baseUnit];
+                baseUnit = options.baseUnit,
+                visible = true,
+                unitFormat = labelOptions.dateFormats[baseUnit];
 
-            labelOptions.format = labelOptions.format || unitFormat;
+            if (options.justified) {
+                var roundedDate = floorDate(date, baseUnit, options.weekStartDay);
+                visible = dateEquals(roundedDate, date);
+            }
 
+            labelOptions = deepExtend({ format: unitFormat }, labelOptions, { visible: visible });
             return new AxisDateLabel(date, index, dataItem, labelOptions);
+        },
+
+        categoryIndex: function(value, range) {
+            var axis = this,
+                options = axis.options,
+                categories = options.categories,
+                maxIndex = categories.length - 1,
+                roundedValue,
+                equalsRoundedMax,
+                index;
+
+            value = toDate(value);
+            range = range || axis.range();
+            equalsRoundedMax = options.roundToBaseUnit && dateEquals(range.max, value);
+            if (!value || (value > range.max) || (value < range.min) || equalsRoundedMax) {
+                return -1;
+            }
+
+            index = lteDateIndex(value, categories);
+            if (index === maxIndex && !options.justified && !options.roundToBaseUnit) {
+                roundedValue = addDuration(value, 0, options.baseUnit, options.startOfWeek);
+                if (!dateEquals(roundedValue, value)) {
+                    index--;
+                }
+            }
+
+            return index;
+        },
+
+        getSlot: function(a, b) {
+            var axis = this;
+
+            if (typeof a === OBJECT) {
+                a = axis.categoryIndex(a);
+            }
+
+            if (typeof b === OBJECT) {
+                b = axis.categoryIndex(b);
+            }
+
+            return CategoryAxis.fn.getSlot.call(axis, a, b);
         }
     });
 
@@ -11476,7 +18008,9 @@ function pad(number) {
             deepExtend(options, {
                 min: toDate(options.min),
                 max: toDate(options.max),
-                axisCrossingValue: toDate(options.axisCrossingValue)
+                axisCrossingValue: toDate(
+                    options.axisCrossingValues || options.axisCrossingValue
+                )
             });
 
             options = axis.applyDefaults(toDate(seriesMin), toDate(seriesMax), options);
@@ -11497,7 +18031,7 @@ function pad(number) {
                 max = options.max || seriesMax,
                 baseUnit = options.baseUnit || axis.timeUnits(max - min),
                 baseUnitTime = TIME_PER_UNIT[baseUnit],
-                autoMin = floorDate(toTime(min) - 1, baseUnit),
+                autoMin = floorDate(toTime(min) - 1, baseUnit) || toDate(max),
                 autoMax = ceilDate(toTime(max) + 1, baseUnit),
                 userMajorUnit = options.majorUnit ? options.majorUnit : undefined,
                 majorUnit = userMajorUnit || dataviz.ceil(
@@ -11538,7 +18072,7 @@ function pad(number) {
             );
         },
 
-        getTickPositions: function(stepValue) {
+        getTickPositions: function(step) {
             var axis = this,
                 options = axis.options,
                 vertical = options.vertical,
@@ -11547,8 +18081,8 @@ function pad(number) {
                 lineSize = vertical ? lineBox.height() : lineBox.width(),
                 timeRange = duration(options.min, options.max, options.baseUnit),
                 scale = lineSize / timeRange,
-                step = stepValue * scale,
-                divisions = axis.getDivisions(stepValue),
+                scaleStep = step * scale,
+                divisions = axis.getDivisions(step),
                 dir = (vertical ? -1 : 1) * (reverse ? -1 : 1),
                 startEdge = dir === 1 ? 1 : 2,
                 pos = lineBox[(vertical ? Y : X) + startEdge],
@@ -11557,7 +18091,7 @@ function pad(number) {
 
             for (i = 0; i < divisions; i++) {
                 positions.push(round(pos, COORD_PRECISION));
-                pos = pos + step * dir;
+                pos = pos + scaleStep * dir;
             }
 
             return positions;
@@ -11609,20 +18143,65 @@ function pad(number) {
                 unit = YEARS;
             } else if (delta >= TIME_PER_MONTH) {
                 unit = MONTHS;
+            } else if (delta >= TIME_PER_WEEK) {
+                unit = WEEKS;
             } else if (delta >= TIME_PER_DAY) {
                 unit = DAYS;
             }
 
             return unit;
+        },
+
+        translateRange: function(delta) {
+            var axis = this,
+                options = axis.options,
+                baseUnit = options.baseUnit,
+                weekStartDay = options.weekStartDay,
+                lineBox = axis.lineBox(),
+                size = options.vertical ? lineBox.height() : lineBox.width(),
+                range = axis.range(),
+                scale = size / (range.max - range.min),
+                offset = round(delta / scale, DEFAULT_PRECISION),
+                from = addTicks(options.min, offset),
+                to = addTicks(options.max, offset);
+
+            return {
+                min: addDuration(from, 0, baseUnit, weekStartDay),
+                max: addDuration(to, 0, baseUnit, weekStartDay)
+            };
+        },
+
+        scaleRange: function(delta) {
+            var axis = this,
+                options = axis.options,
+                baseUnit = options.baseUnit,
+                weekStartDay = options.weekStartDay,
+                rounds = math.abs(delta),
+                from = options.min,
+                to = options.max,
+                range,
+                step;
+
+            while (rounds--) {
+                range = dateDiff(from, to);
+                step = math.round(range * 0.1);
+                if (delta < 0) {
+                    from = addTicks(from, step);
+                    to = addTicks(to, -step);
+                } else {
+                    from = addTicks(from, -step);
+                    to = addTicks(to, step);
+                }
+
+                from = addDuration(from, 0, baseUnit, weekStartDay);
+                to = addDuration(to, 1, baseUnit, weekStartDay);
+            }
+
+            return { min: from, max: to };
         }
     });
 
     var ClusterLayout = ChartElement.extend({
-        init: function(options) {
-            var cluster = this;
-            ChartElement.fn.init.call(cluster, options);
-        },
-
         options: {
             vertical: false,
             gap: 0,
@@ -11661,11 +18240,6 @@ function pad(number) {
     });
 
     var StackLayout = ChartElement.extend({
-        init: function(options) {
-            var stack = this;
-            ChartElement.fn.init.call(stack, options);
-        },
-
         options: {
             vertical: true,
             isReversed: false
@@ -11746,7 +18320,7 @@ function pad(number) {
 
             bar.value = value;
             bar.options.id = uniqueId();
-            bar.makeDiscoverable();
+            bar.enableDiscovery();
         },
 
         options: {
@@ -11765,7 +18339,10 @@ function pad(number) {
             animation: {
                 type: BAR
             },
-            opacity: 1
+            opacity: 1,
+            notes: {
+                label: {}
+            }
         },
 
         render: function() {
@@ -11805,6 +18382,32 @@ function pad(number) {
                     ))
                 );
             }
+
+            bar.creteNote();
+        },
+
+        creteNote: function() {
+            var bar = this,
+                options = bar.options.notes,
+                text = options.label.text,
+                noteTemplate;
+
+            if (options.visible && defined(text) && text !== null) {
+                if (options.label.template) {
+                    noteTemplate = template(options.label.template);
+                    text = noteTemplate({
+                        dataItem: bar.dataItem,
+                        category: bar.category,
+                        value: bar.value,
+                        series: bar.series
+                    });
+                } else if (options.label.format) {
+                    text = autoFormat(options.label.format, text);
+                }
+
+                bar.note = new Note(deepExtend({}, options, { label: { text: text }}));
+                bar.append(bar.note);
+            }
         },
 
         reflow: function(targetBox) {
@@ -11821,6 +18424,10 @@ function pad(number) {
                 label.options.aboveAxis = options.aboveAxis;
                 label.reflow(targetBox);
             }
+
+            if (bar.note) {
+                bar.note.reflow(targetBox);
+            }
         },
 
         getViewElements: function(view) {
@@ -11830,6 +18437,7 @@ function pad(number) {
                 border = options.border.width > 0 ? {
                     stroke: bar.getBorderColor(),
                     strokeWidth: options.border.width,
+                    strokeOpacity: options.border.opacity,
                     dashType: options.border.dashType
                 } : {},
                 box = bar.box,
@@ -11861,11 +18469,12 @@ function pad(number) {
             return elements;
         },
 
-        highlightOverlay: function(view, options){
+        highlightOverlay: function(view, options) {
             var bar = this,
                 box = bar.box;
 
             options = deepExtend({ data: { modelId: bar.options.modelId } }, options);
+            options.id = null;
 
             return view.createRect(box, options);
         },
@@ -11874,11 +18483,13 @@ function pad(number) {
             var bar = this,
                 options = bar.options,
                 color = options.color,
-                borderColor = options.border.color;
+                border = options.border,
+                borderColor = border.color,
+                brightness = border._brightness || BAR_BORDER_BRIGHTNESS;
 
             if (!defined(borderColor)) {
                 borderColor =
-                    new Color(color).brightness(BAR_BORDER_BRIGHTNESS).toHex();
+                    new Color(color).brightness(brightness).toHex();
             }
 
             return borderColor;
@@ -11898,10 +18509,10 @@ function pad(number) {
                 y = aboveAxis ? box.y1 : box.y2 - tooltipHeight;
             } else {
                 if (options.isStacked) {
-                    x = box.x2 - tooltipWidth;
+                    x = aboveAxis ? box.x2 - tooltipWidth : box.x1;
                     y = box.y1 - tooltipHeight - TOOLTIP_OFFSET;
                 } else {
-                    x = box.x2 + TOOLTIP_OFFSET;
+                    x = aboveAxis ? box.x2 + TOOLTIP_OFFSET : box.x1 - tooltipWidth - TOOLTIP_OFFSET;
                     y = box.y1;
                 }
             }
@@ -11924,6 +18535,7 @@ function pad(number) {
             ChartElement.fn.init.call(chart, options);
 
             chart.plotArea = plotArea;
+            chart.categoryAxis = plotArea.seriesCategoryAxis(options.series[0]);
 
             // Value axis ranges grouped by axis name, e.g.:
             // primary: { min: 0, max: 1 }
@@ -11979,12 +18591,22 @@ function pad(number) {
             categoryPoints.push(point);
         },
 
+        evalPointOptions: function(options, value, category, categoryIx, series) {
+            evalOptions(options, {
+                value: value,
+                series: series,
+                dataItem: series.data[categoryIx],
+                category: category,
+                index: categoryIx
+            }, { defaults: series._defaults, excluded: ["data", "aggregate"] });
+        },
+
         updateRange: function(value, categoryIx, series) {
             var chart = this,
-                axisName = series.axis || PRIMARY,
+                axisName = series.axis,
                 axisRange = chart.valueAxisRanges[axisName];
 
-            if (defined(value)) {
+            if (isNumber(value)) {
                 axisRange = chart.valueAxisRanges[axisName] =
                     axisRange || { min: MAX_VALUE, max: MIN_VALUE };
 
@@ -11994,27 +18616,33 @@ function pad(number) {
         },
 
         seriesValueAxis: function(series) {
-            return this.plotArea.namedValueAxes[(series || {}).axis || PRIMARY];
+            var plotArea = this.plotArea,
+                axisName = series.axis,
+                axis = axisName ?
+                    plotArea.namedValueAxes[axisName] :
+                    plotArea.valueAxis;
+
+            if (!axis) {
+                throw new Error("Unable to locate value axis with name " + axisName);
+            }
+
+            return axis;
         },
 
         reflow: function(targetBox) {
             var chart = this,
-                options = chart.options,
-                invertAxes = options.invertAxes,
-                plotArea = chart.plotArea,
                 pointIx = 0,
                 categorySlots = chart.categorySlots = [],
                 chartPoints = chart.points,
-                categoryAxis = plotArea.categoryAxis,
-                valueAxis,
-                axisCrossingValue,
+                categoryAxis = chart.categoryAxis,
+                value, valueAxis, axisCrossingValue,
                 point;
 
             chart.traverseDataPoints(function(data, category, categoryIx, currentSeries) {
-                var value = data.value;
+                value = chart.pointValue(data);
 
                 valueAxis = chart.seriesValueAxis(currentSeries);
-                axisCrossingValue = valueAxis.options.axisCrossingValue;
+                axisCrossingValue = chart.categoryAxisCrossingValue(valueAxis);
                 point = chartPoints[pointIx++];
 
                 if (point && point.plotValue) {
@@ -12022,16 +18650,14 @@ function pad(number) {
                 }
 
                 var categorySlot = chart.categorySlot(categoryAxis, categoryIx, valueAxis),
-                    valueSlot = chart.valueSlot(valueAxis, value),
-                    slotX = invertAxes ? valueSlot : categorySlot,
-                    slotY = invertAxes ? categorySlot : valueSlot,
-                    pointSlot = new Box2D(slotX.x1, slotY.y1, slotX.x2, slotY.y2),
+                    valueSlot = chart.valueSlot(valueAxis, value, axisCrossingValue),
+                    pointSlot = chart.pointSlot(categorySlot, valueSlot),
                     aboveAxis = valueAxis.options.reverse ?
                                     value < axisCrossingValue : value >= axisCrossingValue;
 
                 if (point) {
                     point.options.aboveAxis = aboveAxis;
-                    point.reflow(pointSlot);
+                    chart.reflowPoint(point, pointSlot);
                 }
 
                 if (!categorySlots[categoryIx]) {
@@ -12044,24 +18670,83 @@ function pad(number) {
             chart.box = targetBox;
         },
 
+        categoryAxisCrossingValue: function(valueAxis) {
+            var categoryAxis = this.categoryAxis,
+                options = valueAxis.options,
+                crossingValues = [].concat(
+                    options.axisCrossingValues || options.axisCrossingValue
+                );
+
+            return crossingValues[categoryAxis.axisIndex || 0] || 0;
+        },
+
+        reflowPoint: function(point, pointSlot) {
+            point.reflow(pointSlot);
+        },
+
         reflowCategories: function() { },
 
-        valueSlot: function(valueAxis, value) {
-            return valueAxis.getSlot(value);
+        pointSlot: function(categorySlot, valueSlot) {
+            var chart = this,
+                options = chart.options,
+                invertAxes = options.invertAxes,
+                slotX = invertAxes ? valueSlot : categorySlot,
+                slotY = invertAxes ? categorySlot : valueSlot;
+
+            return new Box2D(slotX.x1, slotY.y1, slotX.x2, slotY.y2);
+        },
+
+        valueSlot: function(valueAxis, value, axisCrossingValue) {
+            return valueAxis.getSlot(value, axisCrossingValue);
         },
 
         categorySlot: function(categoryAxis, categoryIx) {
             return categoryAxis.getSlot(categoryIx);
         },
 
+        _traverseDataPoints: function(callback) {
+            var chart = this,
+                options = chart.options,
+                series = options.series,
+                plotArea = chart.plotArea,
+                categoryIx,
+                seriesIx,
+                pointData,
+                currentCategory,
+                currentSeries,
+                seriesCount = series.length;
+
+            for (seriesIx = 0; seriesIx < seriesCount; seriesIx++) {
+                currentSeries = series[seriesIx];
+                var categoryAxis = plotArea.seriesCategoryAxis(currentSeries);
+                var categories = categoryAxis.options.categories || [];
+                var data = currentSeries.data;
+                var count = data.length;
+                var pointIx;
+
+                for (pointIx = 0; pointIx < count; pointIx++) {
+                    pointData = SeriesBinder.current.bindPoint(currentSeries, pointIx);
+
+                    var category = pointData.fields.category;
+                    if (category) {
+                        categoryIx = indexOf(category, categories);
+                    } else {
+                        categoryIx = pointIx;
+                    }
+
+                    currentCategory = categories[categoryIx];
+
+                    callback(pointData, currentCategory, categoryIx, currentSeries, seriesIx);
+                }
+            }
+        },
+
         traverseDataPoints: function(callback) {
             var chart = this,
                 options = chart.options,
                 series = options.series,
-                categories = chart.plotArea.options.categoryAxis.categories || [],
+                categories = chart.categoryAxis.options.categories || [],
                 count = categoriesCount(series),
-                valueFields = chart.valueFields(),
-                bindableFields = chart.bindableFields(),
                 categoryIx,
                 seriesIx,
                 pointData,
@@ -12071,25 +18756,21 @@ function pad(number) {
 
             for (categoryIx = 0; categoryIx < count; categoryIx++) {
                 for (seriesIx = 0; seriesIx < seriesCount; seriesIx++) {
-                    currentCategory = categories[categoryIx];
                     currentSeries = series[seriesIx];
-                    pointData = bindPoint(currentSeries, categoryIx, valueFields, bindableFields);
+                    currentCategory = categories[categoryIx];
+                    pointData = SeriesBinder.current.bindPoint(currentSeries, categoryIx);
 
                     callback(pointData, currentCategory, categoryIx, currentSeries, seriesIx);
                 }
             }
         },
 
-        valueFields: function() {
-            return ["value"];
-        },
-
-        bindableFields: function() {
-            return [];
-        },
-
         formatPointValue: function(point, format) {
             return autoFormat(format, point.value);
+        },
+
+        pointValue: function(data) {
+            return data.value;
         }
     });
 
@@ -12110,15 +18791,31 @@ function pad(number) {
             chart.computeAxisRanges();
         },
 
-        createPoint: function(data, category, categoryIx, series, seriesIx) {
-            var barChart = this,
+        pointType: function() {
+            return Bar;
+        },
+
+        clusterType: function() {
+            return ClusterLayout;
+        },
+
+        stackType: function() {
+            return StackLayout;
+        },
+
+        createPoint: function(data, category, categoryIx, series) {
+            var chart = this,
                 value = data.value,
-                options = barChart.options,
-                children = barChart.children,
-                isStacked = barChart.options.isStacked,
+                options = chart.options,
+                children = chart.children,
+                isStacked = chart.options.isStacked,
                 labelOptions = deepExtend({}, series.labels),
-                bar,
-                cluster;
+                point,
+                pointType = chart.pointType(),
+                pointOptions,
+                cluster,
+                clusterType = chart.clusterType(),
+                stackType = chart.stackType();
 
             if (isStacked) {
                 if (labelOptions.position == OUTSIDE_END) {
@@ -12126,36 +18823,45 @@ function pad(number) {
                 }
             }
 
-            bar = new Bar(value,
-                deepExtend({}, {
-                    vertical: !options.invertAxes,
-                    overlay: series.overlay,
-                    labels: labelOptions,
-                    isStacked: isStacked
-                }, series, {
-                    color: data.fields.color || undefined
-                }));
+            pointOptions = deepExtend({
+                vertical: !options.invertAxes,
+                overlay: series.overlay,
+                labels: labelOptions,
+                isStacked: isStacked
+            }, series, {
+                color: data.fields.color || undefined,
+                notes: { label: { text: data.fields.noteText } }
+            });
+
+            if (value < 0 && pointOptions.negativeColor) {
+                pointOptions.color = pointOptions.negativeColor;
+            }
+
+            chart.evalPointOptions(
+                pointOptions, value, category, categoryIx, series
+            );
+
+            point = new pointType(value, pointOptions);
 
             cluster = children[categoryIx];
             if (!cluster) {
-                cluster = new ClusterLayout({
+                cluster = new clusterType({
                     vertical: options.invertAxes,
                     gap: options.gap,
                     spacing: options.spacing
                 });
-                barChart.append(cluster);
+                chart.append(cluster);
             }
 
             if (isStacked) {
-                var stackWrap = barChart.getStackWrap(series, cluster),
-                    positiveStack,
-                    negativeStack;
+                var stackWrap = chart.getStackWrap(series, cluster),
+                    positiveStack, negativeStack;
 
                 if (stackWrap.children.length === 0) {
-                    positiveStack = new StackLayout({
+                    positiveStack = new stackType({
                         vertical: !options.invertAxes
                     });
-                    negativeStack = new StackLayout({
+                    negativeStack = new stackType({
                         vertical: !options.invertAxes,
                         isReversed: true
                     });
@@ -12167,15 +18873,15 @@ function pad(number) {
                 }
 
                 if (value > 0) {
-                    positiveStack.append(bar);
+                    positiveStack.append(point);
                 } else {
-                    negativeStack.append(bar);
+                    negativeStack.append(point);
                 }
             } else {
-                cluster.append(bar);
+                cluster.append(point);
             }
 
-            return bar;
+            return point;
         },
 
         getStackWrap: function(series, cluster) {
@@ -12208,13 +18914,14 @@ function pad(number) {
         updateRange: function(value, categoryIx, series) {
             var chart = this,
                 isStacked = chart.options.isStacked,
-                totals = chart.groupTotals(series.stack),
-                positive = totals.positive,
-                negative = totals.negative;
+                totals;
 
             if (defined(value)) {
                 if (isStacked) {
-                    incrementSlot(value > 0 ? positive : negative, categoryIx, value);
+                    totals = chart.groupTotals(series.stack);
+                    incrementSlot(value > 0 ? totals.positive : totals.negative,
+                        categoryIx, value
+                    );
                 } else {
                     CategoricalChart.fn.updateRange.apply(chart, arguments);
                 }
@@ -12224,11 +18931,10 @@ function pad(number) {
         computeAxisRanges: function() {
             var chart = this,
                 isStacked = chart.options.isStacked,
-                axisName,
-                categoryTotals;
+                axisName, categoryTotals;
 
             if (isStacked) {
-                axisName = chart.options.series[0].axis || PRIMARY;
+                axisName = chart.options.series[0].axis;
                 categoryTotals = chart.categoryTotals();
                 chart.valueAxisRanges[axisName] = {
                     min: sparseArrayMin(categoryTotals.negative.concat(0)),
@@ -12247,16 +18953,15 @@ function pad(number) {
             );
         },
 
-        valueSlot: function(valueAxis, value) {
-            return valueAxis.getSlot(value, this.options.isStacked ? 0 : undefined);
+        valueSlot: function(valueAxis, value, axisCrossingValue) {
+            return valueAxis.getSlot(value, this.options.isStacked ? 0 : axisCrossingValue);
         },
 
         categorySlot: function(categoryAxis, categoryIx, valueAxis) {
             var chart = this,
                 options = chart.options,
                 categorySlot = categoryAxis.getSlot(categoryIx),
-                stackAxis,
-                zeroSlot;
+                stackAxis, zeroSlot;
 
             if (options.isStacked) {
                 zeroSlot = valueAxis.getSlot(0, 0);
@@ -12281,10 +18986,8 @@ function pad(number) {
                 series = options.series,
                 count = categoriesCount(series),
                 clusters = chart.children,
-                categoryIx,
-                seriesIx,
-                currentSeries,
-                valueAxis,
+                categoryIx, seriesIx,
+                currentSeries, valueAxis,
                 seriesCount = series.length;
 
             for (seriesIx = 0; seriesIx < seriesCount; seriesIx++) {
@@ -12319,9 +19022,16 @@ function pad(number) {
 
         groupTotals: function(stackGroup) {
             var chart = this,
-                groupName = typeof stackGroup === STRING ? stackGroup : "default",
-                totals = chart._groupTotals[groupName];
+                groupName,
+                totals;
 
+            if (typeof stackGroup === STRING) {
+                groupName = stackGroup;
+            } else {
+                groupName = chart._groups[0] || "default";
+            }
+
+            totals = chart._groupTotals[groupName];
             if (!totals) {
                 totals = chart._groupTotals[groupName] = {
                     positive: [],
@@ -12352,69 +19062,344 @@ function pad(number) {
             }
 
             return categoryTotals;
-        },
-
-        bindableFields: function() {
-            return ["color"];
         }
     });
 
-    var ShapeElement = BoxElement.extend({
-        init: function(options) {
-            var marker = this;
+    var BulletChart = CategoricalChart.extend({
+        init: function(plotArea, options) {
+            var chart = this;
 
-            BoxElement.fn.init.call(marker, options);
+            chart.wrapData(options);
+
+            CategoricalChart.fn.init.call(chart, plotArea, options);
+        },
+
+        wrapData: function(options) {
+            var series = options.series,
+                i, data, seriesItem;
+
+            for (i = 0; i < series.length; i++) {
+                seriesItem = series[i];
+                data = seriesItem.data;
+                if (data && !isArray(data[0]) && typeof(data[0]) != OBJECT) {
+                    seriesItem.data = [data];
+                }
+            }
+        },
+
+        addValue: function(data, category, categoryIx, series, seriesIx) {
+            var chart = this,
+                categoryPoints = chart.categoryPoints[categoryIx],
+                seriesPoints = chart.seriesPoints[seriesIx],
+                point;
+
+            if (!categoryPoints) {
+                chart.categoryPoints[categoryIx] = categoryPoints = [];
+            }
+
+            if (!seriesPoints) {
+                chart.seriesPoints[seriesIx] = seriesPoints = [];
+            }
+
+            chart.updateRange(data.value, categoryIx, series);
+
+            point = chart.createPoint(data, category, categoryIx, series);
+            if (point) {
+                point.category = category;
+                point.series = series;
+                point.seriesIx = seriesIx;
+                point.owner = chart;
+                point.dataItem = series.data[categoryIx];
+            }
+
+            chart.points.push(point);
+            seriesPoints.push(point);
+            categoryPoints.push(point);
+        },
+
+        reflowCategories: function(categorySlots) {
+            var chart = this,
+                children = chart.children,
+                childrenLength = children.length,
+                i;
+
+            for (i = 0; i < childrenLength; i++) {
+                children[i].reflow(categorySlots[i]);
+            }
+        },
+
+        createPoint: function(data, category, categoryIx, series) {
+            var chart = this,
+                value = data.value,
+                options = chart.options,
+                children = chart.children,
+                bullet,
+                bulletOptions,
+                cluster;
+
+            bulletOptions = deepExtend({}, {
+                vertical: !options.invertAxes,
+                overlay: series.overlay,
+                categoryIx: categoryIx,
+                invertAxes: options.invertAxes
+            }, series, {
+                notes: { label: { text: data.fields.noteText } }
+            });
+
+            chart.evalPointOptions(
+                bulletOptions, value, category, categoryIx, series
+            );
+
+            bullet = new Bullet(value, bulletOptions);
+
+            cluster = children[categoryIx];
+            if (!cluster) {
+                cluster = new ClusterLayout({
+                    vertical: options.invertAxes,
+                    gap: options.gap,
+                    spacing: options.spacing
+                });
+                chart.append(cluster);
+            }
+
+            cluster.append(bullet);
+
+            return bullet;
+        },
+
+        updateRange: function(value, categoryIx, series) {
+            var chart = this,
+                axisName = series.axis,
+                current = value.current,
+                target = value.target,
+                axisRange = chart.valueAxisRanges[axisName];
+
+            if (defined(current) && !isNaN(current) && defined(target && !isNaN(target))) {
+                axisRange = chart.valueAxisRanges[axisName] =
+                    axisRange || { min: MAX_VALUE, max: MIN_VALUE };
+
+                axisRange.min = math.min.apply(math, [axisRange.min, current, target]);
+                axisRange.max = math.max.apply(math, [axisRange.max, current, target]);
+            }
+        },
+
+        formatPointValue: function(point, format) {
+            return autoFormat(format, point.value.current, point.value.target);
+        },
+
+        pointValue: function(data) {
+            return data.value.current;
+        }
+    });
+
+    var Bullet = ChartElement.extend({
+        init: function(value, options) {
+            var bullet = this;
+
+            ChartElement.fn.init.call(bullet, options);
+
+            bullet.value = value;
+            bullet.options.id = uniqueId();
+            bullet.enableDiscovery();
+            bullet.render();
         },
 
         options: {
-            type: CIRCLE,
-            align: CENTER,
-            vAlign: CENTER
+            color: WHITE,
+            border: {
+                width: 1
+            },
+            vertical: false,
+            animation: {
+                type: BAR
+            },
+            opacity: 1,
+            target: {
+                shape: "",
+                border: {
+                    width: 0,
+                    color: "green"
+                },
+                line: {
+                    width: 2
+                }
+            },
+            tooltip: {
+                format: "Current: {0}</br>Target: {1}"
+            }
         },
 
-        getViewElements: function(view, renderOptions) {
-            var marker = this,
-                options = marker.options,
-                type = options.type,
-                box = marker.paddingBox,
-                element,
-                elementOptions,
-                halfWidth = box.width() / 2;
+        render: function() {
+            var bullet = this,
+                options = bullet.options;
 
-            if (!options.visible || !marker.hasBox()) {
-                return [];
+            bullet.target = new Target({
+                id: bullet.options.id,
+                type: options.target.shape,
+                background: options.target.color || options.color,
+                opacity: options.opacity,
+                zIndex: options.zIndex,
+                border: options.target.border,
+                vAlign: TOP,
+                align: RIGHT
+            });
+
+            bullet.append(bullet.target);
+
+            bullet.creteNote();
+        },
+
+        creteNote: function() {
+            var bullet = this,
+                options = bullet.options.notes,
+                text = options.label.text,
+                noteTemplate;
+
+            if (options.visible && defined(text) && text !== null) {
+                if (options.label.template) {
+                    noteTemplate = template(options.label.template);
+                    text = noteTemplate({
+                        dataItem: bullet.dataItem,
+                        category: bullet.category,
+                        value: bullet.value,
+                        series: bullet.series
+                    });
+                } else if (options.label.format) {
+                    text = autoFormat(options.label.format, text);
+                }
+
+                bullet.note = new Note(deepExtend({}, options, { label: { text: text }}));
+                bullet.append(bullet.note);
+            }
+        },
+
+        reflow: function(box) {
+            var bullet = this,
+                options = bullet.options,
+                chart = bullet.owner,
+                target = bullet.target,
+                invertAxes = options.invertAxes,
+                valueAxis = chart.seriesValueAxis(bullet.options),
+                categorySlot = chart.categorySlot(chart.categoryAxis, options.categoryIx, valueAxis),
+                targetValueSlot = chart.valueSlot(valueAxis, bullet.value.target, bullet.value.target),
+                targetSlotX = invertAxes ? targetValueSlot : categorySlot,
+                targetSlotY = invertAxes ? categorySlot : targetValueSlot,
+                targetSlot = new Box2D(
+                    targetSlotX.x1, targetSlotY.y1,
+                    targetSlotX.x2, targetSlotY.y2
+                );
+
+            target.options.height = invertAxes ? targetSlot.height() : options.target.line.width;
+            target.options.width = invertAxes ? options.target.line.width : targetSlot.width();
+            target.reflow(targetSlot);
+
+            if (bullet.note) {
+                bullet.note.reflow(box);
             }
 
-            elementOptions = deepExtend(marker.elementStyle(), renderOptions);
+            bullet.box = box;
+        },
 
-            if (type === TRIANGLE) {
-                element = view.createPolyline([
-                    new Point2D(box.x1 + halfWidth, box.y1),
-                    new Point2D(box.x1, box.y2),
-                    new Point2D(box.x2, box.y2)
-                ], true, elementOptions);
-            } else if (type === CIRCLE) {
-                element = view.createCircle(new Point2D(
-                    round(box.x1 + halfWidth, COORD_PRECISION),
-                    round(box.y1 + box.height() / 2, COORD_PRECISION)
-                ), halfWidth, elementOptions);
+        getViewElements: function(view) {
+            var bullet = this,
+                options = bullet.options,
+                vertical = options.vertical,
+                border = options.border.width > 0 ? {
+                    stroke: options.border.color || options.color,
+                    strokeWidth: options.border.width,
+                    dashType: options.border.dashType
+                } : {},
+                box = bullet.box,
+                rectStyle = deepExtend({
+                    id: options.id,
+                    fill: options.color,
+                    fillOpacity: options.opacity,
+                    strokeOpacity: options.opacity,
+                    vertical: options.vertical,
+                    aboveAxis: options.aboveAxis,
+                    animation: options.animation,
+                    data: { modelId: options.modelId }
+                }, border),
+                elements = [];
+
+            if (box.width() > 0 && box.height() > 0) {
+                if (options.overlay) {
+                    rectStyle.overlay = deepExtend({
+                        rotation: vertical ? 0 : 90
+                    }, options.overlay);
+                }
+
+                elements.push(view.createRect(box, rectStyle));
+            }
+
+            append(elements, ChartElement.fn.getViewElements.call(bullet, view));
+
+            return elements;
+        },
+
+        tooltipAnchor: function(tooltipWidth, tooltipHeight) {
+            var bar = this,
+                options = bar.options,
+                box = bar.box,
+                vertical = options.vertical,
+                aboveAxis = options.aboveAxis,
+                x,
+                y;
+
+            if (vertical) {
+                x = box.x2 + TOOLTIP_OFFSET;
+                y = aboveAxis ? box.y1 : box.y2 - tooltipHeight;
             } else {
-                element = view.createRect(box, elementOptions);
+                if (options.isStacked) {
+                    x = aboveAxis ? box.x2 - tooltipWidth : box.x1;
+                    y = box.y1 - tooltipHeight - TOOLTIP_OFFSET;
+                } else {
+                    x = aboveAxis ? box.x2 + TOOLTIP_OFFSET : box.x1 - tooltipWidth - TOOLTIP_OFFSET;
+                    y = box.y1;
+                }
             }
 
-            return [ element ];
+            return new Point2D(x, y);
+        },
+
+        highlightOverlay: function(view, options){
+            var bullet = this,
+                box = bullet.box;
+
+            options = deepExtend({ data: { modelId: bullet.options.modelId } }, options);
+            options.id = null;
+
+            return view.createRect(box, options);
+        },
+
+        formatValue: function(format) {
+            var bullet = this;
+
+            return bullet.owner.formatPointValue(bullet, format);
         }
     });
+    deepExtend(Bullet.fn, PointEventsMixin);
+
+    var Target = ShapeElement.extend();
+    deepExtend(Target.fn, PointEventsMixin);
 
     var LinePoint = ChartElement.extend({
         init: function(value, options) {
-            var point = this;
-
-            ChartElement.fn.init.call(point, options);
+            var point = this,
+                border;
 
             point.value = value;
-            point.options.id = uniqueId();
-            point.makeDiscoverable();
+            ChartElement.fn.init.call(point, options);
+
+            options = point.options;
+            options.id = uniqueId();
+
+            border = options.markers.border;
+            if (!defined(border.color)) {
+               border.color =  options.color;
+            }
+
+            point.enableDiscovery();
         },
 
         options: {
@@ -12439,6 +19424,9 @@ function pad(number) {
                     type: FADEIN,
                     delay: INITIAL_ANIMATION_DURATION
                 }
+            },
+            notes: {
+                label: {}
             }
         },
 
@@ -12464,10 +19452,11 @@ function pad(number) {
 
             point.marker = new ShapeElement({
                 id: point.options.id,
-                visible: markers.visible,
+                visible: markers.visible && markers.size,
                 type: markers.type,
                 width: markers.size,
                 height: markers.size,
+                rotation: markers.rotation,
                 background: markerBackground,
                 border: markerBorder,
                 opacity: markers.opacity,
@@ -12502,6 +19491,32 @@ function pad(number) {
                 );
                 point.append(point.label);
             }
+
+            point.creteNote();
+        },
+
+        creteNote: function() {
+            var point = this,
+                options = point.options.notes,
+                text = options.label.text,
+                noteTemplate;
+
+            if (options.visible && defined(text) && text !== null) {
+                if (options.label.template) {
+                    noteTemplate = template(options.label.template);
+                    text = noteTemplate({
+                        dataItem: point.dataItem,
+                        category: point.category,
+                        value: point.value,
+                        series: point.series
+                    });
+                } else if (options.label.format) {
+                    text = autoFormat(options.label.format, text);
+                }
+
+                point.note = new Note(deepExtend({}, options, { label: { text: text }}));
+                point.append(point.note);
+            }
         },
 
         markerBox: function() {
@@ -12513,7 +19528,7 @@ function pad(number) {
                 options = point.options,
                 vertical = options.vertical,
                 aboveAxis = options.aboveAxis,
-                childBox;
+                childBox, noteTargetBox, center;
 
             point.render();
 
@@ -12536,6 +19551,16 @@ function pad(number) {
 
             point.marker.reflow(childBox);
             point.reflowLabel(childBox);
+
+            if (point.note) {
+                if (point.marker.options.visible) {
+                    noteTargetBox = point.marker.box;
+                } else {
+                    center = point.marker.box.center();
+                    noteTargetBox = Box2D(center.x, center.y, center.x, center.y);
+                }
+                point.note.reflow(noteTargetBox);
+            }
         },
 
         reflowLabel: function(box) {
@@ -12562,6 +19587,7 @@ function pad(number) {
             options = deepExtend({ data: { modelId: element.options.modelId } }, options);
 
             return marker.getViewElements(view, deepExtend(options, {
+                id: null,
                 fill: marker.options.border.color,
                 fillOpacity: 1,
                 strokeOpacity: 0
@@ -12573,7 +19599,7 @@ function pad(number) {
                 markerBox = point.marker.box,
                 aboveAxis = point.options.aboveAxis;
 
-            return new Point2D(
+            return Point2D(
                 markerBox.x2 + TOOLTIP_OFFSET,
                 aboveAxis ? markerBox.y1 - tooltipHeight : markerBox.y2
             );
@@ -12603,7 +19629,8 @@ function pad(number) {
             highlight: {
                 opacity: 1,
                 border: {
-                    width: 1
+                    width: 1,
+                    opacity: 1
                 }
             }
         },
@@ -12617,18 +19644,19 @@ function pad(number) {
                 center = element.box.center(),
                 radius = markers.size / 2 - borderWidth / 2,
                 borderColor =
-                    new Color(markers.background)
-                    .brightness(BAR_BORDER_BRIGHTNESS)
-                    .toHex();
+                    highlight.border.color ||
+                    new Color(markers.background).brightness(BAR_BORDER_BRIGHTNESS).toHex();
 
             return view.createCircle(center, radius, {
+                id: null,
                 data: { modelId: element.options.modelId },
                 stroke: borderColor,
-                strokeWidth: borderWidth
+                strokeWidth: borderWidth,
+                strokeOpacity: highlight.border.opacity
             });
         },
 
-        toggleHighlight: function(view, on) {
+        toggleHighlight: function(view) {
             var element = this,
                 opacity = element.options.highlight.opacity;
 
@@ -12638,8 +19666,7 @@ function pad(number) {
                 fillOpacity: element.highlighted ? opacity : undefined
             })[0];
 
-            marker.refresh(doc.getElementById(this.options.id));
-
+            marker.refresh(getElement(this.options.id));
         }
     });
 
@@ -12654,10 +19681,12 @@ function pad(number) {
             segment.seriesIx = seriesIx;
             segment.options.id = uniqueId();
 
-            segment.makeDiscoverable();
+            segment.enableDiscovery();
         },
 
-        options: {},
+        options: {
+            closed: false
+        },
 
         points: function(visualPoints) {
             var segment = this,
@@ -12669,7 +19698,8 @@ function pad(number) {
 
             for (i = 0; i < length; i++) {
                 pointCenter = linePoints[i].markerBox().center();
-                points.push(new Point2D(pointCenter.x, pointCenter.y));
+
+                points.push(Point2D(pointCenter.x, pointCenter.y));
             }
 
             return points;
@@ -12677,19 +19707,26 @@ function pad(number) {
 
         getViewElements: function(view) {
             var segment = this,
-                series = segment.series;
+                options = segment.options,
+                series = segment.series,
+                defaults = series._defaults,
+                color = series.color;
 
             ChartElement.fn.getViewElements.call(segment, view);
 
+            if (isFn(color) && defaults) {
+                color = defaults.color;
+            }
+
             return [
-                view.createPolyline(segment.points(), false, {
-                    id: segment.options.id,
-                    stroke: series.color,
+                view.createPolyline(segment.points(), options.closed, {
+                    id: options.id,
+                    stroke: color,
                     strokeWidth: series.width,
                     strokeOpacity: series.opacity,
                     fill: "",
                     dashType: series.dashType,
-                    data: { modelId: segment.options.modelId },
+                    data: { modelId: options.modelId },
                     zIndex: -1
                 })
             ];
@@ -12709,27 +19746,23 @@ function pad(number) {
                 options = chart.options,
                 series = options.series,
                 seriesPoints = chart.seriesPoints,
-                currentSeries,
-                seriesIx,
+                currentSeries, seriesIx,
                 seriesCount = seriesPoints.length,
-                currentSeriesPoints,
-                linePoints,
-                point,
-                pointIx,
-                pointCount,
+                sortedPoints, linePoints,
+                point, pointIx, pointCount,
                 segments = [];
 
             for (seriesIx = 0; seriesIx < seriesCount; seriesIx++) {
-                currentSeriesPoints = seriesPoints[seriesIx];
-                pointCount = currentSeriesPoints.length;
                 currentSeries = series[seriesIx];
+                sortedPoints = chart.sortPoints(seriesPoints[seriesIx]);
+                pointCount = sortedPoints.length;
                 linePoints = [];
 
                 for (pointIx = 0; pointIx < pointCount; pointIx++) {
-                    point = currentSeriesPoints[pointIx];
+                    point = sortedPoints[pointIx];
                     if (point) {
                         linePoints.push(point);
-                    } else if (currentSeries.missingValues !== INTERPOLATE) {
+                    } else if (chart.seriesMissingValues(currentSeries) !== INTERPOLATE) {
                         if (linePoints.length > 1) {
                             segments.push(
                                 chart.createSegment(
@@ -12752,6 +19785,17 @@ function pad(number) {
 
             chart._segments = segments;
             chart.append.apply(chart, segments);
+        },
+
+        sortPoints: function(points) {
+            return points;
+        },
+
+        seriesMissingValues: function(series) {
+            var missingValues = series.missingValues,
+                assumeZero = !missingValues && this.options.isStacked;
+
+            return assumeZero ? ZERO : missingValues || INTERPOLATE;
         },
 
         createSegment: function(linePoints, currentSeries, seriesIx) {
@@ -12796,7 +19840,7 @@ function pad(number) {
 
             chart._stackAxisRange = { min: MAX_VALUE, max: MIN_VALUE };
             chart._categoryTotals = [];
-            chart.makeDiscoverable();
+            chart.enableDiscovery();
 
             CategoricalChart.fn.init.call(chart, plotArea, options);
         },
@@ -12810,33 +19854,39 @@ function pad(number) {
             chart.renderSegments();
         },
 
-        createPoint: function(data, category, categoryIx, series, seriesIx) {
+        createPoint: function(data, category, categoryIx, series) {
             var chart = this,
                 value = data.value,
                 options = chart.options,
                 isStacked = options.isStacked,
                 categoryPoints = chart.categoryPoints[categoryIx],
+                missingValues = chart.seriesMissingValues(series),
                 stackPoint,
-                plotValue = 0;
+                plotValue = 0,
+                fields = data.fields,
+                point,
+                pointOptions;
 
             if (!defined(value) || value === null) {
-                if (series.missingValues === ZERO) {
+                if (missingValues === ZERO) {
                     value = 0;
                 } else {
                     return null;
                 }
             }
 
-            var point = new LinePoint(value,
-                deepExtend({
-                    vertical: !options.invertAxes,
-                    markers: {
-                        border: {
-                            color: series.color
-                        }
-                    }
-                }, series)
+            pointOptions = deepExtend({
+                vertical: !options.invertAxes
+            }, series, {
+                color: fields.color,
+                notes: { label: { text: data.fields.noteText } }
+            });
+
+            chart.evalPointOptions(
+                pointOptions, value, category, categoryIx, series
             );
+
+            point = new LinePoint(value, pointOptions);
 
             if (isStacked) {
                 stackPoint = lastValue(categoryPoints);
@@ -12852,18 +19902,20 @@ function pad(number) {
             return point;
         },
 
-        updateRange: function(value, categoryIx, series) {
+        updateRange: function(value, categoryIx) {
             var chart = this,
                 isStacked = chart.options.isStacked,
                 stackAxisRange = chart._stackAxisRange,
-                totals = chart._categoryTotals;
+                totals = chart._categoryTotals,
+                totalsLimits;
 
             if (defined(value)) {
                 if (isStacked) {
                     incrementSlot(totals, categoryIx, value);
 
-                    stackAxisRange.min = math.min(stackAxisRange.min, sparseArrayMin(totals));
-                    stackAxisRange.max = math.max(stackAxisRange.max, sparseArrayMax(totals));
+                    totalsLimits = sparseArrayLimits(totals);
+                    stackAxisRange.min = math.min(stackAxisRange.min, totalsLimits.min);
+                    stackAxisRange.max = math.max(stackAxisRange.max, totalsLimits.max);
                 } else {
                     CategoricalChart.fn.updateRange.apply(chart, arguments);
                 }
@@ -12876,7 +19928,7 @@ function pad(number) {
                 axisName;
 
             if (isStacked) {
-                axisName = chart.options.series[0].axis || PRIMARY;
+                axisName = chart.options.series[0].axis;
                 chart.valueAxisRanges[axisName] = chart._stackAxisRange;
             }
         },
@@ -12908,26 +19960,29 @@ function pad(number) {
         points: function() {
             var segment = this,
                 chart = segment.parent,
-                stack = chart.options.isStacked && segment.seriesIx > 0,
                 plotArea = chart.plotArea,
                 invertAxes = chart.options.invertAxes,
-                axisLineBox = plotArea.categoryAxis.lineBox(),
-                end = invertAxes ? axisLineBox.x1 : axisLineBox.y1,
+                valueAxis = chart.seriesValueAxis(segment.series),
+                valueAxisLineBox = valueAxis.lineBox(),
+                categoryAxis = plotArea.seriesCategoryAxis(segment.series),
+                categoryAxisLineBox = categoryAxis.lineBox(),
+                end = invertAxes ? categoryAxisLineBox.x1 : categoryAxisLineBox.y1,
                 stackPoints = segment.stackPoints,
                 points = LineSegment.fn.points.call(segment, stackPoints),
-                firstPoint,
-                lastPoint;
+                pos = invertAxes ? X : Y,
+                firstPoint, lastPoint;
 
-            if (!stack && points.length > 1) {
+            end = limitValue(end, valueAxisLineBox[pos + 1], valueAxisLineBox[pos + 2]);
+            if (!segment.stackPoints && points.length > 1) {
                 firstPoint = points[0];
                 lastPoint = last(points);
 
                 if (invertAxes) {
-                    points.unshift(new Point2D(end, firstPoint.y));
-                    points.push(new Point2D(end, lastPoint.y));
+                    points.unshift(Point2D(end, firstPoint.y));
+                    points.push(Point2D(end, lastPoint.y));
                 } else {
-                    points.unshift(new Point2D(firstPoint.x, end));
-                    points.push(new Point2D(lastPoint.x, end));
+                    points.unshift(Point2D(firstPoint.x, end));
+                    points.push(Point2D(lastPoint.x, end));
                 }
             }
 
@@ -12937,26 +19992,42 @@ function pad(number) {
         getViewElements: function(view) {
             var segment = this,
                 series = segment.series,
-                lineOptions = deepExtend({
-                        color: series.color,
-                        opacity: series.opacity
-                    }, series.line
-                );
+                defaults = series._defaults,
+                color = series.color,
+                lineOptions,
+                linePoints = LineSegment.fn.points.call(segment),
+                areaPoints = segment.points();
 
             ChartElement.fn.getViewElements.call(segment, view);
 
+            if (isFn(color) && defaults) {
+                color = defaults.color;
+            }
+
+            lineOptions = deepExtend({
+                    color: color,
+                    opacity: series.opacity
+                }, series.line
+            );
+
             return [
-                view.createPolyline(segment.points(), true, {
+                view.createPolyline(areaPoints, false, {
                     id: segment.options.id,
+                    fillOpacity: series.opacity,
+                    fill: color,
+                    stack: series.stack,
+                    data: { modelId: segment.options.modelId },
+                    zIndex: -1
+                }),
+                view.createPolyline(linePoints, false, {
                     stroke: lineOptions.color,
                     strokeWidth: lineOptions.width,
                     strokeOpacity: lineOptions.opacity,
                     dashType: lineOptions.dashType,
-                    fillOpacity: series.opacity,
-                    fill: series.color,
-                    stack: series.stack,
                     data: { modelId: segment.options.modelId },
-                    zIndex: -1
+                    strokeLineCap: "butt",
+                    zIndex: -1,
+                    align: false
                 })
             ];
         }
@@ -12968,11 +20039,15 @@ function pad(number) {
                 options = chart.options,
                 stackPoints;
 
-            if (options.isStacked && seriesIx > 0) {
+            if (options.isStacked && seriesIx > 0 && prevSegment) {
                 stackPoints = prevSegment.linePoints.slice(0).reverse();
             }
 
             return new AreaSegment(linePoints, stackPoints, currentSeries, seriesIx);
+        },
+
+        seriesMissingValues: function(series) {
+            return series.missingValues || ZERO;
         }
     });
 
@@ -13022,7 +20097,7 @@ function pad(number) {
             chart.updateRange(value, fields.series);
 
             if (defined(x) && x !== null && defined(y) && y !== null) {
-                point = chart.createPoint(value, fields.series, seriesIx, fields);
+                point = chart.createPoint(value, fields);
                 if (point) {
                     extend(point, fields);
                 }
@@ -13036,14 +20111,18 @@ function pad(number) {
             var chart = this,
                 x = value.x,
                 y = value.y,
-                xAxisName = series.xAxis || PRIMARY,
-                yAxisName = series.yAxis || PRIMARY,
+                xAxisName = series.xAxis,
+                yAxisName = series.yAxis,
                 xAxisRange = chart.xAxisRanges[xAxisName],
                 yAxisRange = chart.yAxisRanges[yAxisName];
 
             if (defined(x) && x !== null) {
                 xAxisRange = chart.xAxisRanges[xAxisName] =
                     xAxisRange || { min: MAX_VALUE, max: MIN_VALUE };
+
+                if (typeof(x) === STRING) {
+                    x = toDate(x);
+                }
 
                 xAxisRange.min = math.min(xAxisRange.min, x);
                 xAxisRange.max = math.max(xAxisRange.max, x);
@@ -13053,31 +20132,49 @@ function pad(number) {
                 yAxisRange = chart.yAxisRanges[yAxisName] =
                     yAxisRange || { min: MAX_VALUE, max: MIN_VALUE };
 
+                if (typeof(y) === STRING) {
+                    y = toDate(y);
+                }
+
                 yAxisRange.min = math.min(yAxisRange.min, y);
                 yAxisRange.max = math.max(yAxisRange.max, y);
             }
         },
 
-        createPoint: function(value, series, seriesIx) {
-            var chart = this,
-                point;
+        evalPointOptions: function(options, value, fields) {
+            var series = fields.series;
 
-            point = new LinePoint(value,
-                deepExtend({
-                    markers: {
-                        border: {
-                            color: series.color
-                        },
-                        opacity: series.opacity
-                    },
-                    tooltip: {
-                        format: chart.options.tooltip.format
-                    },
-                    labels: {
-                        format: chart.options.labels.format
-                    }
-                }, series)
-            );
+            evalOptions(options, {
+                value: value,
+                series: series,
+                dataItem: fields.dataItem
+            }, { defaults: series._defaults, excluded: ["data"] });
+        },
+
+        createPoint: function(value, fields) {
+            var chart = this,
+                series = fields.series,
+                point,
+                pointOptions;
+
+            pointOptions = deepExtend({
+                markers: {
+                    opacity: series.opacity
+                },
+                tooltip: {
+                    format: chart.options.tooltip.format
+                },
+                labels: {
+                    format: chart.options.labels.format
+                }
+            }, series, {
+                color: fields.color,
+                notes: { label: { text: fields.noteText } }
+            });
+
+            chart.evalPointOptions(pointOptions, value, fields);
+
+            point = new LinePoint(value, pointOptions);
 
             chart.append(point);
 
@@ -13086,12 +20183,26 @@ function pad(number) {
 
         seriesAxes: function(series) {
             var plotArea = this.plotArea,
-                xAxis = series.xAxis || PRIMARY,
-                yAxis = series.yAxis || PRIMARY;
+                xAxisName = series.xAxis,
+                xAxis = xAxisName ?
+                        plotArea.namedXAxes[xAxisName] :
+                        plotArea.axisX,
+                yAxisName = series.yAxis,
+                yAxis = yAxisName ?
+                        plotArea.namedYAxes[yAxisName] :
+                        plotArea.axisY;
+
+            if (!xAxis) {
+                throw new Error("Unable to locate X axis with name " + xAxisName);
+            }
+
+            if (!yAxis) {
+                throw new Error("Unable to locate Y axis with name " + yAxisName);
+            }
 
             return {
-                x: plotArea.namedXAxes[xAxis],
-                y: plotArea.namedYAxes[yAxis]
+                x: xAxis,
+                y: yAxis
             };
         },
 
@@ -13108,7 +20219,7 @@ function pad(number) {
 
                 var slotX = seriesAxes.x.getSlot(value.x, value.x),
                     slotY = seriesAxes.y.getSlot(value.y, value.y),
-                    pointSlot = new Box2D(slotX.x1, slotY.y1, slotX.x2, slotY.y2);
+                    pointSlot = chart.pointSlot(slotX, slotY);
 
                 if (point) {
                     point.reflow(pointSlot);
@@ -13116,6 +20227,10 @@ function pad(number) {
             });
 
             chart.box = targetBox;
+        },
+
+        pointSlot: function(slotX, slotY) {
+            return new Box2D(slotX.x1, slotY.y1, slotX.x2, slotY.y2);
         },
 
         getViewElements: function(view) {
@@ -13136,8 +20251,6 @@ function pad(number) {
                 options = chart.options,
                 series = options.series,
                 seriesPoints = chart.seriesPoints,
-                valueFields = chart.valueFields(),
-                bindableFields = chart.bindableFields(),
                 pointIx,
                 seriesIx,
                 currentSeries,
@@ -13148,14 +20261,13 @@ function pad(number) {
 
             for (seriesIx = 0; seriesIx < series.length; seriesIx++) {
                 currentSeries = series[seriesIx];
-
                 currentSeriesPoints = seriesPoints[seriesIx];
                 if (!currentSeriesPoints) {
                     seriesPoints[seriesIx] = [];
                 }
 
                 for (pointIx = 0; pointIx < currentSeries.data.length; pointIx++) {
-                    pointData = bindPoint(currentSeries, pointIx, valueFields, bindableFields);
+                    pointData = SeriesBinder.current.bindPoint(currentSeries, pointIx);
                     value = pointData.value;
                     fields = pointData.fields;
 
@@ -13168,14 +20280,6 @@ function pad(number) {
                    }, fields));
                 }
             }
-        },
-
-        valueFields: function() {
-            return ["x", "y"];
-        },
-
-        bindableFields: function() {
-            return [];
         },
 
         formatPointValue: function(point, format) {
@@ -13235,9 +20339,11 @@ function pad(number) {
             ScatterChart.fn.reflow.call(chart, box);
         },
 
-        createPoint: function(value, series, seriesIx, fields) {
+        createPoint: function(value, fields) {
             var chart = this,
                 point,
+                pointOptions,
+                series = fields.series,
                 pointsCount = series.data.length,
                 delay = fields.pointIx * (INITIAL_ANIMATION_DURATION / pointsCount),
                 animationOptions = {
@@ -13246,27 +20352,30 @@ function pad(number) {
                     type: BUBBLE
                 };
 
-            point = new Bubble(value, deepExtend({
-                    tooltip: {
-                        format: chart.options.tooltip.format
-                    },
-                    labels: {
-                        format: chart.options.labels.format,
-                        animation: animationOptions
-                    }
+            pointOptions = deepExtend({
+                tooltip: {
+                    format: chart.options.tooltip.format
                 },
-                series,
-                {
-                    color: fields.color,
-                    markers: {
-                        type: CIRCLE,
-                        background: fields.color,
-                        border: series.border,
-                        opacity: series.opacity,
-                        animation: animationOptions
-                    }
-                })
-            );
+                labels: {
+                    format: chart.options.labels.format,
+                    animation: animationOptions
+                }
+            },
+            series, {
+                color: fields.color,
+                markers: {
+                    type: CIRCLE,
+                    background: fields.color,
+                    border: series.border,
+                    opacity: series.opacity,
+                    animation: animationOptions
+                },
+                notes: { label: { text: fields.noteText } }
+            });
+
+            chart.evalPointOptions(pointOptions, value, fields);
+
+            point = new Bubble(value, pointOptions);
 
             chart.append(point);
 
@@ -13326,18 +20435,13 @@ function pad(number) {
             return max;
         },
 
-        valueFields: function() {
-            return ["x", "y", "size"];
-        },
-
-        bindableFields: function() {
-            return ["color", "category", "visibleInLegend"];
-        },
-
         getViewElements: function(view) {
-            var chart = this;
+            var chart = this,
+                elements = ChartElement.fn.getViewElements.call(chart, view),
+                group = view.createGroup();
 
-            return ChartElement.fn.getViewElements.call(chart, view);
+            group.children = elements;
+            return [group];
         },
 
         formatPointValue: function(point, format) {
@@ -13346,15 +20450,447 @@ function pad(number) {
         }
     });
 
+    var Candlestick = ChartElement.extend({
+        init: function(value, options) {
+            var point = this;
+
+            ChartElement.fn.init.call(point, options);
+            point.value = value;
+            point.options.id = uniqueId();
+            point.enableDiscovery();
+
+            point.createNote();
+        },
+
+        options: {
+            border: {
+                _brightness: 0.8
+            },
+            line: {
+                width: 2
+            },
+            overlay: {
+                gradient: GLASS
+            },
+            tooltip: {
+                format: "<table style='text-align: left;'>" +
+                        "<th colspan='2'>{4:d}</th>" +
+                        "<tr><td>Open:</td><td>{0:C}</td></tr>" +
+                        "<tr><td>High:</td><td>{1:C}</td></tr>" +
+                        "<tr><td>Low:</td><td>{2:C}</td></tr>" +
+                        "<tr><td>Close:</td><td>{3:C}</td></tr>" +
+                        "</table>"
+            },
+            highlight: {
+                opacity: 1,
+                border: {
+                    width: 1,
+                    opacity: 1
+                },
+                line: {
+                    width: 1,
+                    opacity: 1
+                }
+            },
+            notes: {
+                visible: true,
+                label: {}
+            }
+        },
+
+        reflow: function(box) {
+            var point = this,
+                options = point.options,
+                chart = point.owner,
+                value = point.value,
+                valueAxis = chart.seriesValueAxis(options),
+                points = [], mid, ocSlot, lhSlot;
+
+            ocSlot = valueAxis.getSlot(value.open, value.close);
+            lhSlot = valueAxis.getSlot(value.low, value.high);
+
+            ocSlot.x1 = lhSlot.x1 = box.x1;
+            ocSlot.x2 = lhSlot.x2 = box.x2;
+
+            point.realBody = ocSlot;
+
+            mid = lhSlot.center().x;
+            points.push([ Point2D(mid, lhSlot.y1), Point2D(mid, ocSlot.y1) ]);
+            points.push([ Point2D(mid, ocSlot.y2), Point2D(mid, lhSlot.y2) ]);
+
+            point.lowHighLinePoints = points;
+
+            point.box = lhSlot.clone().wrap(ocSlot);
+
+            point.reflowNote();
+        },
+
+        reflowNote: function() {
+            var point = this;
+
+            if (point.note) {
+                point.note.reflow(point.box);
+            }
+        },
+
+        createNote: function() {
+            var point = this,
+                options = point.options.notes,
+                text = options.label.text,
+                noteTemplate;
+
+            if (options.visible && defined(text) && text !== null) {
+                if (options.label.template) {
+                    noteTemplate = template(options.label.template);
+                    text = noteTemplate({
+                        dataItem: point.dataItem,
+                        category: point.category,
+                        value: point.value,
+                        series: point.series
+                    });
+                } else if (options.label.format) {
+                    text = autoFormat(options.label.format, text);
+                }
+
+                point.note = new Note(deepExtend({}, options, { label: { text: text }}));
+                point.append(point.note);
+            }
+        },
+
+        getViewElements: function(view) {
+            var point = this,
+                options = point.options,
+                elements = [],
+                border = options.border.width > 0 ? {
+                    stroke: point.getBorderColor(),
+                    strokeWidth: options.border.width,
+                    dashType: options.border.dashType,
+                    strokeOpacity: valueOrDefault(options.border.opacity, options.opacity)
+                } : {},
+                rectStyle = deepExtend({
+                    fill: options.color,
+                    fillOpacity: options.opacity
+                }, border),
+                lineStyle = {
+                    strokeOpacity: valueOrDefault(options.line.opacity, options.opacity),
+                    strokeWidth: options.line.width,
+                    stroke: options.line.color || options.color,
+                    dashType: options.line.dashType,
+                    strokeLineCap: "butt"
+                },
+                group = view.createGroup({
+                    animation: {
+                        type: CLIP
+                    }
+                });
+
+            if (options.overlay) {
+                rectStyle.overlay = deepExtend({
+                    rotation: 0
+                }, options.overlay);
+            }
+
+            elements.push(view.createRect(point.realBody, rectStyle));
+            elements.push(view.createPolyline(point.lowHighLinePoints[0], false, lineStyle));
+            elements.push(view.createPolyline(point.lowHighLinePoints[1], false, lineStyle));
+            elements.push(point.createOverlayRect(view, options));
+
+            append(elements,
+                ChartElement.fn.getViewElements.call(point, view)
+            );
+
+            group.children = elements;
+
+            return [group];
+        },
+
+        getBorderColor: function() {
+            var point = this,
+                options = point.options,
+                border = options.border,
+                borderColor = border.color;
+
+            if (!defined(borderColor)) {
+                borderColor =
+                    new Color(options.color).brightness(border._brightness).toHex();
+            }
+
+            return borderColor;
+        },
+
+        createOverlayRect: function(view, options) {
+            return view.createRect(this.box, {
+                data: { modelId: options.modelId },
+                fill: "#fff",
+                fillOpacity: 0
+            });
+        },
+
+        highlightOverlay: function(view, options) {
+            var point = this,
+                pointOptions = point.options,
+                highlight = pointOptions.highlight,
+                border = highlight.border,
+                borderColor = point.getBorderColor(),
+                line = highlight.line,
+                data = { data: { modelId: pointOptions.modelId } },
+                rectStyle = deepExtend({}, data, options, {
+                    stroke: borderColor,
+                    strokeOpacity: border.opacity,
+                    strokeWidth: border.width
+                }),
+                lineStyle = deepExtend({}, data, {
+                    stroke: line.color || borderColor,
+                    strokeWidth: line.width,
+                    strokeOpacity: line.opacity,
+                    strokeLineCap: "butt"
+                }),
+                group = view.createGroup();
+
+            group.children.push(view.createRect(point.realBody, rectStyle));
+            group.children.push(view.createPolyline(point.lowHighLinePoints[0], false, lineStyle));
+            group.children.push(view.createPolyline(point.lowHighLinePoints[1], false, lineStyle));
+
+            return group;
+        },
+
+        tooltipAnchor: function() {
+            var point = this,
+                box = point.box;
+
+            return new Point2D(box.x2 + TOOLTIP_OFFSET, box.y1 + TOOLTIP_OFFSET);
+        },
+
+        formatValue: function(format) {
+            var point = this;
+            return point.owner.formatPointValue(point, format);
+        }
+    });
+    deepExtend(Candlestick.fn, PointEventsMixin);
+
+    var CandlestickChart = CategoricalChart.extend({
+        options: {},
+
+        reflowCategories: function(categorySlots) {
+            var chart = this,
+                children = chart.children,
+                childrenLength = children.length,
+                i;
+
+            for (i = 0; i < childrenLength; i++) {
+                children[i].reflow(categorySlots[i]);
+            }
+        },
+
+        addValue: function(data, category, categoryIx, series, seriesIx) {
+            var chart = this,
+                options = chart.options,
+                value = data.value,
+                children = chart.children,
+                pointColor = data.fields.color || series.color,
+                valueParts = this.splitValue(value),
+                hasValue = areNumbers(valueParts),
+                categoryPoints = chart.categoryPoints[categoryIx],
+                point,
+                cluster,
+                dataItem = series.data[categoryIx];
+
+            if (!categoryPoints) {
+                chart.categoryPoints[categoryIx] = categoryPoints = [];
+            }
+
+            if (hasValue) {
+                if (series.type == CANDLESTICK) {
+                    if (value.open > value.close) {
+                        pointColor = data.fields.downColor || series.downColor || series.color;
+                    }
+                }
+
+                point = chart.createPoint(
+                    data, category, categoryIx,
+                    deepExtend({}, series, { color: pointColor })
+                );
+            }
+
+            cluster = children[categoryIx];
+            if (!cluster) {
+                cluster = new ClusterLayout({
+                    vertical: options.invertAxes,
+                    gap: options.gap,
+                    spacing: options.spacing
+                });
+                chart.append(cluster);
+            }
+
+            if (point) {
+                chart.updateRange(value, categoryIx, series);
+
+                cluster.append(point);
+
+                point.categoryIx = categoryIx;
+                point.category = category;
+                point.series = series;
+                point.seriesIx = seriesIx;
+                point.owner = chart;
+                point.dataItem = dataItem;
+            }
+
+            chart.points.push(point);
+            categoryPoints.push(point);
+        },
+
+        pointType: function() {
+            return Candlestick;
+        },
+
+        createPoint: function(data, category, categoryIx, series) {
+            var chart = this,
+                value = data.value,
+                pointOptions = deepExtend({}, series, {
+                    notes: { label: { text: data.fields.noteText } }
+                }),
+                pointType = chart.pointType();
+
+            chart.evalPointOptions(
+                pointOptions, value, category, categoryIx, series
+            );
+
+            return new pointType(value, pointOptions);
+        },
+
+        splitValue: function(value) {
+            return [value.low, value.open, value.close, value.high];
+        },
+
+        updateRange: function(value, categoryIx, series) {
+            var chart = this,
+                axisName = series.axis,
+                axisRange = chart.valueAxisRanges[axisName],
+                parts = chart.splitValue(value);
+
+            axisRange = chart.valueAxisRanges[axisName] =
+                axisRange || { min: MAX_VALUE, max: MIN_VALUE };
+
+            axisRange = chart.valueAxisRanges[axisName] = {
+                min: math.min.apply(math, parts.concat([axisRange.min])),
+                max: math.max.apply(math, parts.concat([axisRange.max]))
+            };
+        },
+
+        formatPointValue: function(point, format) {
+            var value = point.value;
+
+            return autoFormat(format,
+                value.open, value.high,
+                value.low, value.close, point.category
+            );
+        }
+    });
+
+    var OHLCPoint = Candlestick.extend({
+        reflow: function(box) {
+            var point = this,
+                options = point.options,
+                chart = point.owner,
+                value = point.value,
+                valueAxis = chart.seriesValueAxis(options),
+                oPoints = [], cPoints = [], lhPoints = [],
+                mid, oSlot, cSlot, lhSlot;
+
+            lhSlot = valueAxis.getSlot(value.low, value.high);
+            oSlot = valueAxis.getSlot(value.open, value.open);
+            cSlot = valueAxis.getSlot(value.close, value.close);
+
+            oSlot.x1 = cSlot.x1 = lhSlot.x1 = box.x1;
+            oSlot.x2 = cSlot.x2 = lhSlot.x2 = box.x2;
+
+            mid = lhSlot.center().x;
+
+            oPoints.push(Point2D(oSlot.x1, oSlot.y1));
+            oPoints.push(Point2D(mid, oSlot.y1));
+            cPoints.push(Point2D(mid, cSlot.y1));
+            cPoints.push(Point2D(cSlot.x2, cSlot.y1));
+            lhPoints.push(Point2D(mid, lhSlot.y1));
+            lhPoints.push(Point2D(mid, lhSlot.y2));
+
+            point.oPoints = oPoints;
+            point.cPoints = cPoints;
+            point.lhPoints = lhPoints;
+
+            point.box = lhSlot.clone().wrap(oSlot.clone().wrap(cSlot));
+
+            point.reflowNote();
+        },
+
+        getViewElements: function(view) {
+            var point = this,
+                options = point.options,
+                elements = [],
+                lineStyle = {
+                    strokeOpacity: options.opacity,
+                    zIndex: -1,
+                    strokeWidth: options.width,
+                    stroke: options.color,
+                    dashType: options.dashType
+                },
+                group = view.createGroup({
+                    animation: {
+                        type: CLIP
+                    }
+                });
+
+            elements.push(point.createOverlayRect(view, options));
+            elements.push(view.createPolyline(point.oPoints, true, lineStyle));
+            elements.push(view.createPolyline(point.cPoints, true, lineStyle));
+            elements.push(view.createPolyline(point.lhPoints, true, lineStyle));
+
+            append(elements,
+                ChartElement.fn.getViewElements.call(point, view)
+            );
+
+            group.children = elements;
+
+            return [group];
+        },
+
+        highlightOverlay: function(view) {
+            var point = this,
+                pointOptions = point.options,
+                highlight = pointOptions.highlight,
+                data = { data: { modelId: pointOptions.modelId } },
+                lineStyle = deepExtend(data, {
+                    strokeWidth: highlight.line.width,
+                    strokeOpacity: highlight.line.opacity,
+                    stroke: highlight.line.color || point.color
+                }),
+                group = view.createGroup();
+
+            group.children.push(view.createPolyline(point.oPoints, true, lineStyle));
+            group.children.push(view.createPolyline(point.cPoints, true, lineStyle));
+            group.children.push(view.createPolyline(point.lhPoints, true, lineStyle));
+
+            return group;
+        }
+    });
+
+    var OHLCChart = CandlestickChart.extend({
+        pointType: function() {
+            return OHLCPoint;
+        }
+    });
+
+    // TODO: Rename to Segment?
     var PieSegment = ChartElement.extend({
         init: function(value, sector, options) {
             var segment = this;
 
             segment.value = value;
             segment.sector = sector;
-            segment.makeDiscoverable();
 
             ChartElement.fn.init.call(segment, options);
+
+            segment.options.id = uniqueId();
+            segment.enableDiscovery();
         },
 
         options: {
@@ -13382,7 +20918,8 @@ function pad(number) {
                 border: {
                     width: 1
                 }
-            }
+            },
+            visible: true
         },
 
         render: function() {
@@ -13392,7 +20929,7 @@ function pad(number) {
                 labelText = segment.value,
                 labelTemplate;
 
-            if (segment._rendered) {
+            if (segment._rendered || segment.visible === false) {
                 return;
             } else {
                 segment._rendered = true;
@@ -13430,9 +20967,7 @@ function pad(number) {
             var segment = this;
 
             segment.render();
-
             segment.box = targetBox;
-
             segment.reflowLabel();
         },
 
@@ -13443,11 +20978,8 @@ function pad(number) {
                 label = segment.label,
                 labelsOptions = options.labels,
                 labelsDistance = labelsOptions.distance,
-                lp,
-                x1,
                 angle = sector.middle(),
-                labelWidth,
-                labelHeight;
+                lp, x1, labelWidth, labelHeight;
 
             if (label) {
                 labelHeight = label.box.height();
@@ -13455,11 +20987,11 @@ function pad(number) {
                 if (labelsOptions.position == CENTER) {
                     sector.r = math.abs((sector.r - labelHeight) / 2) + labelHeight;
                     lp = sector.point(angle);
-                    label.reflow(new Box2D(lp.x, lp.y - labelHeight / 2, lp.x, lp.y));
+                    label.reflow(Box2D(lp.x, lp.y - labelHeight / 2, lp.x, lp.y));
                 } else if (labelsOptions.position == INSIDE_END) {
                     sector.r = sector.r - labelHeight / 2;
                     lp = sector.point(angle);
-                    label.reflow(new Box2D(lp.x, lp.y - labelHeight / 2, lp.x, lp.y));
+                    label.reflow(Box2D(lp.x, lp.y - labelHeight / 2, lp.x, lp.y));
                 } else {
                     lp = sector.clone().expand(labelsDistance).point(angle);
                     if (lp.x >= sector.c.x) {
@@ -13469,7 +21001,7 @@ function pad(number) {
                         x1 = lp.x - labelWidth;
                         label.orientation = LEFT;
                     }
-                    label.reflow(new Box2D(x1, lp.y - labelHeight, lp.x, lp.y));
+                    label.reflow(Box2D(x1, lp.y - labelHeight, lp.x, lp.y));
                 }
             }
         },
@@ -13482,6 +21014,7 @@ function pad(number) {
                 border = borderOptions.width > 0 ? {
                     stroke: borderOptions.color,
                     strokeWidth: borderOptions.width,
+                    strokeOpacity: borderOptions.opacity,
                     dashType: borderOptions.dashType
                 } : {},
                 elements = [],
@@ -13544,6 +21077,7 @@ function pad(number) {
                     strokeOpacity: border.opacity,
                     strokeWidth: border.width,
                     stroke: border.color,
+                    id: null,
                     data: { modelId: segment.options.modelId }
                 }));
             }
@@ -13551,28 +21085,11 @@ function pad(number) {
             return element;
         },
 
-        tooltipAnchor: function(tooltipWidth, tooltipHeight) {
+        tooltipAnchor: function(width, height) {
             var point = this,
-                sector = point.sector.clone().expand(15),
-                w = tooltipWidth / 2,
-                h = tooltipHeight / 2,
-                midAndle = sector.middle(),
-                pointAngle = midAndle * DEGREE,
-                lp = sector.point(midAndle),
-                cx = lp.x - w,
-                cy = lp.y - h,
-                sa = math.sin(pointAngle),
-                ca = math.cos(pointAngle);
+                box = point.sector.adjacentBox(TOOLTIP_OFFSET, width, height);
 
-            if (math.abs(sa) < 0.9) {
-                cx += w * -ca / math.abs(ca);
-            }
-
-            if (math.abs(ca) < 0.9) {
-                cy += h * -sa / math.abs(sa);
-            }
-
-            return new Point2D(cx, cy);
+            return new Point2D(box.x1, box.y1);
         },
 
         formatValue: function(format) {
@@ -13590,7 +21107,7 @@ function pad(number) {
             ChartElement.fn.init.call(chart, options);
 
             chart.plotArea = plotArea;
-            chart.segments = [];
+            chart.points = [];
             chart.legendItems = [];
             chart.render();
         },
@@ -13601,6 +21118,10 @@ function pad(number) {
                 width: 1,
                 color: "#939393",
                 padding: 4
+            },
+            inactiveItems: {
+                markers: {},
+                labels: {}
             }
         },
 
@@ -13614,32 +21135,26 @@ function pad(number) {
             var chart = this,
                 options = chart.options,
                 colors = chart.plotArea.options.seriesColors || [],
-                startAngle = options.startAngle,
                 colorsCount = colors.length,
                 series = options.series,
                 seriesCount = series.length,
                 overlayId = uniqueId(),
-                valueFields = chart.valueFields(),
-                bindableFields = chart.bindableFields(),
-                currentSeries,
-                pointData,
-                fields,
-                seriesIx,
-                angle,
-                data,
-                anglePerValue,
-                value,
-                explode,
-                total,
-                currentAngle,
-                i;
+                currentSeries, pointData, fields, seriesIx,
+                angle, data, anglePerValue, value, explode,
+                total, currentAngle, i, pointIx = 0;
 
             for (seriesIx = 0; seriesIx < seriesCount; seriesIx++) {
                 currentSeries = series[seriesIx];
                 data = currentSeries.data;
                 total = chart.pointsTotal(currentSeries);
                 anglePerValue = 360 / total;
-                currentAngle = startAngle;
+
+                if (defined(currentSeries.startAngle)) {
+                    currentAngle = currentSeries.startAngle;
+                } else {
+                    currentAngle = options.startAngle;
+                }
+
                 if (seriesIx != seriesCount - 1) {
                     if (currentSeries.labels.position == OUTSIDE_END) {
                         currentSeries.labels.position = CENTER;
@@ -13647,23 +21162,26 @@ function pad(number) {
                 }
 
                 for (i = 0; i < data.length; i++) {
-                    pointData = bindPoint(currentSeries, i, valueFields, bindableFields);
+                    pointData = SeriesBinder.current.bindPoint(currentSeries, i);
                     value = pointData.value;
                     fields = pointData.fields;
                     angle = round(value * anglePerValue, DEFAULT_PRECISION);
                     explode = data.length != 1 && !!fields.explode;
-                    currentSeries.color = fields.color || colors[i % colorsCount];
+                    if (!isFn(currentSeries.color)) {
+                        currentSeries.color = fields.color || colors[i % colorsCount];
+                    }
 
                     callback(value, new Ring(null, 0, 0, currentAngle, angle), {
                         owner: chart,
                         category: fields.category || "",
-                        categoryIx: i,
+                        index: pointIx,
                         series: currentSeries,
                         seriesIx: seriesIx,
                         dataItem: data[i],
                         percentage: value / total,
                         explode: explode,
                         visibleInLegend: fields.visibleInLegend,
+                        visible: fields.visible,
                         overlay: {
                             id: overlayId + seriesIx
                         },
@@ -13671,17 +21189,25 @@ function pad(number) {
                         animationDelay: chart.animationDelay(i, seriesIx, seriesCount)
                     });
 
-                    currentAngle += angle;
+                    if (pointData.fields.visible !== false) {
+                        currentAngle += angle;
+                    }
+                    pointIx++;
                 }
+                pointIx = 0;
             }
         },
 
-        valueFields: function() {
-            return ["value"];
-        },
+        evalSegmentOptions: function(options, value, fields) {
+            var series = fields.series;
 
-        bindableFields: function() {
-            return ["category", "color", "explode", "visibleInLegend"];
+            evalOptions(options, {
+                value: value,
+                series: series,
+                dataItem: fields.dataItem,
+                category: fields.category,
+                percentage: fields.percentage
+            }, { defaults: series._defaults, excluded: ["data"] });
         },
 
         addValue: function(value, sector, fields) {
@@ -13690,25 +21216,29 @@ function pad(number) {
 
             chart.createLegendItem(value, fields);
 
-            if (!value) {
+            if (fields.visible === false) {
                 return;
             }
-            segment = new PieSegment(value, sector, fields.series);
-            segment.options.id = uniqueId();
+
+            var segmentOptions = deepExtend({}, fields.series, { index: fields.index });
+            chart.evalSegmentOptions(segmentOptions, value, fields);
+
+            segment = new PieSegment(value, sector, segmentOptions);
             extend(segment, fields);
             chart.append(segment);
-            chart.segments.push(segment);
+            chart.points.push(segment);
         },
 
         createLegendItem: function(value, point) {
             var chart = this,
-                options = (chart.options.legend || {}).labels || {},
-                text, labelTemplate;
+                labelsOptions = (chart.options.legend || {}).labels || {},
+                inactiveItems = (chart.options.legend || {}).inactiveItems || {},
+                text, labelTemplate, markerColor, labelColor;
 
             if (point && point.visibleInLegend !== false) {
                 text = point.category || "";
-                if ((options || {}).template) {
-                    labelTemplate = template(options.template);
+                if ((labelsOptions || {}).template) {
+                    labelTemplate = template(labelsOptions.template);
                     text = labelTemplate({
                         text: text,
                         series: point.series,
@@ -13718,23 +21248,42 @@ function pad(number) {
                     });
                 }
 
-                chart.legendItems.push({
-                    name: text,
-                    color: point.series.color
-                });
+                if (point.visible === false) {
+                    markerColor = (inactiveItems.markers || {}).color;
+                    labelColor = (inactiveItems.labels || {}).color;
+                } else {
+                    markerColor = (point.series || {}).color;
+                    labelColor = labelsOptions.color;
+                }
+
+                if (text) {
+                    chart.legendItems.push({
+                        pointIndex: point.index,
+                        text: text,
+                        series: point.series,
+                        markerColor: markerColor,
+                        labelColor: labelColor
+                    });
+                }
             }
         },
 
         pointsTotal: function(series) {
-            var chart = this,
-                valueFields = chart.valueFields(),
-                data = series.data,
+            var data = series.data,
                 length = data.length,
                 sum = 0,
-                i;
+                value, i, pointData;
 
-            for(i = 0; i < length; i++) {
-                sum += bindPoint(series, i, valueFields).value;
+            for (i = 0; i < length; i++) {
+                pointData = SeriesBinder.current.bindPoint(series, i);
+                value = pointData.value;
+                if (typeof value === "string") {
+                    value = parseFloat(value);
+                }
+
+                if (value && pointData.fields.visible !== false) {
+                    sum += value;
+                }
             }
 
             return sum;
@@ -13748,34 +21297,30 @@ function pad(number) {
                 minWidth = math.min(box.width(), box.height()),
                 halfMinWidth = minWidth / 2,
                 defaultPadding = minWidth - minWidth * 0.85,
-                padding = defined(options.padding) ? options.padding : defaultPadding,
-                newBox = new Box2D(box.x1, box.y1,
+                padding = valueOrDefault(options.padding, defaultPadding),
+                newBox = Box2D(box.x1, box.y1,
                     box.x1 + minWidth, box.y1 + minWidth),
                 newBoxCenter = newBox.center(),
                 seriesConfigs = chart.seriesConfigs || [],
                 boxCenter = box.center(),
-                segments = chart.segments,
-                count = segments.length,
+                points = chart.points,
+                count = points.length,
                 seriesCount = options.series.length,
                 leftSideLabels = [],
                 rightSideLabels = [],
-                seriesConfig,
-                seriesIndex,
-                label,
-                segment,
-                sector,
-                r, i, c;
+                seriesConfig, seriesIndex, label,
+                segment, sector, r, i, c;
 
-            padding = padding > halfMinWidth - space ? halfMinWidth - space : padding,
+            padding = padding > halfMinWidth - space ? halfMinWidth - space : padding;
             newBox.translate(boxCenter.x - newBoxCenter.x, boxCenter.y - newBoxCenter.y);
             r = halfMinWidth - padding;
-            c = new Point2D(
+            c = Point2D(
                 r + newBox.x1 + padding,
                 r + newBox.y1 + padding
             );
 
             for (i = 0; i < count; i++) {
-                segment = segments[i];
+                segment = points[i];
 
                 sector = segment.sector;
                 sector.r = r;
@@ -13836,16 +21381,14 @@ function pad(number) {
 
         distanceBetweenLabels: function(labels) {
             var chart = this,
-                segments = chart.segments,
-                segment = segments[segments.length - 1],
+                points = chart.points,
+                segment = points[points.length - 1],
                 sector = segment.sector,
                 firstBox = labels[0].box,
-                secondBox,
                 count = labels.length - 1,
-                distances = [],
-                distance,
                 lr = sector.r + segment.options.labels.distance,
-                i;
+                distances = [],
+                secondBox, distance, i;
 
             distance = round(firstBox.y1 - (sector.c.y - lr - firstBox.height() - firstBox.height() / 2));
             distances.push(distance);
@@ -13864,15 +21407,12 @@ function pad(number) {
         distributeLabels: function(distances, labels) {
             var chart = this,
                 count = distances.length,
-                remaining,
-                left,
-                right,
-                i;
+                remaining, left, right, i;
 
             for (i = 0; i < count; i++) {
                 left = right = i;
                 remaining = -distances[i];
-                while(remaining > 0 && (left >= 0 || right < count)) {
+                while (remaining > 0 && (left >= 0 || right < count)) {
                     remaining = chart._takeDistance(distances, i, --left, remaining);
                     remaining = chart._takeDistance(distances, i, ++right, remaining);
                 }
@@ -13894,17 +21434,14 @@ function pad(number) {
 
         reflowLabels: function(distances, labels) {
             var chart = this,
-                segments = chart.segments,
-                segment = segments[segments.length - 1],
+                points = chart.points,
+                segment = points[points.length - 1],
                 sector = segment.sector,
                 labelsCount = labels.length,
                 labelOptions = segment.options.labels,
                 labelDistance = labelOptions.distance,
                 boxY = sector.c.y - (sector.r + labelDistance) - labels[0].box.height(),
-                label,
-                boxX,
-                box,
-                i;
+                label, boxX, box, i;
 
             distances[0] += 2;
             for (i = 0; i < labelsCount; i++) {
@@ -13940,43 +21477,37 @@ function pad(number) {
             var chart = this,
                 options = chart.options,
                 connectors = options.connectors,
-                segments = chart.segments,
+                points = chart.points,
                 connectorLine,
-                sector,
-                count = segments.length,
-                space = 4,
-                angle,
                 lines = [],
-                points,
-                segment,
-                seriesIx,
-                label,
-                i;
+                count = points.length,
+                space = 4,
+                sector, angle, connectorPoints, segment,
+                seriesIx, label, i;
 
             for (i = 0; i < count; i++) {
-                segment = segments[i];
+                segment = points[i];
                 sector = segment.sector;
                 angle = sector.middle();
                 label = segment.label;
                 seriesIx = { seriesId: segment.seriesIx };
 
                 if (label) {
-                    points = [];
+                    connectorPoints = [];
                     if (label.options.position === OUTSIDE_END && segment.value !== 0) {
                         var box = label.box,
                             centerPoint = sector.c,
                             start = sector.point(angle),
-                            middle = new Point2D(box.x1, box.center().y),
-                            sr,
-                            end,
-                            crossing;
+                            middle = Point2D(box.x1, box.center().y),
+                            sr, end, crossing;
 
                         start = sector.clone().expand(connectors.padding).point(angle);
-                        points.push(start);
+                        connectorPoints.push(start);
+                        // TODO: Extract into a method to remove duplication
                         if (label.orientation == RIGHT) {
-                            end = new Point2D(box.x1 - connectors.padding, box.center().y);
+                            end = Point2D(box.x1 - connectors.padding, box.center().y);
                             crossing = intersection(centerPoint, start, middle, end);
-                            middle = new Point2D(end.x - space, end.y);
+                            middle = Point2D(end.x - space, end.y);
                             crossing = crossing || middle;
                             crossing.x = math.min(crossing.x, middle.x);
 
@@ -13985,22 +21516,22 @@ function pad(number) {
                                 sr = sector.c.x + sector.r + space;
                                 if (segment.options.labels.align !== COLUMN) {
                                     if (sr < middle.x) {
-                                        points.push(new Point2D(sr, start.y));
+                                        connectorPoints.push(Point2D(sr, start.y));
                                     } else {
-                                        points.push(new Point2D(start.x + space * 2, start.y));
+                                        connectorPoints.push(Point2D(start.x + space * 2, start.y));
                                     }
                                 } else {
-                                    points.push(new Point2D(sr, start.y));
+                                    connectorPoints.push(Point2D(sr, start.y));
                                 }
-                                points.push(new Point2D(middle.x, end.y));
+                                connectorPoints.push(Point2D(middle.x, end.y));
                             } else {
                                 crossing.y = end.y;
-                                points.push(crossing);
+                                connectorPoints.push(crossing);
                             }
                         } else {
-                            end = new Point2D(box.x2 + connectors.padding, box.center().y);
+                            end = Point2D(box.x2 + connectors.padding, box.center().y);
                             crossing = intersection(centerPoint, start, middle, end);
-                            middle = new Point2D(end.x + space, end.y);
+                            middle = Point2D(end.x + space, end.y);
                             crossing = crossing || middle;
                             crossing.x = math.max(crossing.x, middle.x);
 
@@ -14009,22 +21540,22 @@ function pad(number) {
                                 sr = sector.c.x - sector.r - space;
                                 if (segment.options.labels.align !== COLUMN) {
                                     if (sr > middle.x) {
-                                        points.push(new Point2D(sr, start.y));
+                                        connectorPoints.push(Point2D(sr, start.y));
                                     } else {
-                                        points.push(new Point2D(start.x - space * 2, start.y));
+                                        connectorPoints.push(Point2D(start.x - space * 2, start.y));
                                     }
                                 } else {
-                                    points.push(new Point2D(sr, start.y));
+                                    connectorPoints.push(Point2D(sr, start.y));
                                 }
-                                points.push(new Point2D(middle.x, end.y));
+                                connectorPoints.push(Point2D(middle.x, end.y));
                             } else {
                                 crossing.y = end.y;
-                                points.push(crossing);
+                                connectorPoints.push(crossing);
                             }
                         }
 
-                        points.push(end);
-                        connectorLine = view.createPolyline(points, false, {
+                        connectorPoints.push(end);
+                        connectorLine = view.createPolyline(connectorPoints, false, {
                             id: uniqueId(),
                             stroke: connectors.color,
                             strokeWidth: connectors.width,
@@ -14077,7 +21608,7 @@ function pad(number) {
             return autoFormat(format, point.value);
         },
 
-        animationDelay: function(categoryIndex, seriesIndex, seriesCount) {
+        animationDelay: function(categoryIndex) {
             return categoryIndex * PIE_SECTOR_ANIM_DELAY;
         }
     });
@@ -14139,15 +21670,17 @@ function pad(number) {
 
             chart.createLegendItem(value, fields);
 
-            if (!value) {
+            if (!value || fields.visible === false) {
                 return;
             }
 
-            segment = new DonutSegment(value, sector, fields.series);
-            segment.options.id = uniqueId();
+            var segmentOptions = deepExtend({}, fields.series);
+            chart.evalSegmentOptions(segmentOptions, value, fields);
+
+            segment = new DonutSegment(value, sector, segmentOptions);
             extend(segment, fields);
             chart.append(segment);
-            chart.segments.push(segment);
+            chart.points.push(segment);
         },
 
         reflow: function(targetBox) {
@@ -14158,16 +21691,13 @@ function pad(number) {
                 minWidth = math.min(box.width(), box.height()),
                 halfMinWidth = minWidth / 2,
                 defaultPadding = minWidth - minWidth * 0.85,
-                padding = defined(options.padding) ? options.padding : defaultPadding,
+                padding = valueOrDefault(options.padding, defaultPadding),
                 series = options.series,
                 currentSeries,
                 seriesCount = series.length,
                 seriesWithoutSize = 0,
-                holeSize,
-                totalSize,
-                size,
-                margin = 0,
-                i, r, ir = 0,
+                holeSize, totalSize, size,
+                margin = 0, i, r, ir = 0,
                 currentSize = 0;
 
             chart.seriesConfigs = [];
@@ -14204,7 +21734,7 @@ function pad(number) {
 
             for (i = 0; i < seriesCount; i++) {
                 currentSeries = series[i];
-                size = defined(currentSeries.size) ? currentSeries.size : totalSize / seriesWithoutSize;
+                size = valueOrDefault(currentSeries.size, totalSize / seriesWithoutSize);
                 ir += margin;
                 r = ir + size;
                 chart.seriesConfigs.push({ ir: ir, r: r });
@@ -14221,6 +21751,158 @@ function pad(number) {
         }
     });
 
+    var Pane = BoxElement.extend({
+        init: function(options) {
+            var pane = this;
+
+            BoxElement.fn.init.call(pane, options);
+
+            options = pane.options;
+            options.id = uniqueId();
+
+            pane.title = Title.buildTitle(options.title, pane, Pane.fn.options.title);
+
+            pane.content = new ChartElement();
+            pane.append(pane.content);
+
+            pane.axes = [];
+            pane.charts = [];
+        },
+
+        options: {
+            zIndex: -1,
+            shrinkToFit: true,
+            title: {
+                align: LEFT
+            },
+            visible: true
+        },
+
+        appendAxis: function(axis) {
+            var pane = this;
+
+            pane.content.append(axis);
+            pane.axes.push(axis);
+            axis.pane = pane;
+        },
+
+        appendChart: function(chart) {
+            var pane = this;
+
+            pane.charts.push(chart);
+            pane.content.append(chart);
+            chart.pane = pane;
+        },
+
+        empty: function() {
+            var pane = this,
+                plotArea = pane.parent,
+                i;
+
+            if (plotArea) {
+                for (i = 0; i < pane.axes.length; i++) {
+                    plotArea.removeAxis(pane.axes[i]);
+                }
+
+                for (i = 0; i < pane.charts.length; i++) {
+                    plotArea.removeChart(pane.charts[i]);
+                }
+            }
+
+            pane.axes = [];
+            pane.charts = [];
+
+            pane.content.destroy();
+            pane.content.children = [];
+        },
+
+        reflow: function(targetBox) {
+            var pane = this;
+
+            // Content (such as charts) is rendered, but excluded from reflows
+            if (last(pane.children) === pane.content) {
+                pane.children.pop();
+            }
+
+            BoxElement.fn.reflow.call(pane, targetBox);
+
+            if (pane.title) {
+                pane.contentBox.y1 += pane.title.box.height();
+            }
+        },
+
+        getViewElements: function(view) {
+            var pane = this,
+                elements = BoxElement.fn.getViewElements.call(pane, view),
+                group = view.createGroup({
+                    id: pane.options.id
+                }),
+                result = [];
+
+            group.children = elements.concat(
+                pane.renderGridLines(view),
+                pane.content.getViewElements(view)
+            );
+
+            pane.view = view;
+
+            if (pane.options.visible) {
+                result = [group];
+            }
+
+            return result;
+        },
+
+        renderGridLines: function(view) {
+            var pane = this,
+                axes = pane.axes,
+                allAxes = axes.concat(pane.parent.axes),
+                vGridLines = [],
+                hGridLines = [],
+                gridLines,
+                i,
+                j,
+                axis,
+                vertical,
+                altAxis;
+
+            for (i = 0; i < axes.length; i++) {
+                axis = axes[i];
+                vertical = axis.options.vertical;
+                gridLines = vertical ? vGridLines : hGridLines;
+
+                for (j = 0; j < allAxes.length; j++) {
+                    if (gridLines.length === 0) {
+                        altAxis = allAxes[j];
+                        if (vertical !== altAxis.options.vertical) {
+                            append(gridLines, axis.renderGridLines(view, altAxis, axis));
+                        }
+                    }
+                }
+            }
+
+            return vGridLines.concat(hGridLines);
+        },
+
+        refresh: function() {
+            var pane = this,
+                view = pane.view,
+                element = getElement(pane.options.id);
+
+            if (view) {
+                var content = pane.getViewElements(view)[0];
+                if (element) {
+                    element.parentNode.replaceChild(
+                        view.renderElement(content),
+                        element
+                    );
+                } else if (view.replace) {
+                    view.replace(content, pane.box);
+                }
+            }
+        }
+    });
+
     var PlotAreaBase = ChartElement.extend({
         init: function(series, options) {
             var plotArea = this;
@@ -14228,13 +21910,18 @@ function pad(number) {
             ChartElement.fn.init.call(plotArea, options);
 
             plotArea.series = series;
+            plotArea.setSeriesIndexes();
             plotArea.charts = [];
             plotArea.options.legend.items = [];
             plotArea.axes = [];
+            plotArea.crosshairs = [];
 
             plotArea.options.id = uniqueId();
-            plotArea.makeDiscoverable();
+            plotArea.enableDiscovery();
+
+            plotArea.createPanes();
             plotArea.render();
+            plotArea.createCrosshairs();
         },
 
         options: {
@@ -14250,61 +21937,293 @@ function pad(number) {
             legend: {}
         },
 
-        appendChart: function(chart) {
+        setSeriesIndexes: function() {
+            var series = this.series,
+                i, currentSeries;
+
+            for (i = 0; i < series.length; i++) {
+                currentSeries = series[i];
+                currentSeries.index = i;
+            }
+        },
+
+        createPanes: function() {
+            var plotArea = this,
+                panes = [],
+                paneOptions = plotArea.options.panes || [],
+                i,
+                panesLength = math.max(paneOptions.length, 1),
+                currentPane;
+
+            for (i = 0; i < panesLength; i++) {
+                currentPane = new Pane(paneOptions[i]);
+                currentPane.paneIndex = i;
+
+                panes.push(currentPane);
+                plotArea.append(currentPane);
+            }
+
+            plotArea.panes = panes;
+        },
+
+        destroy: function() {
+            var plotArea = this,
+                charts = plotArea.charts,
+                axes = plotArea.axes,
+                i;
+
+            for (i = 0; i < charts.length; i++) {
+                charts[i].destroy();
+            }
+
+            for (i = 0; i < axes.length; i++) {
+                axes[i].destroy();
+            }
+
+            ChartElement.fn.destroy.call(plotArea);
+        },
+
+        createCrosshairs: function() {
+            var plotArea = this,
+                panes = plotArea.panes,
+                i, j, pane, axis, currentCrosshair;
+
+            for (i = 0; i < panes.length; i++) {
+                pane = panes[i];
+                for (j = 0; j < pane.axes.length; j++) {
+                    axis = pane.axes[j];
+                    if (axis.options.crosshair && axis.options.crosshair.visible) {
+                        currentCrosshair = new Crosshair(axis, axis.options.crosshair);
+
+                        plotArea.crosshairs.push(currentCrosshair);
+                        plotArea.append(currentCrosshair);
+                    }
+                }
+            }
+        },
+
+        findPane: function(name) {
+            var plotArea = this,
+                panes = plotArea.panes,
+                i, matchingPane;
+
+            for (i = 0; i < panes.length; i++) {
+                if (panes[i].options.name === name) {
+                    matchingPane = panes[i];
+                    break;
+                }
+            }
+
+            return matchingPane || panes[0];
+        },
+
+        findPointPane: function(point) {
+            var plotArea = this,
+                panes = plotArea.panes,
+                i, matchingPane;
+
+            for (i = 0; i < panes.length; i++) {
+                if (panes[i].box.containsPoint(point)) {
+                    matchingPane = panes[i];
+                    break;
+                }
+            }
+
+            return matchingPane;
+        },
+
+        appendAxis: function(axis) {
+            var plotArea = this,
+                pane = plotArea.findPane(axis.options.pane);
+
+            pane.appendAxis(axis);
+            plotArea.axes.push(axis);
+            axis.plotArea = plotArea;
+        },
+
+        removeAxis: function(axisToRemove) {
+            var plotArea = this,
+                i, axis,
+                filteredAxes = [];
+
+            for (i = 0; i < plotArea.axes.length; i++) {
+                axis = plotArea.axes[i];
+                if (axisToRemove !== axis) {
+                    filteredAxes.push(axis);
+                }
+            }
+
+            plotArea.axes = filteredAxes;
+        },
+
+        appendChart: function(chart, pane) {
             var plotArea = this;
 
             plotArea.charts.push(chart);
-            plotArea.addToLegend(chart);
-            plotArea.append(chart);
+            if (pane) {
+                pane.appendChart(chart);
+            } else {
+                plotArea.append(chart);
+            }
         },
 
-        addToLegend: function(chart) {
-            var series = chart.options.series,
-                count = series.length,
-                data = [],
-                i, currentSeries, text, labelTemplate,
-                labels = this.options.legend.labels || {};
+        removeChart: function(chartToRemove) {
+            var plotArea = this,
+                i, chart,
+                filteredCharts = [];
 
-            if (chart.legendItems) {
-                data = chart.legendItems;
-            } else {
-                for (i = 0; i < count; i++) {
-                    currentSeries = series[i];
-                    if (currentSeries.visibleInLegend !== false) {
-                        text = currentSeries.name || "";
-                        if (labels.template) {
-                            labelTemplate = template(labels.template);
-                            text = labelTemplate({
-                                text: text,
-                                series: currentSeries
-                            });
-                        }
-                        data.push({ name: text, color: currentSeries.color });
+            for (i = 0; i < plotArea.charts.length; i++) {
+                chart = plotArea.charts[i];
+                if (chart !== chartToRemove) {
+                    filteredCharts.push(chart);
+                }
+            }
+
+            plotArea.charts = filteredCharts;
+        },
+
+        addToLegend: function(series) {
+            var count = series.length,
+                data = [],
+                i, currentSeries, text,
+                legend = this.options.legend,
+                labels = legend.labels || {},
+                inactiveItems = legend.inactiveItems || {},
+                color, labelColor, markerColor, defaults;
+
+            for (i = 0; i < count; i++) {
+                currentSeries = series[i];
+                if (currentSeries.visibleInLegend === false) {
+                    continue;
+                }
+
+                text = currentSeries.name || "";
+                if (labels.template) {
+                    text = template(labels.template)({
+                        text: text,
+                        series: currentSeries
+                    });
+                }
+
+                color = currentSeries.color;
+                defaults = currentSeries._defaults;
+                if (isFn(color) && defaults) {
+                    color = defaults.color;
+                }
+
+                if (currentSeries.visible === false) {
+                    labelColor = inactiveItems.labels.color;
+                    markerColor = inactiveItems.markers.color;
+                } else {
+                    labelColor = labels.color;
+                    markerColor = color;
+                }
+
+                if (text) {
+                    data.push({
+                        text: text,
+                        labelColor: labelColor,
+                        markerColor: markerColor,
+                        series: currentSeries,
+                        active: currentSeries.visible
+                    });
+                }
+            }
+
+            append(legend.items, data);
+        },
+
+        groupAxes: function(panes) {
+            var xAxes = [],
+                yAxes = [],
+                paneAxes, axis, paneIx, axisIx;
+
+            for (paneIx = 0; paneIx < panes.length; paneIx++) {
+                paneAxes = panes[paneIx].axes;
+                for (axisIx = 0; axisIx < paneAxes.length; axisIx++) {
+                    axis = paneAxes[axisIx];
+                    if (axis.options.vertical) {
+                        yAxes.push(axis);
+                    } else {
+                        xAxes.push(axis);
                     }
                 }
             }
 
-            append(this.options.legend.items, data);
+            return { x: xAxes, y: yAxes, any: xAxes.concat(yAxes) };
+        },
+
+        groupSeriesByPane: function() {
+            var plotArea = this,
+                series = plotArea.series,
+                seriesByPane = {},
+                i, pane, currentSeries;
+
+            for (i = 0; i < series.length; i++) {
+                currentSeries = series[i];
+                pane = plotArea.seriesPaneName(currentSeries);
+
+                if (seriesByPane[pane]) {
+                    seriesByPane[pane].push(currentSeries);
+                } else {
+                    seriesByPane[pane] = [currentSeries];
+                }
+            }
+
+            return seriesByPane;
+        },
+
+        filterVisibleSeries: function(series) {
+            var i, currentSeries,
+                result = [];
+
+            for (i = 0; i < series.length; i++) {
+                currentSeries = series[i];
+                if (currentSeries.visible !== false) {
+                    result.push(currentSeries);
+                }
+            }
+
+            return result;
         },
 
         reflow: function(targetBox) {
             var plotArea = this,
                 options = plotArea.options.plotArea,
+                panes = plotArea.panes,
                 margin = getSpacing(options.margin);
 
             plotArea.box = targetBox.clone().unpad(margin);
+            plotArea.reflowPanes();
 
-            if (plotArea.axes.length > 0) {
-                plotArea.reflowAxes();
-                plotArea.box = plotArea.axisBox();
+            plotArea.reflowAxes(panes);
+            plotArea.reflowCharts(panes);
+        },
+
+        redraw: function(panes) {
+            var plotArea = this,
+                i;
+
+            panes = [].concat(panes);
+
+            for (i = 0; i < panes.length; i++) {
+                panes[i].empty();
             }
 
-            plotArea.reflowCharts();
+            plotArea.render(panes);
+            plotArea.reflowAxes(plotArea.panes);
+            plotArea.reflowCharts(panes);
+
+            for (i = 0; i < panes.length; i++) {
+                panes[i].refresh();
+            }
         },
 
         axisCrossingValues: function(axis, crossingAxes) {
             var options = axis.options,
-                crossingValues = [].concat(options.axisCrossingValue),
+                crossingValues = [].concat(
+                    options.axisCrossingValues || options.axisCrossingValue
+                ),
                 valuesToAdd = crossingAxes.length - crossingValues.length,
                 defaultValue = crossingValues[0] || 0,
                 i;
@@ -14320,14 +22239,17 @@ function pad(number) {
             var slot = axis.getSlot(crossingValue, crossingValue),
                 slotEdge = axis.options.reverse ? 2 : 1,
                 targetSlot = targetAxis.getSlot(targetCrossingValue, targetCrossingValue),
-                targetEdge = targetAxis.options.reverse ? 2 : 1;
-
-            axis.reflow(
-                axis.box.translate(
+                targetEdge = targetAxis.options.reverse ? 2 : 1,
+                axisBox = axis.box.translate(
                     targetSlot[X + targetEdge] - slot[X + slotEdge],
                     targetSlot[Y + targetEdge] - slot[Y + slotEdge]
-                )
-            );
+                );
+
+            if (axis.pane !== targetAxis.pane) {
+                axisBox.translate(0, axis.pane.box.y1 - targetAxis.pane.box.y1);
+            }
+
+            axis.reflow(axisBox);
         },
 
         alignAxes: function(xAxes, yAxes) {
@@ -14336,27 +22258,31 @@ function pad(number) {
                 yAnchor = yAxes[0],
                 xAnchorCrossings = plotArea.axisCrossingValues(xAnchor, yAxes),
                 yAnchorCrossings = plotArea.axisCrossingValues(yAnchor, xAxes),
-                leftAnchor,
-                rightAnchor,
-                topAnchor,
-                bottomAnchor,
-                axis,
-                i;
+                leftAnchors = {},
+                rightAnchors = {},
+                topAnchors = {},
+                bottomAnchors = {},
+                pane, paneId, axis, i;
 
-            // TODO: Refactor almost-identical loops
             for (i = 0; i < yAxes.length; i++) {
                 axis = yAxes[i];
+                pane = axis.pane;
+                paneId = pane.options.id;
                 plotArea.alignAxisTo(axis, xAnchor, yAnchorCrossings[i], xAnchorCrossings[i]);
 
+                if (axis.options._overlap) {
+                    continue;
+                }
+
                 if (round(axis.lineBox().x1) === round(xAnchor.lineBox().x1)) {
-                    if (leftAnchor) {
+                    if (leftAnchors[paneId]) {
                         axis.reflow(axis.box
-                            .alignTo(leftAnchor.box, LEFT)
+                            .alignTo(leftAnchors[paneId].box, LEFT)
                             .translate(-axis.options.margin, 0)
                         );
                     }
 
-                    leftAnchor = axis;
+                    leftAnchors[paneId] = axis;
                 }
 
                 if (round(axis.lineBox().x2) === round(xAnchor.lineBox().x2)) {
@@ -14366,24 +22292,30 @@ function pad(number) {
                     }
                     plotArea.alignAxisTo(axis, xAnchor, yAnchorCrossings[i], xAnchorCrossings[i]);
 
-                    if (rightAnchor) {
+                    if (rightAnchors[paneId]) {
                         axis.reflow(axis.box
-                            .alignTo(rightAnchor.box, RIGHT)
+                            .alignTo(rightAnchors[paneId].box, RIGHT)
                             .translate(axis.options.margin, 0)
                         );
                     }
 
-                    rightAnchor = axis;
+                    rightAnchors[paneId] = axis;
                 }
 
-                if (i !== 0) {
+                if (i !== 0 && yAnchor.pane === axis.pane) {
                     axis.alignTo(yAnchor);
                 }
             }
 
             for (i = 0; i < xAxes.length; i++) {
                 axis = xAxes[i];
+                pane = axis.pane;
+                paneId = pane.options.id;
                 plotArea.alignAxisTo(axis, yAnchor, xAnchorCrossings[i], yAnchorCrossings[i]);
+
+                if (axis.options._overlap) {
+                    continue;
+                }
 
                 if (round(axis.lineBox().y1) === round(yAnchor.lineBox().y1)) {
                     if (!axis._mirrored) {
@@ -14392,25 +22324,25 @@ function pad(number) {
                     }
                     plotArea.alignAxisTo(axis, yAnchor, xAnchorCrossings[i], yAnchorCrossings[i]);
 
-                    if (topAnchor) {
+                    if (topAnchors[paneId]) {
                         axis.reflow(axis.box
-                            .alignTo(topAnchor.box, TOP)
+                            .alignTo(topAnchors[paneId].box, TOP)
                             .translate(0, -axis.options.margin)
                         );
                     }
 
-                    topAnchor = axis;
+                    topAnchors[paneId] = axis;
                 }
 
                 if (round(axis.lineBox().y2, COORD_PRECISION) === round(yAnchor.lineBox().y2, COORD_PRECISION)) {
-                    if (bottomAnchor) {
+                    if (bottomAnchors[paneId]) {
                         axis.reflow(axis.box
-                            .alignTo(bottomAnchor.box, BOTTOM)
+                            .alignTo(bottomAnchors[paneId].box, BOTTOM)
                             .translate(0, axis.options.margin)
                         );
                     }
 
-                    bottomAnchor = axis;
+                    bottomAnchors[paneId] = axis;
                 }
 
                 if (i !== 0) {
@@ -14419,207 +22351,202 @@ function pad(number) {
             }
         },
 
-        axisBox: function() {
+        shrinkAxisWidth: function(panes) {
             var plotArea = this,
-                axes = plotArea.axes,
-                box = axes[0].box.clone(),
-                i,
-                length = axes.length;
+                axes = plotArea.groupAxes(panes).any,
+                axisBox = axisGroupBox(axes),
+                overflowX = 0,
+                i, currentPane, currentAxis;
 
-            for (i = 1; i < length; i++) {
-                box.wrap(axes[i].box);
+            for (i = 0; i < panes.length; i++) {
+                currentPane = panes[i];
+
+                if (currentPane.axes.length > 0) {
+                    overflowX = math.max(
+                        overflowX,
+                        axisBox.width() - currentPane.contentBox.width()
+                    );
+                }
             }
 
-            return box;
+            for (i = 0; i < axes.length; i++) {
+                currentAxis = axes[i];
+
+                if (!currentAxis.options.vertical) {
+                    currentAxis.reflow(currentAxis.box.shrink(overflowX, 0));
+                }
+            }
         },
 
-        shrinkAxes: function() {
-            var plotArea = this,
-                box = plotArea.box,
-                axisBox = plotArea.axisBox(),
-                overflowY = axisBox.height() - box.height(),
-                overflowX = axisBox.width() - box.width(),
-                axes = plotArea.axes,
-                currentAxis,
-                vertical,
-                i,
-                length = axes.length;
+        shrinkAxisHeight: function(panes) {
+            var i, currentPane, axes,
+                overflowY, j, currentAxis;
 
-            // Shrink all axes so they don't overflow out of the bounding box
-            for (i = 0; i < length; i++) {
+            for (i = 0; i < panes.length; i++) {
+                currentPane = panes[i];
+                axes = currentPane.axes,
+                overflowY = math.max(
+                    0,
+                    axisGroupBox(axes).height() - currentPane.contentBox.height()
+                );
+
+                for (j = 0; j < axes.length; j++) {
+                    currentAxis = axes[j];
+
+                    if (currentAxis.options.vertical) {
+                        currentAxis.reflow(
+                            currentAxis.box.shrink(0, overflowY)
+                        );
+                    }
+                }
+            }
+        },
+
+        fitAxes: function(panes) {
+            var plotArea = this,
+                axes = plotArea.groupAxes(panes).any,
+                offsetX = 0,
+                paneAxes, paneBox, axisBox, offsetY,
+                currentPane, currentAxis, i, j;
+
+            for (i = 0; i < panes.length; i++) {
+                currentPane = panes[i];
+                paneAxes = currentPane.axes;
+                paneBox = currentPane.contentBox;
+
+                if (paneAxes.length > 0) {
+                    axisBox = axisGroupBox(paneAxes);
+
+                    // OffsetX is calculated and applied globally
+                    offsetX = math.max(offsetX, paneBox.x1 - axisBox.x1);
+
+                    // OffsetY is calculated and applied per pane
+                    offsetY = math.max(paneBox.y1 - axisBox.y1, paneBox.y2 - axisBox.y2);
+
+                    for (j = 0; j < paneAxes.length; j++) {
+                        currentAxis = paneAxes[j];
+
+                        currentAxis.reflow(
+                            currentAxis.box.translate(0, offsetY)
+                        );
+                    }
+                }
+            }
+
+            for (i = 0; i < axes.length; i++) {
                 currentAxis = axes[i];
-                vertical = currentAxis.options.vertical;
 
                 currentAxis.reflow(
-                    currentAxis.box.shrink(
-                        vertical ? 0 : overflowX,
-                        vertical ? overflowY : 0
-                    )
+                    currentAxis.box.translate(offsetX, 0)
                 );
             }
         },
 
-        shrinkAdditionalAxes: function(xAxes, yAxes) {
+        reflowAxes: function(panes) {
             var plotArea = this,
-                axes = plotArea.axes,
-                xAnchor = xAxes[0],
-                yAnchor = yAxes[0],
-                anchorLineBox = xAnchor.lineBox().clone().wrap(yAnchor.lineBox()),
-                overflowX,
-                overflowY,
-                currentAxis,
-                vertical,
-                lineBox,
                 i,
-                length = axes.length;
+                axes = plotArea.groupAxes(panes);
 
-            for (i = 0; i < length; i++) {
-                currentAxis = axes[i];
-                vertical = currentAxis.options.vertical;
-                lineBox = currentAxis.lineBox();
+            for (i = 0; i < panes.length; i++) {
+                plotArea.reflowPaneAxes(panes[i]);
+            }
 
-                overflowX = math.max(0, lineBox.x2 - anchorLineBox.x2) +
-                            math.max(0, anchorLineBox.x1 - lineBox.x1);
-
-                overflowY = math.max(0, lineBox.y2 - anchorLineBox.y2) +
-                            math.max(0, anchorLineBox.y1 - lineBox.y1);
-
-                currentAxis.reflow(
-                    currentAxis.box.shrink(
-                        vertical ? 0 : overflowX,
-                        vertical ? overflowY : 0
-                    )
-                );
+            if (axes.x.length > 0 && axes.y.length > 0) {
+                plotArea.alignAxes(axes.x, axes.y);
+                plotArea.shrinkAxisWidth(panes);
+                plotArea.alignAxes(axes.x, axes.y);
+                plotArea.shrinkAxisHeight(panes);
+                plotArea.alignAxes(axes.x, axes.y);
+                plotArea.fitAxes(panes);
             }
         },
 
-        fitAxes: function() {
-            var plotArea = this,
-                axes = plotArea.axes,
-                box = plotArea.box,
-                axisBox = plotArea.axisBox(),
-                offsetX = box.x1 - axisBox.x1,
-                offsetY = box.y1 - axisBox.y1,
-                currentAxis,
+        reflowPaneAxes: function(pane) {
+            var axes = pane.axes,
                 i,
                 length = axes.length;
 
-            for (i = 0; i < length; i++) {
-                currentAxis = axes[i];
-
-                currentAxis.reflow(
-                    currentAxis.box.translate(offsetX, offsetY)
-                );
+            if (length > 0) {
+                for (i = 0; i < length; i++) {
+                    axes[i].reflow(pane.contentBox);
+                }
             }
         },
 
-        reflowAxes: function() {
-            var plotArea = this,
-                axes = plotArea.axes,
-                xAxes = grep(axes, (function(axis) { return !axis.options.vertical; })),
-                yAxes = grep(axes, (function(axis) { return axis.options.vertical; })),
-                i,
-                length = axes.length;
-
-            for (i = 0; i < length; i++) {
-                axes[i].reflow(plotArea.box);
-            }
-
-            plotArea.alignAxes(xAxes, yAxes);
-            plotArea.shrinkAdditionalAxes(xAxes, yAxes);
-            plotArea.alignAxes(xAxes, yAxes);
-            plotArea.shrinkAxes();
-            plotArea.alignAxes(xAxes, yAxes);
-            plotArea.fitAxes();
-        },
-
-        reflowCharts: function() {
+        reflowCharts: function(panes) {
             var plotArea = this,
                 charts = plotArea.charts,
                 count = charts.length,
                 box = plotArea.box,
-                i;
+                chartPane, i;
 
             for (i = 0; i < count; i++) {
-                charts[i].reflow(box);
+                chartPane = charts[i].pane;
+                if (!chartPane || inArray(chartPane, panes)) {
+                    charts[i].reflow(box);
+                }
             }
-
-            plotArea.box = box;
         },
 
-        renderGridLines: function(view, axis, secondaryAxis) {
+        reflowPanes: function() {
             var plotArea = this,
-                options = axis.options,
-                vertical = options.vertical,
-                crossingSlot = axis.getSlot(options.axisCrossingValue),
-                secAxisPos = round(crossingSlot[vertical ? "y1" : "x1"]),
-                lineBox = secondaryAxis.lineBox(),
-                lineStart = lineBox[vertical ? "x1" : "y1"],
-                lineEnd = lineBox[vertical ? "x2" : "y2" ],
-                majorTicks = axis.getMajorTickPositions(),
-                gridLines = [],
-                gridLine = function (pos, options) {
-                    return {
-                        pos: pos,
-                        options: options
-                    };
-                };
+                box = plotArea.box,
+                panes = plotArea.panes,
+                panesLength = panes.length,
+                i, currentPane, paneBox,
+                remainingHeight = box.height(),
+                remainingPanes = panesLength,
+                autoHeightPanes = 0,
+                top = box.y1,
+                height, percents;
 
-            if (options.majorGridLines.visible) {
-                gridLines = map(majorTicks, function(pos) {
-                                return gridLine(pos, options.majorGridLines);
-                            });
-            }
+            for (i = 0; i < panesLength; i++) {
+                currentPane = panes[i];
+                height = currentPane.options.height;
 
-            if (options.minorGridLines.visible) {
-                gridLines = gridLines.concat(
-                    map(axis.getMinorTickPositions(), function(pos) {
-                        if (options.majorGridLines.visible) {
-                            if (!inArray(pos, majorTicks)) {
-                                return gridLine(pos, options.minorGridLines);
-                            }
-                        } else {
-                            return gridLine(pos, options.minorGridLines);
-                        }
-                    }
-                ));
-            }
+                currentPane.options.width = box.width();
 
-            return map(gridLines, function(line) {
-                var gridLineOptions = {
-                        data: { modelId: plotArea.options.modelId },
-                        strokeWidth: line.options.width,
-                        stroke: line.options.color,
-                        dashType: line.options.dashType
-                    },
-                    linePos = round(line.pos);
-
-                if (secAxisPos === linePos && secondaryAxis.options.line.visible) {
-                    return null;
-                }
-
-                if (vertical) {
-                    return view.createLine(
-                        lineStart, linePos, lineEnd, linePos,
-                        gridLineOptions);
+                if (!currentPane.options.height) {
+                    autoHeightPanes++;
                 } else {
-                    return view.createLine(
-                        linePos, lineStart, linePos, lineEnd,
-                        gridLineOptions);
+                    if (height.indexOf && height.indexOf("%")) {
+                        percents = parseInt(height, 10) / 100;
+                        currentPane.options.height = percents * box.height();
+                    }
+
+                    currentPane.reflow(box.clone());
+
+                    remainingHeight -= currentPane.options.height;
                 }
-            });
+            }
+
+            for (i = 0; i < panesLength; i++) {
+                currentPane = panes[i];
+
+                if (!currentPane.options.height) {
+                    currentPane.options.height = remainingHeight / autoHeightPanes;
+                }
+            }
+
+            for (i = 0; i < panesLength; i++) {
+                currentPane = panes[i];
+
+                paneBox = box
+                    .clone()
+                    .move(box.x1, top);
+
+                currentPane.reflow(paneBox);
+
+                remainingPanes--;
+                top += currentPane.options.height;
+            }
         },
 
         backgroundBox: function() {
             var plotArea = this,
                 axes = plotArea.axes,
                 axesCount = axes.length,
-                lineBox,
-                box,
-                i,
-                j,
-                axisA,
-                axisB;
+                lineBox, box, i, j, axisA, axisB;
 
             for (i = 0; i < axesCount; i++) {
                 axisA = axes[i];
@@ -14647,46 +22574,102 @@ function pad(number) {
                 bgBox = plotArea.backgroundBox(),
                 options = plotArea.options,
                 userOptions = options.plotArea,
-                axisY = plotArea.axisY,
-                axisX = plotArea.axisX,
-                gridLinesY = axisY ? plotArea.renderGridLines(view, axisY, axisX) : [],
-                gridLinesX = axisX ? plotArea.renderGridLines(view, axisX, axisY) : [],
-                childElements = ChartElement.fn.getViewElements.call(plotArea, view),
                 border = userOptions.border || {},
-                elements = [
-                    view.createRect(bgBox, {
-                        fill: userOptions.background,
-                        fillOpacity: userOptions.opacity,
-                        zIndex: -2,
-                        strokeWidth: 0.1
-                    }),
-                    view.createRect(bgBox, {
-                        id: options.id,
-                        data: { modelId: options.modelId },
-                        stroke: border.width ? border.color : "",
-                        strokeWidth: border.width,
-                        fill: WHITE,
-                        fillOpacity: 0,
-                        zIndex: -1,
-                        dashType: border.dashType
-                    })
-                ];
+                elements = ChartElement.fn.getViewElements.call(plotArea, view);
 
-            return [].concat(gridLinesY, gridLinesX, childElements, elements);
+            append(elements, [
+                view.createRect(bgBox, {
+                    fill: userOptions.background,
+                    fillOpacity: userOptions.opacity,
+                    zIndex: -2,
+                    strokeWidth: 0.1
+                }),
+                view.createRect(bgBox, {
+                    id: options.id,
+                    data: { modelId: options.modelId },
+                    stroke: border.width ? border.color : "",
+                    strokeWidth: border.width,
+                    fill: WHITE,
+                    fillOpacity: 0,
+                    zIndex: -1,
+                    dashType: border.dashType
+                })
+            ]);
+
+            return elements;
+        },
+
+        pointsByCategoryIndex: function(categoryIndex) {
+            var charts = this.charts,
+                result = [],
+                i, j, points, point, chart;
+
+            if (categoryIndex !== null) {
+                for (i = 0; i < charts.length; i++) {
+                    chart = charts[i];
+                    if (chart.pane.options.name === "_navigator") {
+                        continue;
+                    }
+
+                    points = charts[i].categoryPoints[categoryIndex];
+                    if (points && points.length) {
+                        for (j = 0; j < points.length; j++) {
+                            point = points[j];
+                            if (point && defined(point.value) && point.value !== null) {
+                                result.push(point);
+                            }
+                        }
+                    }
+                }
+            }
+
+            return result;
+        },
+
+        pointsBySeriesIndex: function(seriesIndex) {
+            var charts = this.charts,
+                result = [],
+                points, point, i, j, chart;
+
+            for (i = 0; i < charts.length; i++) {
+                chart = charts[i];
+                points = chart.points;
+                for (j = 0; j < points.length; j++) {
+                    point = points[j];
+                    if (point && point.options.index === seriesIndex) {
+                        result.push(point);
+                    }
+                }
+            }
+
+            return result;
+        },
+
+        paneByPoint: function(point) {
+            var plotArea = this,
+                panes = plotArea.panes,
+                pane, i;
+
+            for (i = 0; i < panes.length; i++) {
+                pane = panes[i];
+                if (pane.box.containsPoint(point)) {
+                    return pane;
+                }
+            }
         }
     });
 
     var CategoricalPlotArea = PlotAreaBase.extend({
         init: function(series, options) {
-            var plotArea = this,
-                axisOptions = deepExtend({}, plotArea.options, options);
+            var plotArea = this;
 
+            plotArea.namedCategoryAxes = {};
             plotArea.namedValueAxes = {};
-            plotArea.valueAxisRangeTracker = new AxisGroupRangeTracker(axisOptions.valueAxis);
+            plotArea.valueAxisRangeTracker = new AxisGroupRangeTracker();
 
             if (series.length > 0) {
                 plotArea.invertAxes = inArray(
-                    series[0].type, [BAR, VERTICAL_LINE, VERTICAL_AREA]
+                    series[0].type, [BAR, BULLET, VERTICAL_LINE, VERTICAL_AREA]
                 );
             }
 
@@ -14700,113 +22683,207 @@ function pad(number) {
             valueAxis: {}
         },
 
-        render: function() {
-            var plotArea = this,
-                series = plotArea.series;
+        render: function(panes) {
+            var plotArea = this;
 
-            plotArea.createCategoryAxis();
+            panes = panes || plotArea.panes;
 
-            if (equalsIgnoreCase(plotArea.categoryAxis.options.type, DATE)) {
-                plotArea.aggregateDateSeries();
-            }
-
-            series = plotArea.series;
-            plotArea.createAreaChart(grep(series, function(s) {
-                return inArray(s.type, [AREA, VERTICAL_AREA]);
-            }));
-
-            plotArea.createBarChart(grep(series, function(s) {
-                return inArray(s.type, [BAR, COLUMN]);
-            }));
-
-            plotArea.createLineChart(grep(series, function(s) {
-                return inArray(s.type, [LINE, VERTICAL_LINE]);
-            }));
-
-            plotArea.createValueAxes();
+            plotArea.createCategoryAxes(panes);
+            plotArea.aggregateCategories(panes);
+            plotArea.createCharts(panes);
+            plotArea.createValueAxes(panes);
         },
 
-        aggregateDateSeries: function() {
+        removeAxis: function(axis) {
             var plotArea = this,
-                series = plotArea.series,
-                processedSeries = [],
-                categoryAxis = plotArea.categoryAxis,
-                categories = categoryAxis.options.categories,
-                categoryMap = categoryAxis.categoryMap,
-                groupIx,
-                categoryIndicies,
-                seriesIx,
-                currentSeries,
-                seriesClone,
-                srcData,
-                data,
-                aggregate,
-                srcValues,
-                i,
-                categoryIx,
-                pointData,
-                value;
+                axisName = axis.options.name;
 
-            for (seriesIx = 0; seriesIx < series.length; seriesIx++) {
-                currentSeries = series[seriesIx];
-                seriesClone = deepExtend({}, currentSeries);
-                aggregate = plotArea.seriesAggregate(seriesClone);
+            PlotAreaBase.fn.removeAxis.call(plotArea, axis);
 
-                srcData = seriesClone.data;
-
-                seriesClone.data = data = [];
-
-                for (groupIx = 0; groupIx < categories.length; groupIx++) {
-                    categoryIndicies = categoryMap[groupIx];
-                    srcValues = [];
-
-                    for (i = 0; i < categoryIndicies.length; i++) {
-                        categoryIx = categoryIndicies[i];
-                        pointData = bindPoint(currentSeries, categoryIx, ["value"]);
-                        value = pointData.value;
-
-                        if (defined(value)) {
-                            srcValues.push(pointData.value);
-                        }
-                    }
-
-                    if (srcValues.length > 1) {
-                        data[groupIx] = aggregate(srcValues, currentSeries);
-                    } else {
-                        data[groupIx] = srcData[categoryIndicies[0]];
-                    }
-                }
-
-                processedSeries.push(seriesClone);
+            if (axis instanceof CategoryAxis) {
+                delete plotArea.namedCategoryAxes[axisName];
+            } else {
+                plotArea.valueAxisRangeTracker.reset(axisName);
+                delete plotArea.namedValueAxes[axisName];
             }
 
+            if (axis === plotArea.categoryAxis) {
+                delete plotArea.categoryAxis;
+            }
+
+            if (axis === plotArea.valueAxis) {
+                delete plotArea.valueAxis;
+            }
+        },
+
+        createCharts: function(panes) {
+            var plotArea = this,
+                seriesByPane = plotArea.groupSeriesByPane(),
+                i, pane, paneSeries, filteredSeries;
+
+            for (i = 0; i < panes.length; i++) {
+                pane = panes[i];
+                paneSeries = seriesByPane[pane.options.name || "default"] || [];
+                plotArea.addToLegend(paneSeries);
+                filteredSeries = plotArea.filterVisibleSeries(paneSeries);
+
+                if (!filteredSeries) {
+                    continue;
+                }
+
+                plotArea.createAreaChart(
+                    filterSeriesByType(filteredSeries, [AREA, VERTICAL_AREA]),
+                    pane
+                );
+
+                plotArea.createBarChart(
+                    filterSeriesByType(filteredSeries, [COLUMN, BAR]),
+                    pane
+                );
+
+                plotArea.createLineChart(
+                    filterSeriesByType(filteredSeries, [LINE, VERTICAL_LINE]),
+                    pane
+                );
+
+                plotArea.createCandlestickChart(
+                    filterSeriesByType(filteredSeries, CANDLESTICK),
+                    pane
+                );
+
+                plotArea.createOHLCChart(
+                    filterSeriesByType(filteredSeries, OHLC),
+                    pane
+                );
+
+                plotArea.createBulletChart(
+                    filterSeriesByType(filteredSeries, [BULLET, VERTICAL_BULLET]),
+                    pane
+                );
+            }
+        },
+
+        aggregateCategories: function(panes) {
+            var plotArea = this,
+                series = plotArea.srcSeries || plotArea.series,
+                processedSeries = [],
+                i, currentSeries,
+                categoryAxis, axisPane, dateAxis;
+
+            for (i = 0; i < series.length; i++) {
+                currentSeries = series[i];
+                categoryAxis = plotArea.seriesCategoryAxis(currentSeries);
+                axisPane = plotArea.findPane(categoryAxis.options.pane);
+                dateAxis = equalsIgnoreCase(categoryAxis.options.type, DATE);
+
+                if ((dateAxis || currentSeries.categoryField) && inArray(axisPane, panes)) {
+                    currentSeries = plotArea.aggregateSeries(currentSeries, categoryAxis);
+                }
+
+                processedSeries.push(currentSeries);
+
+            }
+
+            plotArea.srcSeries = series;
             plotArea.series = processedSeries;
         },
 
-        seriesAggregate: function(series) {
-            var aggregate = series.aggregate;
-            if (typeof aggregate === STRING) {
-                aggregate = Aggregates[aggregate];
+        aggregateSeries: function(series, categoryAxis) {
+            var axisOptions = categoryAxis.options,
+                dateAxis = equalsIgnoreCase(categoryAxis.options.type, DATE),
+                categories = axisOptions.categories,
+                srcCategories = axisOptions.srcCategories || categories,
+                srcData = series.data,
+                srcValues = [],
+                srcDataItems = [],
+                range = categoryAxis.range(),
+                i, category, categoryIx,
+                data, pointData,
+                result = deepExtend({}, series),
+                getFn = getField;
+
+            result.data = data = [];
+
+            if (dateAxis) {
+                getFn = getDateField;
             }
 
-            return aggregate || Aggregates.max;
+            for (i = 0; i < srcData.length; i++) {
+                if (series.categoryField) {
+                    category = getFn(series.categoryField, srcData[i]);
+                } else {
+                    category = srcCategories[i];
+                }
+
+                categoryIx = categoryAxis.categoryIndex(category, range);
+                if (categoryIx > -1) {
+                    pointData = SeriesBinder.current.bindPoint(series, i);
+
+                    srcValues[categoryIx] = srcValues[categoryIx] || [];
+                    srcValues[categoryIx].push(pointData);
+
+                    srcDataItems[categoryIx] = srcDataItems[categoryIx] || [];
+                    srcDataItems[categoryIx].push(srcData[i]);
+                }
+            }
+
+            for (i = 0; i < categories.length; i++) {
+                data[i] = calculateAggregates(
+                    srcValues[i] || [],
+                    series,
+                    srcDataItems[i] || [],
+                    categories[i]
+                );
+            }
+
+            return result;
         },
 
-        appendChart: function(chart) {
+        appendChart: function(chart, pane) {
             var plotArea = this,
-                options = plotArea.options,
                 series = chart.options.series,
-                categories = options.categoryAxis.categories,
+                categoryAxis = plotArea.seriesCategoryAxis(series[0]),
+                categories = categoryAxis.options.categories,
                 categoriesToAdd = math.max(0, categoriesCount(series) - categories.length);
 
-            append(categories, new Array(categoriesToAdd));
+            while (categoriesToAdd--) {
+                categories.push("");
+            }
 
             plotArea.valueAxisRangeTracker.update(chart.valueAxisRanges);
 
-            PlotAreaBase.fn.appendChart.call(plotArea, chart);
+            PlotAreaBase.fn.appendChart.call(plotArea, chart, pane);
         },
 
-        createBarChart: function(series) {
+        // TODO: Refactor, optionally use series.pane option
+        seriesPaneName: function(series) {
+            var plotArea = this,
+                options = plotArea.options,
+                axisName = series.axis,
+                axisOptions = [].concat(options.valueAxis),
+                axis = $.grep(axisOptions, function(a) { return a.name === axisName; })[0],
+                panes = options.panes || [{}],
+                defaultPaneName = (panes[0] || {}).name || "default",
+                paneName = (axis || {}).pane || defaultPaneName;
+
+            return paneName;
+        },
+
+        seriesCategoryAxis: function(series) {
+            var plotArea = this,
+                axisName = series.categoryAxis,
+                axis = axisName ?
+                    plotArea.namedCategoryAxes[axisName] :
+                    plotArea.categoryAxis;
+
+            if (!axis) {
+                throw new Error("Unable to locate category axis with name " + axisName);
+            }
+
+            return axis;
+        },
+
+        createBarChart: function(series, pane) {
             if (series.length === 0) {
                 return;
             }
@@ -14821,10 +22898,27 @@ function pad(number) {
                     spacing: firstSeries.spacing
                 });
 
-            plotArea.appendChart(barChart);
+            plotArea.appendChart(barChart, pane);
         },
 
-        createLineChart: function(series) {
+        createBulletChart: function(series, pane) {
+            if (series.length === 0) {
+                return;
+            }
+
+            var plotArea = this,
+                firstSeries = series[0],
+                bulletChart = new BulletChart(plotArea, {
+                    series: series,
+                    invertAxes: plotArea.invertAxes,
+                    gap: firstSeries.gap,
+                    spacing: firstSeries.spacing
+                });
+
+            plotArea.appendChart(bulletChart, pane);
+        },
+
+        createLineChart: function(series, pane) {
             if (series.length === 0) {
                 return;
             }
@@ -14837,10 +22931,10 @@ function pad(number) {
                     series: series
                 });
 
-            plotArea.appendChart(lineChart);
+            plotArea.appendChart(lineChart, pane);
         },
 
-        createAreaChart: function(series) {
+        createAreaChart: function(series, pane) {
             if (series.length === 0) {
                 return;
             }
@@ -14853,79 +22947,186 @@ function pad(number) {
                     series: series
                 });
 
-            plotArea.appendChart(areaChart);
+            plotArea.appendChart(areaChart, pane);
         },
 
-        createCategoryAxis: function() {
-            var plotArea = this,
-                options = plotArea.options,
-                invertAxes = plotArea.invertAxes,
-                categoryAxisOptions = options.categoryAxis,
-                categories = categoryAxisOptions.categories,
-                categoriesCount = categories.length,
-                axisType  = categoryAxisOptions.type || "",
-                dateCategory = categories[0] instanceof Date,
-                categoryAxis;
+        createOHLCChart: function(series, pane) {
+            if (series.length === 0) {
+                return;
+            }
 
-            if (equalsIgnoreCase(axisType, DATE) || (!axisType && dateCategory)) {
-                categoryAxis = new DateCategoryAxis(deepExtend({
-                        vertical: invertAxes
-                    },
-                    categoryAxisOptions)
-                );
-            } else {
-                categoryAxis = new CategoryAxis(deepExtend({
+            var plotArea = this,
+                firstSeries = series[0],
+                chart = new OHLCChart(plotArea, {
+                    invertAxes: plotArea.invertAxes,
+                    gap: firstSeries.gap,
+                    series: series,
+                    spacing: firstSeries.spacing
+                });
+
+            plotArea.appendChart(chart, pane);
+        },
+
+        createCandlestickChart: function(series, pane) {
+            if (series.length === 0) {
+                return;
+            }
+
+            var plotArea = this,
+                firstSeries = series[0],
+                chart = new CandlestickChart(plotArea, {
+                    invertAxes: plotArea.invertAxes,
+                    gap: firstSeries.gap,
+                    series: series,
+                    spacing: firstSeries.spacing
+                });
+
+            plotArea.appendChart(chart, pane);
+        },
+
+        axisRequiresRounding: function(categoryAxisName, categoryAxisIndex) {
+            var plotArea = this,
+                centeredSeries = filterSeriesByType(
+                    plotArea.series, [BAR, COLUMN, OHLC, CANDLESTICK, BULLET]
+                ),
+                seriesIx,
+                seriesAxis;
+
+            for (seriesIx = 0; seriesIx < centeredSeries.length; seriesIx++) {
+                seriesAxis = centeredSeries[seriesIx].categoryAxis || "";
+                if (seriesAxis === categoryAxisName || (!seriesAxis && categoryAxisIndex === 0)) {
+                    return true;
+                }
+            }
+        },
+
+        createCategoryAxes: function(panes) {
+            var plotArea = this,
+                invertAxes = plotArea.invertAxes,
+                definitions = [].concat(plotArea.options.categoryAxis),
+                i, axisOptions, axisPane,
+                categories, type, name,
+                categoryAxis, axes = [],
+                primaryAxis;
+
+            for (i = 0; i < definitions.length; i++) {
+                axisOptions = definitions[i];
+                axisPane = plotArea.findPane(axisOptions.pane);
+
+                if (inArray(axisPane, panes)) {
+                    name = axisOptions.name;
+                    categories = axisOptions.categories || [];
+                    type  = axisOptions.type || "";
+                    axisOptions = deepExtend({
                         vertical: invertAxes,
-                        axisCrossingValue: invertAxes ? categoriesCount : 0
-                    },
-                    categoryAxisOptions)
-                );
+                        axisCrossingValue: invertAxes ? MAX_VALUE : 0
+                    }, axisOptions);
+
+                    if (!defined(axisOptions.justified)) {
+                        axisOptions.justified = plotArea.isJustified();
+                    }
+
+                    if (plotArea.axisRequiresRounding(name, i)) {
+                        axisOptions.justified = false;
+                        axisOptions.roundToBaseUnit = true;
+                    }
+
+                    if (isDateAxis(axisOptions, categories[0])) {
+                        categoryAxis = new DateCategoryAxis(axisOptions);
+                    } else {
+                        categoryAxis = new CategoryAxis(axisOptions);
+                    }
+
+                    if (name) {
+                        if (plotArea.namedCategoryAxes[name]) {
+                            throw new Error(
+                                "Category axis with name " + name + " is already defined"
+                            );
+                        }
+                        plotArea.namedCategoryAxes[name] = categoryAxis;
+                    }
+
+                    categoryAxis.axisIndex = i;
+                    axes.push(categoryAxis);
+                    plotArea.appendAxis(categoryAxis);
+                }
             }
+
+            primaryAxis = plotArea.categoryAxis || axes[0];
+            plotArea.categoryAxis = primaryAxis;
 
             if (invertAxes) {
-                plotArea.axisY = categoryAxis;
+                plotArea.axisY = primaryAxis;
             } else {
-                plotArea.axisX = categoryAxis;
+                plotArea.axisX = primaryAxis;
             }
-
-            plotArea.categoryAxis = categoryAxis;
-            plotArea.axes.push(categoryAxis);
-            plotArea.append(plotArea.categoryAxis);
         },
 
-        createValueAxes: function() {
+        isJustified: function() {
             var plotArea = this,
-                options = plotArea.options,
-                range,
+                series = plotArea.series,
+                i, currentSeries;
+
+            for (i = 0; i < series.length; i++) {
+                currentSeries = series[i];
+                if (!inArray(currentSeries.type, [AREA, VERTICAL_AREA])) {
+                    return false;
+                }
+            }
+
+            return true;
+        },
+
+        createValueAxes: function(panes) {
+            var plotArea = this,
+                tracker = plotArea.valueAxisRangeTracker,
+                defaultRange = tracker.query(),
+                definitions = [].concat(plotArea.options.valueAxis),
                 invertAxes = plotArea.invertAxes,
-                axis,
-                axisName,
-                namedValueAxes = plotArea.namedValueAxes,
-                valueAxisOptions = [].concat(options.valueAxis),
-                primaryValueAxis;
+                baseOptions = { vertical: !invertAxes },
+                axisOptions, axisPane, valueAxis,
+                primaryAxis, axes = [], range,
+                name, i;
 
-            each(valueAxisOptions, function() {
-                axisName = this.name || PRIMARY;
-                range = plotArea.valueAxisRangeTracker.query(axisName);
+            for (i = 0; i < definitions.length; i++) {
+                axisOptions = definitions[i];
+                axisPane = plotArea.findPane(axisOptions.pane);
 
-                axis = namedValueAxes[axisName] =
-                    new NumericAxis(range.min, range.max, deepExtend({
-                        vertical: !invertAxes
-                    },
-                    this)
-                );
+                if (inArray(axisPane, panes)) {
+                    name = axisOptions.name;
+                    range = tracker.query(name) || defaultRange || { min: 0, max: 1 };
 
-                plotArea.axes.push(axis);
-                plotArea.append(axis);
-            });
+                    if (i === 0 && range && defaultRange) {
+                        range.min = math.min(range.min, defaultRange.min);
+                        range.max = math.max(range.max, defaultRange.max);
+                    }
 
-            primaryValueAxis = plotArea.getPrimaryValueAxis();
+                    valueAxis = new NumericAxis(range.min, range.max,
+                        deepExtend({}, baseOptions, axisOptions)
+                    );
 
-            // TODO: Consider removing axisX and axisY aliases
+                    if (name) {
+                        if (plotArea.namedValueAxes[name]) {
+                            throw new Error(
+                                "Value axis with name " + name + " is already defined"
+                            );
+                        }
+                        plotArea.namedValueAxes[name] = valueAxis;
+                    }
+                    valueAxis.axisIndex = i;
+
+                    axes.push(valueAxis);
+                    plotArea.appendAxis(valueAxis);
+                }
+            }
+
+            primaryAxis = plotArea.valueAxis || axes[0];
+            plotArea.valueAxis = primaryAxis;
+
             if (invertAxes) {
-                plotArea.axisX = primaryValueAxis;
+                plotArea.axisX = primaryAxis;
             } else {
-                plotArea.axisY = primaryValueAxis;
+                plotArea.axisY = primaryAxis;
             }
         },
 
@@ -14933,110 +23134,100 @@ function pad(number) {
             var plotArea = this,
                 coords = chart._eventCoordinates(e),
                 point = new Point2D(coords.x, coords.y),
-                categoryAxis = plotArea.categoryAxis,
-                allAxes = plotArea.axes,
+                pane = plotArea.pointPane(point),
+                allAxes,
                 i,
-                length = allAxes.length,
                 axis,
-                currentValue,
-                category = categoryAxis.getCategory(point),
+                categories = [],
                 values = [];
 
-            for (i = 0; i < length; i++) {
+            if (!pane) {
+                return;
+            }
+
+            allAxes = pane.axes;
+            for (i = 0; i < allAxes.length; i++) {
                 axis = allAxes[i];
-                if (axis != categoryAxis) {
-                    currentValue = axis.getValue(point);
-                    if (currentValue !== null) {
-                        values.push(currentValue);
-                    }
+                if (axis.getValue) {
+                    appendIfNotNull(values, axis.getValue(point));
+                } else {
+                    appendIfNotNull(categories, axis.getCategory(point));
                 }
             }
 
-            if (defined(category) && values.length > 0) {
+            if (categories.length === 0) {
+                appendIfNotNull(
+                    categories, plotArea.categoryAxis.getCategory(point)
+                );
+            }
+
+            if (categories.length > 0 && values.length > 0) {
                 chart.trigger(PLOT_AREA_CLICK, {
                     element: $(e.target),
-                    category: category,
+                    category: singleItemOrArray(categories),
                     value: singleItemOrArray(values)
                 });
             }
         },
 
-        getPrimaryValueAxis: function() {
+        pointPane: function(point) {
             var plotArea = this,
-                axes = plotArea.axes,
-                primaryValueAxis = plotArea.namedValueAxes[PRIMARY],
-                axesCount = axes.length,
-                axis, i;
+                panes = plotArea.panes,
+                currentPane,
+                i;
 
-            for (i = 0; i < axesCount && !primaryValueAxis; i++) {
-                axis = axes[i];
-
-                if (!equalsIgnoreCase(axis.options.type, CATEGORY)) {
-                    primaryValueAxis = axis;
-                    break;
+            for (i = 0; i < panes.length; i++) {
+                currentPane = panes[i];
+                if (currentPane.contentBox.containsPoint(point)) {
+                    return currentPane;
                 }
             }
-
-            return primaryValueAxis;
         }
     });
 
     var AxisGroupRangeTracker = Class.extend({
-        init: function(axisOptions) {
+        init: function() {
             var tracker = this;
 
-            tracker.axisRanges = {},
-            tracker.axisOptions = [].concat(axisOptions),
-            tracker.defaultRange = { min: 0, max: 1 };
+            tracker.axisRanges = {};
         },
 
         update: function(chartAxisRanges) {
             var tracker = this,
                 axisRanges = tracker.axisRanges,
-                axisOptions = tracker.axisOptions,
                 range,
                 chartRange,
-                i,
-                axis,
-                axisName,
-                length = axisOptions.length;
+                axisName;
 
-            if (!chartAxisRanges) {
-                return;
-            }
-
-            for (i = 0; i < length; i++) {
-                axis = axisOptions[i];
-                axisName = axis.name || PRIMARY;
+            for (axisName in chartAxisRanges) {
                 range = axisRanges[axisName];
                 chartRange = chartAxisRanges[axisName];
-                if (chartRange) {
-                    axisRanges[axisName] = range =
-                        range || { min: MAX_VALUE, max: MIN_VALUE };
+                axisRanges[axisName] = range =
+                    range || { min: MAX_VALUE, max: MIN_VALUE };
 
-                    range.min = math.min(range.min, chartRange.min);
-                    range.max = math.max(range.max, chartRange.max);
-                }
+                range.min = math.min(range.min, chartRange.min);
+                range.max = math.max(range.max, chartRange.max);
             }
         },
 
-        query: function(axisName) {
-            var tracker = this;
+        reset: function(axisName) {
+            this.axisRanges[axisName] = undefined;
+        },
 
-            return tracker.axisRanges[axisName] || deepExtend({}, tracker.defaultRange);
+        query: function(axisName) {
+            return this.axisRanges[axisName];
         }
     });
 
     var XYPlotArea = PlotAreaBase.extend({
         init: function(series, options) {
-            var plotArea = this,
-                axisOptions = deepExtend({}, plotArea.options, options);
+            var plotArea = this;
 
             plotArea.namedXAxes = {};
             plotArea.namedYAxes = {};
 
-            plotArea.xAxisRangeTracker = new AxisGroupRangeTracker(axisOptions.xAxis);
-            plotArea.yAxisRangeTracker = new AxisGroupRangeTracker(axisOptions.yAxis);
+            plotArea.xAxisRangeTracker = new AxisGroupRangeTracker();
+            plotArea.yAxisRangeTracker = new AxisGroupRangeTracker();
 
             PlotAreaBase.fn.init.call(plotArea, series, options);
         },
@@ -15046,115 +23237,211 @@ function pad(number) {
             yAxis: {}
         },
 
-        render: function() {
+        render: function(panes) {
             var plotArea = this,
-                series = plotArea.series;
+                seriesByPane = plotArea.groupSeriesByPane(),
+                i, pane, paneSeries, filteredSeries;
 
-            plotArea.createScatterChart(grep(series, function(s) {
-                return s.type === SCATTER;
-            }));
+            panes = panes || plotArea.panes;
 
-            plotArea.createScatterLineChart(grep(series, function(s) {
-                return s.type === SCATTER_LINE;
-            }));
+            for (i = 0; i < panes.length; i++) {
+                pane = panes[i];
+                paneSeries = seriesByPane[pane.options.name || "default"] || [];
+                plotArea.addToLegend(paneSeries);
+                filteredSeries = plotArea.filterVisibleSeries(paneSeries);
 
-            plotArea.createBubbleChart(grep(series, function(s) {
-                return s.type === BUBBLE;
-            }));
+                if (!filteredSeries) {
+                    continue;
+                }
 
-            plotArea.createAxes();
+                plotArea.createScatterChart(
+                    filterSeriesByType(filteredSeries, SCATTER),
+                    pane
+                );
+
+                plotArea.createScatterLineChart(
+                    filterSeriesByType(filteredSeries, SCATTER_LINE),
+                    pane
+                );
+
+                plotArea.createBubbleChart(
+                    filterSeriesByType(filteredSeries, BUBBLE),
+                    pane
+                );
+            }
+
+            plotArea.createAxes(panes);
         },
 
-        appendChart: function(chart) {
+        appendChart: function(chart, pane) {
             var plotArea = this;
 
             plotArea.xAxisRangeTracker.update(chart.xAxisRanges);
             plotArea.yAxisRangeTracker.update(chart.yAxisRanges);
 
-            PlotAreaBase.fn.appendChart.call(plotArea, chart);
+            PlotAreaBase.fn.appendChart.call(plotArea, chart, pane);
         },
 
-        createScatterChart: function(series) {
-            var plotArea = this;
-
-            if (series.length > 0) {
-                plotArea.appendChart(
-                    new ScatterChart(plotArea, { series: series })
-                );
-            }
-        },
-
-        createScatterLineChart: function(series) {
-            var plotArea = this;
-
-            if (series.length > 0) {
-                plotArea.appendChart(
-                    new ScatterLineChart(plotArea, { series: series })
-                );
-            }
-        },
-
-        createBubbleChart: function(series) {
-            var plotArea = this;
-
-            if (series.length > 0) {
-                plotArea.appendChart(
-                    new BubbleChart(plotArea, { series: series })
-                );
-            }
-        },
-
-        createXYAxis: function(options, vertical) {
+        removeAxis: function(axis) {
             var plotArea = this,
-                axisName = options.name || PRIMARY,
+                axisName = axis.options.name;
+
+            PlotAreaBase.fn.removeAxis.call(plotArea, axis);
+
+            if (axis.options.vertical) {
+                plotArea.yAxisRangeTracker.reset(axisName);
+                delete plotArea.namedYAxes[axisName];
+            } else {
+                plotArea.xAxisRangeTracker.reset(axisName);
+                delete plotArea.namedXAxes[axisName];
+            }
+
+            if (axis === plotArea.axisX) {
+                delete plotArea.axisX;
+            }
+
+            if (axis === plotArea.axisY) {
+                delete plotArea.axisY;
+            }
+        },
+
+        // TODO: Refactor, optionally use series.pane option
+        seriesPaneName: function(series) {
+            var plotArea = this,
+                options = plotArea.options,
+                xAxisName = series.xAxis,
+                xAxisOptions = [].concat(options.xAxis),
+                xAxis = $.grep(xAxisOptions, function(a) { return a.name === xAxisName; })[0],
+                yAxisName = series.yAxis,
+                yAxisOptions = [].concat(options.yAxis),
+                yAxis = $.grep(yAxisOptions, function(a) { return a.name === yAxisName; })[0],
+                panes = options.panes || [{}],
+                defaultPaneName = panes[0].name || "default",
+                paneName = (xAxis || {}).pane || (yAxis || {}).pane || defaultPaneName;
+
+            return paneName;
+        },
+
+        createScatterChart: function(series, pane) {
+            var plotArea = this;
+
+            if (series.length > 0) {
+                plotArea.appendChart(
+                    new ScatterChart(plotArea, { series: series }),
+                    pane
+                );
+            }
+        },
+
+        createScatterLineChart: function(series, pane) {
+            var plotArea = this;
+
+            if (series.length > 0) {
+                plotArea.appendChart(
+                    new ScatterLineChart(plotArea, { series: series }),
+                    pane
+                );
+            }
+        },
+
+        createBubbleChart: function(series, pane) {
+            var plotArea = this;
+
+            if (series.length > 0) {
+                plotArea.appendChart(
+                    new BubbleChart(plotArea, { series: series }),
+                    pane
+                );
+            }
+        },
+
+        createXYAxis: function(options, vertical, axisIndex) {
+            var plotArea = this,
+                axisName = options.name,
                 namedAxes = vertical ? plotArea.namedYAxes : plotArea.namedXAxes,
-                rangeTracker = vertical ? plotArea.yAxisRangeTracker : plotArea.xAxisRangeTracker,
-                range = rangeTracker.query(axisName),
+                tracker = vertical ? plotArea.yAxisRangeTracker : plotArea.xAxisRangeTracker,
+                defaultRange = tracker.query(),
+                range = tracker.query(axisName) || defaultRange || { min: 0, max: 1 },
                 axisOptions = deepExtend({}, options, { vertical: vertical }),
                 axis,
                 seriesIx,
                 series = plotArea.series,
                 currentSeries,
+                seriesAxisName,
                 firstPointValue,
-                dateData;
+                typeSamples = [axisOptions.min, axisOptions.max],
+                inferredDate,
+                i;
 
             for (seriesIx = 0; seriesIx < series.length; seriesIx++) {
                 currentSeries = series[seriesIx];
-                if (currentSeries[vertical ? "yAxis" : "xAxis"] == axisOptions.name) {
-                    firstPointValue = bindPoint(currentSeries, 0, ["x", "y"]).value;
-                    dateData = firstPointValue[vertical ? "y" : "x"] instanceof Date;
+                seriesAxisName = currentSeries[vertical ? "yAxis" : "xAxis"];
+                if ((seriesAxisName == axisOptions.name) || (axisIndex === 0 && !seriesAxisName)) {
+                    firstPointValue = SeriesBinder.current.bindPoint(currentSeries, 0).value;
+                    typeSamples.push(firstPointValue[vertical ? "y" : "x"]);
 
                     break;
                 }
             }
 
-            if (equalsIgnoreCase(axisOptions.type, DATE) || (!axisOptions.type && dateData)) {
+            if (axisIndex === 0 && defaultRange) {
+                range.min = math.min(range.min, defaultRange.min);
+                range.max = math.max(range.max, defaultRange.max);
+            }
+
+            for (i = 0; i < typeSamples.length; i++) {
+                if (typeSamples[i] instanceof Date) {
+                    inferredDate = true;
+                    break;
+                }
+            }
+
+            if (equalsIgnoreCase(axisOptions.type, DATE) || (!axisOptions.type && inferredDate)) {
                 axis = new DateValueAxis(range.min, range.max, axisOptions);
             } else {
                 axis = new NumericAxis(range.min, range.max, axisOptions);
             }
-            namedAxes[axisName] = axis;
-            plotArea.append(axis);
-            plotArea.axes.push(axis);
+
+            if (axisName) {
+                if (namedAxes[axisName]) {
+                    throw new Error(
+                        (vertical ? "Y" : "X") +
+                        " axis with name " + axisName + " is already defined"
+                    );
+                }
+                namedAxes[axisName] = axis;
+            }
+
+            plotArea.appendAxis(axis);
+
+            return axis;
         },
 
-        createAxes: function() {
+        createAxes: function(panes) {
             var plotArea = this,
                 options = plotArea.options,
+                axisPane,
                 xAxesOptions = [].concat(options.xAxis),
-                yAxesOptions = [].concat(options.yAxis);
+                xAxes = [],
+                yAxesOptions = [].concat(options.yAxis),
+                yAxes = [];
 
-            each(xAxesOptions, function() {
-                plotArea.createXYAxis(this, false);
+            each(xAxesOptions, function(i) {
+                axisPane = plotArea.findPane(this.pane);
+                if (inArray(axisPane, panes)) {
+                    xAxes.push(plotArea.createXYAxis(this, false, i));
+                }
             });
 
-            each(yAxesOptions, function() {
-                plotArea.createXYAxis(this, true);
+            each(yAxesOptions, function(i) {
+                axisPane = plotArea.findPane(this.pane);
+                if (inArray(axisPane, panes)) {
+                    yAxes.push(plotArea.createXYAxis(this, true, i));
+                }
             });
 
-            // TODO: Remove axisX and axisY aliases
-            plotArea.axisX = plotArea.namedXAxes.primary || plotArea.namedXAxes[xAxesOptions[0].name];
-            plotArea.axisY = plotArea.namedYAxes.primary || plotArea.namedYAxes[yAxesOptions[0].name];
+            plotArea.axisX = plotArea.axisX || xAxes[0];
+            plotArea.axisY = plotArea.axisY || yAxes[0];
         },
 
         click: function(chart, e) {
@@ -15209,6 +23496,11 @@ function pad(number) {
                 });
 
             plotArea.appendChart(pieChart);
+        },
+
+        appendChart: function(chart, pane) {
+            PlotAreaBase.fn.appendChart.call(this, chart, pane);
+            append(this.options.legend.items, chart.legendItems);
         }
     });
 
@@ -15226,7 +23518,6 @@ function pad(number) {
                 donutChart = new DonutChart(plotArea, {
                     series: series,
                     padding: firstSeries.padding,
-                    startAngle: firstSeries.startAngle,
                     connectors: firstSeries.connectors,
                     legend: plotArea.options.legend
                 });
@@ -15302,6 +23593,8 @@ function pad(number) {
 
             highlight.view = view;
             highlight.viewElement = viewElement;
+
+            highlight._overlays = [];
         },
 
         options: {
@@ -15312,61 +23605,77 @@ function pad(number) {
             strokeOpacity: 0.2
         },
 
-        show: function(point) {
+        show: function(points) {
             var highlight = this,
                 view = highlight.view,
                 viewElement = highlight.viewElement,
                 overlay,
-                overlayElement;
+                overlays = highlight._overlays,
+                overlayElement, i, point,
+                pointOptions;
 
             highlight.hide();
+            highlight._points = points = [].concat(points);
 
-            if (point.highlightOverlay) {
-                overlay = point.highlightOverlay(view, highlight.options);
+            for (i = 0; i < points.length; i++) {
+                point = points[i];
+                if (point) {
+                    pointOptions = point.options;
 
-                if (overlay) {
-                    overlayElement = view.renderElement(overlay);
-                    viewElement.appendChild(overlayElement);
+                    if (!pointOptions || (pointOptions.highlight || {}).visible) {
+                        if (point.highlightOverlay) {
+                            overlay = point.highlightOverlay(view, highlight.options);
 
-                    highlight.overlayElement = overlayElement;
-                    highlight.visible = true;
+                            if (overlay) {
+                                overlayElement = view.renderElement(overlay);
+                                viewElement.appendChild(overlayElement);
+                                overlays.push(overlayElement);
+                            }
+                        }
+
+                        if (point.toggleHighlight) {
+                            point.toggleHighlight(view);
+                        }
+                    }
                 }
-            }
-
-            if (point.toggleHighlight) {
-                point.toggleHighlight(view);
-                highlight.point = point;
-                highlight.visible = true;
             }
         },
 
         hide: function() {
             var highlight = this,
-                overlayElement = highlight.overlayElement;
+                points = highlight._points,
+                overlays = highlight._overlays,
+                overlay, i, point, pointOptions;
 
-            if (overlayElement) {
-                if (overlayElement.parentNode) {
-                    overlayElement.parentNode.removeChild(overlayElement);
+            while (overlays.length) {
+                overlay = highlight._overlays.pop();
+                overlay.parentNode.removeChild(overlay);
+            }
+
+            if (points) {
+                for (i = 0; i < points.length; i++) {
+                    point = points[i];
+                    if (point) {
+                        pointOptions = point.options;
+
+                        if (!pointOptions || (pointOptions.highlight || {}).visible) {
+                            if (point.toggleHighlight) {
+                                point.toggleHighlight(highlight.view);
+                            }
+                        }
+                    }
                 }
-
-                delete highlight.overlayElement;
             }
 
-            if (highlight.point) {
-                highlight.point.toggleHighlight(highlight.view);
-                delete highlight.point;
-            }
-
-            highlight.visible = false;
+            highlight._points = [];
         }
     });
 
-    var Tooltip = Class.extend({
+    var BaseTooltip = Class.extend({
         init: function(chartElement, options) {
             var tooltip = this;
 
             tooltip.options = deepExtend({}, tooltip.options, options);
-            options = tooltip.options;
 
             tooltip.chartElement = chartElement;
             tooltip.chartPadding = {
@@ -15374,9 +23683,9 @@ function pad(number) {
                 left: parseInt(chartElement.css("paddingLeft"), 10)
             };
 
-            tooltip.template = Tooltip.template;
+            tooltip.template = BaseTooltip.template;
             if (!tooltip.template) {
-                tooltip.template = Tooltip.template = renderTemplate(
+                tooltip.template = BaseTooltip.template = renderTemplate(
                     "<div class='" + CSS_PREFIX + "tooltip' " +
                     "style='display:none; position: absolute; font: #= d.font #;" +
                     "border: #= d.border.width #px solid;" +
@@ -15386,13 +23695,12 @@ function pad(number) {
             }
 
             tooltip.element = $(tooltip.template(tooltip.options)).appendTo(chartElement);
+            tooltip._moveProxy = proxy(tooltip.move, tooltip);
         },
 
         options: {
-            background: BLACK,
-            color: WHITE,
             border: {
-                width: 3
+                width: 1
             },
             opacity: 1,
             animation: {
@@ -15400,73 +23708,67 @@ function pad(number) {
             }
         },
 
-        show: function(point) {
-            var tooltip = this;
-
-            tooltip.point = point;
-            tooltip.showTimeout =
-                setTimeout(proxy(tooltip._show, tooltip), TOOLTIP_SHOW_DELAY);
-        },
-
-        _show: function() {
+        move: function() {
             var tooltip = this,
-                point = tooltip.point,
-                element = tooltip.element,
                 options = tooltip.options,
-                chartPadding = tooltip.chartPadding,
-                anchor,
-                tooltipTemplate,
-                content,
-                tooltipOptions,
-                top,
-                left;
-
-            if (!point) {
-                return;
-            }
-            content = point.value.toString();
-
-            tooltipOptions = deepExtend({}, tooltip.options, point.options.tooltip);
-
-            if (tooltipOptions.template) {
-                tooltipTemplate = template(tooltipOptions.template);
-                content = tooltipTemplate({
-                    value: point.value,
-                    category: point.category,
-                    series: point.series,
-                    dataItem: point.dataItem,
-                    percentage: point.percentage
-                });
-            } else if (tooltipOptions.format) {
-                content = point.formatValue(tooltipOptions.format);
-            }
-
-            element.html(content);
-
-            anchor = point.tooltipAnchor(element.outerWidth(), element.outerHeight());
-            top = round(anchor.y + chartPadding.top) + "px";
-            left = round(anchor.x + chartPadding.left) + "px";
+                element = tooltip.element,
+                offset = tooltip._offset();
 
             if (!tooltip.visible) {
-                tooltip.element.css({ top: top, left: left });
+                element.css({ top: offset.top, left: offset.left });
             }
 
-            tooltip.element
-                .css({
-                   backgroundColor: tooltipOptions.background,
-                   borderColor: tooltipOptions.border.color || point.options.color,
-                   color: tooltipOptions.color,
-                   opacity: tooltipOptions.opacity,
-                   borderWidth: tooltipOptions.border.width
-                })
+            element
                 .stop(true, true)
                 .show()
                 .animate({
-                    left: left,
-                    top: top
+                    left: offset.left,
+                    top: offset.top
                 }, options.animation.duration);
 
             tooltip.visible = true;
+        },
+
+        _offset: function() {
+            var tooltip = this,
+                element = tooltip.element,
+                anchor = tooltip.anchor,
+                chartPadding = tooltip.chartPadding,
+                top = round(anchor.y + chartPadding.top),
+                left = round(anchor.x + chartPadding.left),
+                zoomLevel = kendo.support.zoomLevel(),
+                viewport = $(window),
+                offsetTop = window.pageYOffset || document.documentElement.scrollTop || 0,
+                offsetLeft = window.pageXOffset || document.documentElement.scrollLeft || 0;
+
+            offsetTop = tooltip.chartElement.offset().top - offsetTop;
+            offsetLeft = tooltip.chartElement.offset().left - offsetLeft;
+
+            top += tooltip._currentPosition(top + offsetTop, element.outerHeight(), viewport.outerHeight() / zoomLevel);
+            left += tooltip._currentPosition(left + offsetLeft, element.outerWidth(), viewport.outerWidth() / zoomLevel);
+
+            return {
+                top: top,
+                left: left
+            };
+        },
+
+        setStyle: function(options) {
+            this.element
+                    .css({
+                        backgroundColor: options.background,
+                        borderColor: options.border.color || options.background,
+                        font: options.font,
+                        color: options.color,
+                        opacity: options.opacity,
+                        borderWidth: options.border.width
+                    });
+        },
+
+        show: function() {
+            var tooltip = this;
+
+            tooltip.showTimeout = setTimeout(tooltip._moveProxy, TOOLTIP_SHOW_DELAY);
         },
 
         hide: function() {
@@ -15475,43 +23777,1071 @@ function pad(number) {
             clearTimeout(tooltip.showTimeout);
 
             if (tooltip.visible) {
-                tooltip.element.fadeOut();
+                tooltip._hideElement();
 
                 tooltip.point = null;
                 tooltip.visible = false;
+                tooltip.index = null;
             }
+        },
+
+        _hideElement: function() {
+            this.element.fadeOut();
+        },
+
+        _pointContent: function(point) {
+            var tooltip = this,
+                options = deepExtend({}, tooltip.options, point.options.tooltip),
+                content, tooltipTemplate;
+
+            if (defined(point.value)) {
+                content = point.value.toString();
+            }
+
+            if (options.template) {
+                tooltipTemplate = template(options.template);
+                content = tooltipTemplate({
+                    value: point.value,
+                    category: point.category,
+                    series: point.series,
+                    dataItem: point.dataItem,
+                    percentage: point.percentage
+                });
+            } else if (options.format) {
+                content = point.formatValue(options.format);
+            }
+
+            return content;
+        },
+
+        _pointAnchor: function(point) {
+            var tooltip = this,
+                element = tooltip.element;
+
+            return point.tooltipAnchor(element.outerWidth(), element.outerHeight());
+        },
+
+        _currentPosition: function(offset, size, viewPortSize) {
+            var output = 0;
+
+            if (offset + size > viewPortSize) {
+                output = viewPortSize - (offset + size);
+            }
+
+            if (offset < 0) {
+                output = -offset;
+            }
+
+            return output;
+        },
+
+        _updateStyle: function(options, pointOptions) {
+            if (!defined(options.background)) {
+                options.background = pointOptions.color;
+            }
+
+            if (!defined(options.color)) {
+                var tooltip = this,
+                    element = tooltip.element,
+                    brightnessValue = new Color(options.background).percBrightness();
+
+                if (brightnessValue > 180) {
+                    element.addClass(CSS_PREFIX + TOOLTIP_INVERSE);
+                } else {
+                    element.removeClass(CSS_PREFIX + TOOLTIP_INVERSE);
+                }
+            }
+        }
+    });
+
+    var Tooltip = BaseTooltip.extend({
+        show: function(point) {
+            var tooltip = this,
+                options = deepExtend({}, tooltip.options, point.options.tooltip);
+
+            if (!point) {
+                return;
+            }
+
+            tooltip.element.html(tooltip._pointContent(point));
+            tooltip.anchor = tooltip._pointAnchor(point);
+            tooltip._updateStyle(options, point.options);
+            tooltip.setStyle(options);
+
+            BaseTooltip.fn.show.call(tooltip, point);
+        }
+    });
+
+    var SharedTooltip = BaseTooltip.extend({
+        init: function(element, plotArea, options) {
+            var tooltip = this;
+
+            BaseTooltip.fn.init.call(tooltip, element, options);
+
+            tooltip.plotArea = plotArea;
+        },
+
+        options: {
+            sharedTemplate:
+                "<table>" +
+                "<th colspan='2'>#= categoryText #</th>" +
+                "# for(var i = 0; i < points.length; i++) { #" +
+                "# var point = points[i]; #" +
+                "<tr>" +
+                    "# if(point.series.name) { #<td>#= point.series.name #:</td> # } #" +
+                        "<td>#= content(point) #</td>" +
+                "</tr>" +
+                "# } #" +
+                "</table>",
+            categoryFormat: "{0:d}"
+        },
+
+        showAt: function(points, coords) {
+            var tooltip = this,
+                options = tooltip.options,
+                plotArea = tooltip.plotArea,
+                axis = plotArea.categoryAxis,
+                index = axis.pointCategoryIndex(coords),
+                category = axis.getCategory(coords),
+                slot = axis.getSlot(index),
+                content;
+
+            content = tooltip._content(points, category);
+            tooltip.element.html(content);
+            tooltip.anchor = tooltip._slotAnchor(coords, slot);
+            tooltip._updateStyle(options, points[0].options);
+            tooltip.setStyle(options);
+
+            BaseTooltip.fn.show.call(tooltip);
+        },
+
+        _slotAnchor: function(point, slot) {
+            var tooltip = this,
+                plotArea = tooltip.plotArea,
+                axis = plotArea.categoryAxis,
+                anchor,
+                hCenter = point.y - tooltip.element.height() / 2;
+
+            if (axis.options.vertical) {
+                anchor = Point2D(point.x, hCenter);
+            } else {
+                anchor = Point2D(slot.center().x, hCenter);
+            }
+
+            return anchor;
+        },
+
+        _content: function(points, category) {
+            var tooltip = this,
+                template,
+                content;
+
+            template = kendo.template(tooltip.options.sharedTemplate);
+            content = template({
+                points: points,
+                category: category,
+                categoryText: autoFormat(tooltip.options.categoryFormat, category),
+                content: tooltip._pointContent
+            });
+
+            return content;
+        }
+    });
+
+    var Crosshair = ChartElement.extend({
+        init: function(axis, options) {
+            var crosshair = this;
+
+            ChartElement.fn.init.call(crosshair, options);
+            crosshair.axis = axis;
+
+            if (!crosshair.options.id) {
+                crosshair.options.id = uniqueId();
+            }
+            crosshair._visible = false;
+            crosshair.stickyMode = axis instanceof CategoryAxis;
+        },
+
+        options: {
+            color: BLACK,
+            width: 1,
+            zIndex: -1,
+            tooltip: {
+                visible: false
+            }
+        },
+
+        repaint: function() {
+            var crosshair = this,
+                element = crosshair.element;
+
+            crosshair.getViewElements(crosshair._view);
+            element = crosshair.element;
+            element.refresh(getElement(crosshair.options.id));
+        },
+
+        showAt: function(point) {
+            var crosshair = this;
+
+            crosshair.updateAxisReference();
+
+            crosshair._visible = true;
+            crosshair.point = point;
+            crosshair.repaint();
+
+            if (crosshair.options.tooltip.visible) {
+                if (!crosshair.tooltip) {
+                    crosshair.tooltip = new CrosshairTooltip(
+                        crosshair,
+                        deepExtend({}, crosshair.options.tooltip, { stickyMode: crosshair.stickyMode })
+                    );
+                }
+                crosshair.tooltip.showAt(point);
+            }
+        },
+
+        hide: function() {
+            var crosshair = this;
+
+            if (crosshair._visible) {
+                crosshair._visible = false;
+                crosshair.repaint();
+                if (crosshair.tooltip) {
+                    crosshair.tooltip.hide();
+                }
+            }
+        },
+
+        linePoints: function() {
+            var crosshair = this,
+                axis = crosshair.axis,
+                vertical = axis.options.vertical,
+                box = crosshair.getBox(),
+                point = crosshair.point,
+                dim = vertical ? Y : X,
+                slot, lineStart, lineEnd;
+
+            lineStart = Point2D(box.x1, box.y1);
+            if (vertical) {
+                lineEnd = Point2D(box.x2, box.y1);
+            } else {
+                lineEnd = Point2D(box.x1, box.y2);
+            }
+
+            if (point) {
+                if (crosshair.stickyMode) {
+                    slot = axis.getSlot(axis.pointCategoryIndex(point));
+                    lineStart[dim] = lineEnd[dim] = slot.center()[dim];
+                } else {
+                    lineStart[dim] = lineEnd[dim] = point[dim];
+                }
+            }
+
+            crosshair.box = box;
+
+            return [lineStart, lineEnd];
+        },
+
+        getBox: function() {
+            var crosshair = this,
+                axis = crosshair.axis,
+                axes = axis.pane.axes,
+                length = axes.length,
+                vertical = axis.options.vertical,
+                box = axis.lineBox().clone(),
+                dim = vertical ? X : Y,
+                axisLineBox, currentAxis, i;
+
+            for (i = 0; i < length; i++) {
+                currentAxis = axes[i];
+                if (currentAxis.options.vertical != vertical) {
+                    if (!axisLineBox) {
+                        axisLineBox = currentAxis.lineBox().clone();
+                    } else {
+                        axisLineBox.wrap(currentAxis.lineBox());
+                    }
+                }
+            }
+
+            box[dim + 1] = axisLineBox[dim + 1];
+            box[dim + 2] = axisLineBox[dim + 2];
+
+            return box;
+        },
+
+        getViewElements: function(view) {
+            var crosshair = this,
+                options = crosshair.options,
+                elements = [];
+
+            crosshair.points = crosshair.linePoints();
+            crosshair.element = view.createPolyline(crosshair.points, false, {
+                id: options.id,
+                stroke: options.color,
+                strokeWidth: options.width,
+                strokeOpacity: options.opacity,
+                dashType: options.dashType,
+                zIndex: options.zIndex,
+                visible: crosshair._visible
+            });
+
+            elements.push(crosshair.element);
+            crosshair._view = view;
+
+            append(elements, ChartElement.fn.getViewElements.call(crosshair, view));
+
+            return elements;
+        },
+
+        updateAxisReference: function() {
+            var crosshair = this,
+                axis = crosshair.axis,
+                plotArea = axis.plotArea,
+                axes = plotArea.axes,
+                currentAxis, i;
+
+            for (i = 0; i < axes.length; i++) {
+                currentAxis = axes[i];
+                if (defined(axis.axisIndex) &&
+                    axis instanceof NumericAxis != currentAxis instanceof CategoryAxis &&
+                    axis.axisIndex === currentAxis.axisIndex) {
+                    crosshair.axis = currentAxis;
+                    break;
+                }
+            }
+        }
+    });
+
+    var CrosshairTooltip = BaseTooltip.extend({
+        init: function(crosshair, options) {
+            var tooltip = this,
+                chartElement = crosshair.axis.getRoot().parent.element;
+
+            tooltip.crosshair = crosshair;
+
+            BaseTooltip.fn.init.call(tooltip, chartElement, deepExtend({},
+                tooltip.options, {
+                    background: crosshair.axis.plotArea.options.seriesColors[0]
+                },
+                options));
+
+            tooltip._updateStyle(tooltip.options, {});
+            tooltip.setStyle(tooltip.options);
+        },
+
+        options: {
+            padding: 10
+        },
+
+        showAt: function(point) {
+            var tooltip = this,
+                element = tooltip.element;
+
+            tooltip.point = point;
+            tooltip.element.html(tooltip.content(point));
+            tooltip.anchor = tooltip.getAnchor(element.outerWidth(), element.outerHeight());
+
+            tooltip.move();
+        },
+
+        move: function() {
+            var tooltip = this,
+                element = tooltip.element,
+                offset = tooltip._offset();
+
+            element.css({ top: offset.top, left: offset.left }).show();
+        },
+
+        content: function(point) {
+            var tooltip = this,
+                options = tooltip.options,
+                axis = tooltip.crosshair.axis,
+                axisOptions = axis.options,
+                content, value, tooltipTemplate;
+
+            value = content = axis[options.stickyMode ? "getCategory" : "getValue"](point);
+
+            if (options.template) {
+                tooltipTemplate = template(options.template);
+                content = tooltipTemplate({
+                    value: value
+                });
+            } else if (options.format) {
+                content = autoFormat(options.format, value);
+            } else {
+                if (axisOptions.type === DATE) {
+                    content = autoFormat(axisOptions.labels.dateFormats[axisOptions.baseUnit], value);
+                }
+            }
+
+            return content;
+        },
+
+        getAnchor: function(width, height) {
+            var tooltip = this,
+                options = tooltip.options,
+                position = options.position,
+                vertical = tooltip.crosshair.axis.options.vertical,
+                points = tooltip.crosshair.points,
+                fPoint = points[0],
+                sPoint = points[1],
+                halfWidth = width / 2,
+                halfHeight = height / 2,
+                padding = options.padding,
+                x, y;
+
+            if (vertical) {
+                if (position === LEFT) {
+                    x = fPoint.x - width - padding;
+                    y = fPoint.y - halfHeight;
+                } else {
+                    x = sPoint.x + padding;
+                    y = sPoint.y - halfHeight;
+                }
+            } else {
+                if (position === BOTTOM) {
+                    x = sPoint.x - halfWidth;
+                    y = sPoint.y + padding;
+                } else {
+                    x = fPoint.x - halfWidth;
+                    y = fPoint.y - height - padding;
+                }
+            }
+
+            return Point2D(x, y);
+        },
+
+        hide: function() {
+            this.element.hide();
+            this.point = null;
         }
     });
 
     var Aggregates = {
         max: function(values) {
-            return math.max.apply(math, values);
+            var result = values[0];
+
+            if (values.length > 1) {
+                result = math.max.apply(math, values);
+                if (isNaN(result)) {
+                    result = sparseArrayMax(values);
+                }
+            }
+
+            return result;
         },
 
         min: function(values) {
-            return math.min.apply(math, values);
+            var result = values[0];
+
+            if (values.length > 1) {
+                result = math.min.apply(math, values);
+                if (isNaN(result)) {
+                    result = sparseArrayMin(values);
+                }
+            }
+
+            return result;
         },
 
         sum: function(values) {
             var i,
                 length = values.length,
-                sum = 0;
+                sum = 0,
+                n;
 
             for (i = 0; i < length; i++) {
-                sum += values[i];
+                n = values[i];
+                if (defined(n) && !isNaN(n)) {
+                    sum += n;
+                }
             }
 
             return sum;
         },
 
         count: function(values) {
-            return values.length;
+            return sparseArrayCount(values);
         },
 
         avg: function(values) {
-            return Aggregates.sum(values) / Aggregates.count(values);
+            var result = values[0],
+                count = sparseArrayCount(values);
+
+            if (count > 0) {
+                result = Aggregates.sum(values) / count;
+            }
+
+            return result;
+        },
+
+        first: function(values) {
+            return values[0];
         }
     };
+
+    var Selection = Observable.extend({
+        init: function(chart, categoryAxis, options) {
+            var that = this,
+                chartElement = chart.element,
+                categoryAxisLineBox = categoryAxis.lineBox(),
+                valueAxis = that.getValueAxis(categoryAxis),
+                valueAxisLineBox = valueAxis.lineBox(),
+                selectorPrefix = "." + CSS_PREFIX,
+                wrapper, padding;
+
+            Observable.fn.init.call(that);
+
+            that.options = deepExtend({}, that.options, options);
+            options = that.options;
+            that.chart = chart;
+            that.chartElement = chartElement;
+            that.categoryAxis = categoryAxis;
+            that._dateAxis = that.categoryAxis instanceof DateCategoryAxis,
+            that.valueAxis = valueAxis;
+
+            if (that._dateAxis) {
+                deepExtend(options, {
+                    min: toDate(options.min),
+                    max: toDate(options.max),
+                    from: toDate(options.from),
+                    to: toDate(options.to)
+                });
+            }
+
+            that.template = Selection.template;
+            if (!that.template) {
+                that.template = Selection.template = renderTemplate(
+                    "<div class='" + CSS_PREFIX + "selector' " +
+                    "style='width: #= d.width #px; height: #= d.height #px;" +
+                    " top: #= d.offset.top #px; left: #= d.offset.left #px;'>" +
+                    "<div class='" + CSS_PREFIX + "mask'></div>" +
+                    "<div class='" + CSS_PREFIX + "mask'></div>" +
+                    "<div class='" + CSS_PREFIX + "selection'>" +
+                    "<div class='" + CSS_PREFIX + "selection-bg'></div>" +
+                    "<div class='" + CSS_PREFIX + "handle " + CSS_PREFIX + "leftHandle'><div></div></div>" +
+                    "<div class='" + CSS_PREFIX + "handle " + CSS_PREFIX + "rightHandle'><div></div></div>" +
+                    "</div></div>"
+                );
+            }
+
+            padding = {
+                left: parseInt(chartElement.css("paddingLeft"), 10),
+                right: parseInt(chartElement.css("paddingTop"), 10)
+            };
+
+            that.options = deepExtend({}, {
+                width: categoryAxisLineBox.width(),
+                height: valueAxisLineBox.height(),
+                padding: padding,
+                offset: {
+                    left: valueAxisLineBox.x2 + padding.left,
+                    top: valueAxisLineBox.y1 + padding.right
+                },
+                from: options.min,
+                to: options.max
+            }, options);
+
+            if (that.options.visible) {
+                that.wrapper = wrapper = $(that.template(that.options)).appendTo(chartElement);
+
+                that.selection = wrapper.find(selectorPrefix + "selection");
+                that.leftMask = wrapper.find(selectorPrefix + "mask").first();
+                that.rightMask = wrapper.find(selectorPrefix + "mask").last();
+                that.leftHandle = wrapper.find(selectorPrefix + "leftHandle");
+                that.rightHandle = wrapper.find(selectorPrefix + "rightHandle");
+                that.options.selection = {
+                    border: {
+                        left: parseFloat(that.selection.css("border-left-width"), 10),
+                        right: parseFloat(that.selection.css("border-right-width"), 10)
+                    }
+                };
+
+                that.leftHandle.css("top", (that.selection.height() - that.leftHandle.height()) / 2);
+                that.rightHandle.css("top", (that.selection.height() - that.rightHandle.height()) / 2);
+
+                that.set(that._index(options.from), that._index(options.to));
+
+                that.bind(that.events, that.options);
+                that.wrapper[0].style.cssText = that.wrapper[0].style.cssText;
+
+                that.wrapper.on(MOUSEWHEEL_NS, proxy(that._mousewheel, that));
+
+                if (kendo.UserEvents) {
+                    that.userEvents = new kendo.UserEvents(that.wrapper, {
+                        global: true,
+                        threshold: 5,
+                        stopPropagation: true,
+                        multiTouch: true,
+                        start: proxy(that._start, that),
+                        move: proxy(that._move, that),
+                        end: proxy(that._end, that),
+                        tap: proxy(that._tap, that),
+                        gesturestart: proxy(that._gesturechange, that),
+                        gesturechange: proxy(that._gesturechange, that)
+                    });
+                } else {
+                    that.leftHandle.add(that.rightHandle).removeClass(CSS_PREFIX + "handle");
+                }
+            }
+        },
+
+        events: [
+            SELECT_START,
+            SELECT,
+            SELECT_END
+        ],
+
+        options: {
+            visible: true,
+            mousewheel: {
+                zoom: BOTH
+            },
+            min: MIN_VALUE,
+            max: MAX_VALUE
+        },
+
+        destroy: function() {
+            var that = this,
+                userEvents = that.userEvents;
+
+            if (userEvents) {
+                userEvents.destroy();
+            }
+        },
+
+        _rangeEventArgs: function(range) {
+            var that = this;
+
+            return {
+                axis: that.categoryAxis.options,
+                from: that._value(range.from),
+                to: that._value(range.to)
+            };
+        },
+
+        _start: function(e) {
+            var that = this,
+                options = that.options,
+                target = $(e.event.target),
+                args;
+
+            if (that._state || !target) {
+                return;
+            }
+
+            that.chart._unsetActivePoint();
+            that._state = {
+                moveTarget: target.parents(".k-handle").add(target).first(),
+                startLocation: e.x ? e.x.location : 0,
+                range: {
+                    from: that._index(options.from),
+                    to: that._index(options.to)
+                }
+            };
+
+            args = that._rangeEventArgs({
+                from: that._index(options.from),
+                to: that._index(options.to)
+            });
+
+            if (that.trigger(SELECT_START, args)) {
+                that.userEvents.cancel();
+                that._state = null;
+            }
+        },
+
+        _move: function(e) {
+            if (!this._state) {
+                return;
+            }
+
+            var that = this,
+                state = that._state,
+                options = that.options,
+                categories = that.categoryAxis.options.categories,
+                from = that._index(options.from),
+                to = that._index(options.to),
+                min = that._index(options.min),
+                max = that._index(options.max),
+                delta = state.startLocation - e.x.location,
+                range = state.range,
+                oldRange = { from: range.from, to: range.to },
+                span = range.to - range.from,
+                target = state.moveTarget,
+                scale = that.wrapper.width() / (categories.length - 1),
+                offset = math.round(delta / scale);
+
+            if (!target) {
+                return;
+            }
+
+            e.preventDefault();
+
+            if (target.is(".k-selection, .k-selection-bg")) {
+                range.from = math.min(
+                    math.max(min, from - offset),
+                    max - span
+                );
+                range.to = math.min(
+                    range.from + span,
+                    max
+                );
+            } else if (target.is(".k-leftHandle")) {
+                range.from = math.min(
+                    math.max(min, from - offset),
+                    max - 1
+                );
+                range.to = math.max(range.from + 1, range.to);
+            } else if (target.is(".k-rightHandle")) {
+                range.to = math.min(
+                    math.max(min + 1, to - offset),
+                    max
+                );
+                range.from = math.min(range.to - 1, range.from);
+            }
+
+            if (range.from !== oldRange.from || range.to !== oldRange.to) {
+                that.move(range.from, range.to);
+                that.trigger(SELECT, that._rangeEventArgs(range));
+            }
+        },
+
+        _end: function() {
+            var that = this,
+                range = that._state.range;
+
+            delete that._state;
+            that.set(range.from, range.to);
+            that.trigger(SELECT_END, that._rangeEventArgs(range));
+        },
+
+        _gesturechange: function(e) {
+            if (!this._state) {
+                return;
+            }
+
+            var that = this,
+                chart = that.chart,
+                state = that._state,
+                options = that.options,
+                categoryAxis = that.categoryAxis,
+                range = state.range,
+                p0 = chart._toModelCoordinates(e.touches[0].x.location).x,
+                p1 = chart._toModelCoordinates(e.touches[1].x.location).x,
+                left = math.min(p0, p1),
+                right = math.max(p0, p1);
+
+            e.preventDefault();
+            state.moveTarget = null;
+
+            range.from =
+                categoryAxis.pointCategoryIndex(new dataviz.Point2D(left)) ||
+                options.min;
+
+            range.to =
+                categoryAxis.pointCategoryIndex(new dataviz.Point2D(right)) ||
+                options.max;
+
+            that.move(range.from, range.to);
+        },
+
+        _tap: function(e) {
+            var that = this,
+                options = that.options,
+                coords = that.chart._eventCoordinates(e),
+                categoryAxis = that.categoryAxis,
+                categoryIx = categoryAxis.pointCategoryIndex(
+                    new dataviz.Point2D(coords.x, categoryAxis.box.y1)
+                ),
+                from = that._index(options.from),
+                to = that._index(options.to),
+                min = that._index(options.min),
+                max = that._index(options.max),
+                span = to - from,
+                mid = from + span / 2,
+                offset = math.round(mid - categoryIx),
+                range = {},
+                rightClick = e.event.which === 3;
+
+            if (that._state || rightClick) {
+                return;
+            }
+
+            e.preventDefault();
+            that.chart._unsetActivePoint();
+
+            if (!categoryAxis.options.justified) {
+                offset--;
+            }
+
+            range.from = math.min(
+                math.max(min, from - offset),
+                max - span
+            );
+
+            range.to = math.min(range.from + span, max);
+
+            that._start(e);
+            if (that._state) {
+                that._state.range = range;
+                that.trigger(SELECT, that._rangeEventArgs(range));
+                that._end();
+            }
+        },
+
+        _mousewheel: function(e) {
+            var that = this,
+                options = that.options,
+                delta = mwDelta(e);
+
+            that._start({ event: { target: that.selection } });
+
+            if (that._state) {
+                var range = that._state.range;
+
+                e.preventDefault();
+                e.stopPropagation();
+
+                if (math.abs(delta) > 1) {
+                    delta *= ZOOM_ACCELERATION;
+                }
+
+                if (options.mousewheel.reverse) {
+                    delta *= -1;
+                }
+
+                if (that.expand(delta)) {
+                    that.trigger(SELECT, {
+                        axis: that.categoryAxis.options,
+                        delta: delta,
+                        originalEvent: e,
+                        from: that._value(range.from),
+                        to: that._value(range.to)
+                    });
+                }
+
+                if (that._mwTimeout) {
+                    clearTimeout(that._mwTimeout);
+                }
+
+                that._mwTimeout = setTimeout(function() {
+                    that._end();
+                }, MOUSEWHEEL_DELAY);
+            }
+        },
+
+        _index: function(value) {
+            var that = this,
+                categoryAxis = that.categoryAxis,
+                categories = categoryAxis.options.categories,
+                index = value;
+
+            if (value instanceof Date) {
+                index = lteDateIndex(value, categories);
+                if (!categoryAxis.options.justified && value > last(categories)) {
+                    index += 1;
+                }
+            }
+
+            return index;
+        },
+
+        _value: function(index) {
+            var that = this,
+                categoryAxis = this.categoryAxis,
+                categories = categoryAxis.options.categories,
+                value = index;
+
+            if (that._dateAxis) {
+                if (index > categories.length - 1) {
+                    value = that.options.max;
+                } else {
+                    value = categories[index];
+                }
+            }
+
+            return value;
+        },
+
+        _slot: function(value) {
+            var that = this,
+                categoryAxis = this.categoryAxis;
+
+            return categoryAxis.getSlot(that._index(value));
+        },
+
+        move: function(from, to) {
+            var that = this,
+                options = that.options,
+                offset = options.offset,
+                padding = options.padding,
+                border = options.selection.border,
+                leftMaskWidth,
+                rightMaskWidth,
+                box,
+                distance;
+
+            box = that._slot(from);
+            leftMaskWidth = round(box.x1 - offset.left + padding.left);
+            that.leftMask.width(leftMaskWidth);
+            that.selection.css("left", leftMaskWidth);
+
+            box = that._slot(to);
+            rightMaskWidth = round(options.width - (box.x1 - offset.left + padding.left));
+            that.rightMask.width(rightMaskWidth);
+            distance = options.width - rightMaskWidth;
+            if (distance != options.width) {
+                distance += border.right;
+            }
+
+            that.rightMask.css("left", distance);
+            that.selection.width(math.max(
+                options.width - (leftMaskWidth + rightMaskWidth) - border.right,
+                0
+            ));
+        },
+
+        set: function(from, to) {
+            var that = this,
+                options = that.options,
+                min = that._index(options.min),
+                max = that._index(options.max);
+
+            from = limitValue(that._index(from), min, max);
+            to = limitValue(that._index(to), from + 1, max);
+
+            if (options.visible) {
+                that.move(from, to);
+            }
+
+            options.from = that._value(from);
+            options.to = that._value(to);
+        },
+
+        expand: function(delta) {
+            var that = this,
+                options = that.options,
+                min = that._index(options.min),
+                max = that._index(options.max),
+                zDir = options.mousewheel.zoom,
+                from = that._index(options.from),
+                to = that._index(options.to),
+                range = { from: from, to: to },
+                oldRange = deepExtend({}, range);
+
+            if (that._state) {
+                range = that._state.range;
+            }
+
+            if (zDir !== RIGHT) {
+                range.from = limitValue(
+                    limitValue(from - delta, 0, to - 1),
+                    min, max
+                );
+            }
+
+            if (zDir !== LEFT) {
+                range.to = limitValue(
+                    limitValue(to + delta, range.from + 1, max),
+                    min,
+                    max
+                 );
+            }
+
+            if (range.from !== oldRange.from || range.to !== oldRange.to) {
+                that.set(range.from, range.to);
+                return true;
+            }
+        },
+
+        getValueAxis: function(categoryAxis) {
+            var axes = categoryAxis.pane.axes,
+                axesCount = axes.length,
+                i, axis;
+
+            for (i = 0; i < axesCount; i++) {
+                axis = axes[i];
+
+                if (axis.options.vertical !== categoryAxis.options.vertical) {
+                    return axis;
+                }
+            }
+        }
+    });
+
+    function execSimple(data, aggregate, series, dataItems, group) {
+        var result,
+            aggregateType = typeof aggregate;
+
+        if (aggregateType === STRING) {
+            result = Aggregates[aggregate](data);
+        } else if (aggregateType === "function") {
+            result = aggregate(data, series, dataItems, group);
+        } else {
+            result = Aggregates.max(data);
+        }
+
+        return result;
+    }
+
+    function execComposite(data, aggregate, series, dataItems, group) {
+        var valueFields = SeriesBinder.current.valueFields(series),
+            otherFields = SeriesBinder.current.otherFields(series),
+            count = data.length,
+            fields = [], result = {},
+            i, j, item, originalField, field, originalFields, value, values;
+
+        append(fields, valueFields);
+        append(fields, otherFields);
+        originalFields = SeriesBinder.current._mapSeriesFields(series, fields);
+
+        for (i = 0; i < count; i++) {
+            item = data[i];
+            for (j = 0; j < fields.length; j++) {
+                field = fields[j];
+                if (item !== null && defined(item)) {
+                    value = defined(item.value) && defined(item.value[field]) ? item.value[field] : item.fields[field];
+                    if (typeof item.value === "number" && field === "value") {
+                        value = item.value;
+                    }
+                    originalField = originalFields[field];
+                    if (defined(value)) {
+                        if (!defined(result[originalField])) {
+                            result[originalField] = [];
+                        }
+                        result[originalField].push(value);
+                    }
+                }
+            }
+        }
+
+        for (j = 0; j < fields.length; j++) {
+            field = fields[j];
+            originalField = originalFields[field];
+            values = result[originalField];
+            if (defined(values) && defined(aggregate[field])) {
+                result[originalField] = execSimple(values, aggregate[field], series, dataItems, group);
+            }
+        }
+
+        return result;
+    }
+
+    function calculateAggregates(data, series, dataItems, group) {
+        var aggregate = series.aggregate,
+            result;
+
+        if (typeof aggregate === STRING || typeof aggregate === "function") {
+            aggregate = { value: aggregate };
+        } else if (!defined(aggregate)) {
+            aggregate = { value: "max" };
+        }
+
+        result = execComposite(data, aggregate, series, dataItems, group);
+
+        return result;
+    }
 
     function sparseArrayMin(arr) {
         return sparseArrayLimits(arr).min;
@@ -15530,13 +24860,32 @@ function pad(number) {
 
         for (i = 0; i < length; i++) {
             n = arr[i];
-            if (defined(n)) {
+            if (n !== null && isFinite(n)) {
                 min = math.min(min, n);
                 max = math.max(max, n);
             }
         }
 
-        return { min: min, max: max };
+        return {
+            min: min === MAX_VALUE ? undefined : min,
+            max: max === MIN_VALUE ? undefined : max
+        };
+    }
+
+    function sparseArrayCount(arr) {
+        var i,
+            length = arr.length,
+            n,
+            count = 0;
+
+        for (i = 0; i < length; i++) {
+            n = arr[i];
+            if (n !== null && isFinite(n)) {
+                count++;
+            }
+        }
+
+        return count;
     }
 
     function intersection(a1, a2, b1, b2) {
@@ -15573,14 +24922,17 @@ function pad(number) {
         for (i = 0; i < seriesLength; i++) {
             seriesType = series[i].type || options.seriesDefaults.type;
 
-            series[i] = deepExtend(
+            var baseOptions = deepExtend(
                 {},
                 commonThemeDefaults,
                 themeSeriesDefaults[seriesType],
                 { tooltip: options.tooltip },
                 commonDefaults,
-                seriesDefaults[seriesType],
-                series[i]);
+                seriesDefaults[seriesType]
+            );
+
+            series[i]._defaults = baseOptions;
+            series[i] = deepExtend({}, baseOptions, series[i]);
         }
     }
 
@@ -15590,49 +24942,80 @@ function pad(number) {
         delete seriesDefaults.line;
         delete seriesDefaults.verticalLine;
         delete seriesDefaults.pie;
+        delete seriesDefaults.donut;
         delete seriesDefaults.area;
         delete seriesDefaults.verticalArea;
         delete seriesDefaults.scatter;
         delete seriesDefaults.scatterLine;
         delete seriesDefaults.bubble;
+        delete seriesDefaults.candlestick;
+        delete seriesDefaults.ohlc;
+        delete seriesDefaults.bullet;
+        delete seriesDefaults.verticalBullet;
     }
 
     function applySeriesColors(options) {
         var series = options.series,
+            colors = options.seriesColors || [],
             i,
-            seriesLength = series.length,
-            colors = options.seriesColors || [];
+            currentSeries,
+            seriesColor,
+            defaults;
 
-        for (i = 0; i < seriesLength; i++) {
-            series[i].color = series[i].color || colors[i % colors.length];
+        for (i = 0; i < series.length; i++) {
+            currentSeries = series[i];
+            seriesColor = colors[i % colors.length];
+            currentSeries.color = currentSeries.color || seriesColor;
+
+            defaults = currentSeries._defaults;
+            if (defaults) {
+                defaults.color = defaults.color || seriesColor;
+            }
         }
     }
 
-    function applyAxisDefaults(options, themeOptions) {
-        var themeAxisDefaults = deepExtend({}, (themeOptions || {}).axisDefaults);
+    function resolveAxisAliases(options) {
+        var alias;
 
-        each(["category", "value", "x", "y"], function() {
+        each([CATEGORY, VALUE, X, Y], function() {
+            alias = this + "Axes";
+            if (options[alias]) {
+                options[this + "Axis"] = options[alias];
+                delete options[alias];
+            }
+        });
+    }
+
+    function applyAxisDefaults(options, themeOptions) {
+        var themeAxisDefaults = ((themeOptions || {}).axisDefaults) || {};
+
+        each([CATEGORY, VALUE, X, Y], function() {
             var axisName = this + "Axis",
-                axes = [].concat(options[axisName]);
+                axes = [].concat(options[axisName]),
+                axisDefaults = options.axisDefaults || {};
 
             axes = $.map(axes, function(axisOptions) {
                 var axisColor = (axisOptions || {}).color;
-                return deepExtend({},
+                var result = deepExtend({},
                     themeAxisDefaults,
                     themeAxisDefaults[axisName],
-                    options.axisDefaults,
-                    { line: { color: axisColor }, labels: { color: axisColor }, title: { color: axisColor } },
+                    axisDefaults,
+                    axisDefaults[axisName],
+                    {
+                        line: { color: axisColor },
+                        labels: { color: axisColor },
+                        title: { color: axisColor }
+                    },
                     axisOptions
                 );
+
+                delete result[axisName];
+
+                return result;
             });
 
             options[axisName] = axes.length > 1 ? axes : axes[0];
         });
-    }
-
-    function applyDefaults(options, themeOptions) {
-        applyAxisDefaults(options, themeOptions);
-        applySeriesDefaults(options, themeOptions);
     }
 
     function incrementSlot(slots, index, value) {
@@ -15688,31 +25071,52 @@ function pad(number) {
 
     function getField(field, row) {
         if (row === null) {
-            return null;
+            return row;
         }
 
-        var get = getField.cache[field] =
-                getField.cache[field] || getter(field, true);
-
+        var get = getter(field, true);
         return get(row);
     }
-    getField.cache = {};
+
+    function getDateField(field, row) {
+        if (row === null) {
+            return row;
+        }
+
+        var key = "_date_" + field,
+            value = row[key];
+
+        if (!value) {
+            value = toDate(getter(field, true)(row));
+            row[key] = value;
+        }
+
+        return value;
+    }
 
     function toDate(value) {
-        if (isArray(value)) {
-            return map(value, toDate);
+        var result,
+            i;
+
+        if (value instanceof Date) {
+            result = value;
+        } else if (typeof value === STRING) {
+            result = new Date(value);
+            if (isNaN(result.getTime())) {
+                result = kendo.parseDate(value);
+            }
         } else if (value) {
-            if (value instanceof Date) {
-                return value;
-            } else {
-                if (typeof value === STRING) {
-                    var date = DATE_REGEXP.exec(value);
-                    return new Date(date ? parseInt(date[1], 10) : value);
-                } else {
-                    return new Date(value);
+            if (isArray(value)) {
+                result = [];
+                for (i = 0; i < value.length; i++) {
+                    result.push(toDate(value[i]));
                 }
+            } else {
+                result = new Date(value);
             }
         }
+
+        return result;
     }
 
     function toTime(value) {
@@ -15723,40 +25127,72 @@ function pad(number) {
         }
     }
 
-    function addDuration(date, value, unit) {
-        date = toDate(date);
+    function addDuration(date, value, unit, weekStartDay) {
+        var result = date;
 
-        if (unit === YEARS) {
-            return new Date(date.getFullYear() + value, 0, 1);
-        } else if (unit === MONTHS) {
-            return new Date(date.getFullYear(), date.getMonth() + value, 1);
-        } else if (unit === DAYS) {
-            return new Date(date.getFullYear(), date.getMonth(), date.getDate() + value);
-        } else if (unit === HOURS) {
-            return new Date(date.getFullYear(), date.getMonth(), date.getDate(),
-                            date.getHours() + value);
-        } else if (unit === MINUTES) {
-            return new Date(date.getFullYear(), date.getMonth(), date.getDate(),
-                            date.getHours(), date.getMinutes() + value);
+        if (date) {
+            date = toDate(date);
+
+            if (unit === YEARS) {
+                result = new Date(date.getFullYear() + value, 0, 1);
+            } else if (unit === MONTHS) {
+                result = new Date(date.getFullYear(), date.getMonth() + value, 1);
+            } else if (unit === WEEKS) {
+                result = addDuration(startOfWeek(date, weekStartDay), value * 7, DAYS);
+            } else if (unit === DAYS) {
+                result = new Date(date.getFullYear(), date.getMonth(), date.getDate() + value);
+            } else if (unit === HOURS) {
+                result = new Date(date.getFullYear(), date.getMonth(), date.getDate(), date.getHours() + value);
+                if (value > 0 && dateEquals(date, result)) {
+                    result = addDuration(date, value + 1, unit, weekStartDay);
+                }
+            } else if (unit === MINUTES) {
+                result = new Date(date.getTime() + value * TIME_PER_MINUTE);
+                result.setSeconds(0);
+            } else if (unit === SECONDS) {
+                result = new Date(date.getTime() + value * TIME_PER_SECOND);
+            }
+
+            result.setMilliseconds(0);
         }
 
-        return date;
+        return result;
     }
 
-    function floorDate(date, unit) {
-        date = toDate(date);
+    function startOfWeek(date, weekStartDay) {
+        var day = date.getDay(),
+            daysToSubtract = 0;
 
-        return addDuration(date, 0, unit);
+        if (!isNaN(day)) {
+            weekStartDay = weekStartDay || 0;
+            while (day !== weekStartDay) {
+                if (day === 0) {
+                    day = 6;
+                } else {
+                    day--;
+                }
+
+                daysToSubtract++;
+            }
+        }
+
+        return addTicks(date, -daysToSubtract * TIME_PER_DAY);
     }
 
-    function ceilDate(date, unit) {
+    function floorDate(date, unit, weekStartDay) {
         date = toDate(date);
 
-        if (floorDate(date, unit).getTime() === date.getTime()) {
+        return addDuration(date, 0, unit, weekStartDay);
+    }
+
+    function ceilDate(date, unit, weekStartDay) {
+        date = toDate(date);
+
+        if (date && floorDate(date, unit, weekStartDay).getTime() === date.getTime()) {
             return date;
         }
 
-        return addDuration(date, 1, unit);
+        return addDuration(date, 1, unit, weekStartDay);
     }
 
     function dateDiff(a, b) {
@@ -15764,6 +25200,14 @@ function pad(number) {
             offsetDiff = a.getTimezoneOffset() - b.getTimezoneOffset();
 
         return diff - (offsetDiff * TIME_PER_MINUTE);
+    }
+
+    function addTicks(date, ticks) {
+        var tzOffsetBefore = date.getTimezoneOffset(),
+            result = new Date(date.getTime() + ticks),
+            tzOffsetDiff = result.getTimezoneOffset() - tzOffsetBefore;
+
+        return new Date(result.getTime() + tzOffsetDiff * TIME_PER_MINUTE);
     }
 
     function duration(a, b, unit) {
@@ -15782,111 +25226,44 @@ function pad(number) {
         return diff;
     }
 
-    function bindPoint(series, pointIx, valueFields, pointFields) {
-        var pointData = series.data[pointIx],
-            fieldData,
-            fields = {},
-            srcValueFields,
-            srcPointFields,
-            value,
-            result = { value: pointData };
-
-        if (defined(pointData))
-        {
-            if (isArray(pointData)) {
-                fieldData = pointData.slice(valueFields.length);
-                value = bindFromArray(pointData, valueFields);
-                fields = bindFromArray(fieldData, pointFields);
-            } else if (typeof pointData === "object") {
-                srcValueFields = mapSeriesFields(series, valueFields);
-                srcPointFields = mapSeriesFields(series, pointFields);
-
-                value = bindFromObject(pointData, valueFields, srcValueFields);
-                fields = bindFromObject(pointData, pointFields, srcPointFields);
-            }
-        } else {
-            value = bindFromObject({}, valueFields);
-        }
-
-        if (defined(value)) {
-            if (valueFields.length === 1) {
-                value = value[valueFields[0]];
-            }
-
-            result.value = value;
-        }
-
-        result.fields = fields;
-
-        return result;
-    }
-
-    function bindFromArray(array, fields) {
-        var value = {},
-            i,
-            length;
-
-        if (fields) {
-            length = math.min(fields.length, array.length);
-
-            for (i = 0; i < length; i++) {
-                value[fields[i]] = array[i];
-            }
-        }
-
-        return value;
-    }
-
-    function bindFromObject(object, fields, srcFields) {
-        var value = {},
-            i,
-            length,
-            fieldName,
-            srcFieldName;
-
-        if (fields) {
-            length = fields.length;
-            srcFields = srcFields || fields;
-
-            for (i = 0; i < length; i++) {
-                fieldName = fields[i];
-                srcFieldName = srcFields[i];
-                value[fieldName] = getField(srcFieldName, object);
-            }
-        }
-
-        return value;
-    }
-
-    function mapSeriesFields(series, fields) {
-        var i,
-            length,
-            fieldName,
-            sourceFields,
-            sourceFieldName;
-
-        if (fields) {
-            length = fields.length;
-            sourceFields = [];
-
-            for (i = 0; i < length; i++) {
-                fieldName = fields[i];
-                sourceFieldName = fieldName === "value" ? "field" : fieldName + "Field";
-
-                sourceFields.push(series[sourceFieldName] || fieldName);
-            }
-        }
-
-        return sourceFields;
-    }
-
     function singleItemOrArray(array) {
         return array.length === 1 ? array[0] : array;
+    }
+
+    function limitValue(value, min, max) {
+        return math.max(math.min(value, max), min);
+    }
+
+    function axisGroupBox(axes) {
+        var length = axes.length,
+            box, i, axisBox;
+
+        if (length > 0) {
+            for (i = 0; i < length; i++) {
+                axisBox = axes[i].box;
+
+                if (!box) {
+                    box = axisBox.clone();
+                } else {
+                    box.wrap(axisBox);
+                }
+            }
+        }
+
+        return box || Box2D();
     }
 
     function equalsIgnoreCase(a, b) {
         if (a && b) {
             return a.toLowerCase() === b.toLowerCase();
+        }
+
+        return a === b;
+    }
+
+    function dateEquals(a, b) {
+        if (a && b) {
+            return toTime(a) === toTime(b);
         }
 
         return a === b;
@@ -15904,58 +25281,1622 @@ function pad(number) {
         }
     }
 
-    // Exports ================================================================
+    function appendIfNotNull(array, element) {
+        if (element !== null) {
+            array.push(element);
+        }
+    }
 
+    function lteDateIndex(date, sortedDates) {
+        var low = 0,
+            high = sortedDates.length - 1,
+            i,
+            currentDate;
+
+        while (low <= high) {
+            i = math.floor((low + high) / 2);
+            currentDate = sortedDates[i];
+
+            if (currentDate < date) {
+                low = i + 1;
+                continue;
+            }
+
+            if (currentDate > date) {
+                high = i - 1;
+                continue;
+            }
+
+            while (dateEquals(sortedDates[i - 1], date)) {
+                i--;
+            }
+
+            return i;
+        }
+
+        if (sortedDates[i] <= date) {
+            return i;
+        } else {
+            return i - 1;
+        }
+    }
+
+    function areNumbers(values) {
+        var i,
+            length = values.length;
+
+        for (i = 0; i < length; i++) {
+            if (!isNumber(values[i])) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    function isNumber(val) {
+        return typeof val === "number" && !isNaN(val);
+    }
+
+    function axisRanges(axes) {
+        var i,
+            axis,
+            axisName,
+            ranges = {};
+
+        for (i = 0; i < axes.length; i++) {
+            axis = axes[i];
+            axisName = axis.options.name;
+            if (axisName) {
+                ranges[axisName] = axis.range();
+            }
+        }
+
+        return ranges;
+    }
+
+    function mwDelta(e) {
+        var origEvent = e.originalEvent,
+            delta = 0;
+
+        if (origEvent.wheelDelta) {
+            delta = -origEvent.wheelDelta / 120;
+            delta = delta > 0 ? math.ceil(delta) : math.floor(delta);
+        }
+
+        if (origEvent.detail) {
+            delta = round(origEvent.detail / 3);
+        }
+
+        return delta;
+    }
+
+    function evalOptions(options, context, state) {
+        var property,
+            propValue,
+            excluded,
+            defaults,
+            depth;
+
+        state = state || {};
+        excluded = state.excluded = state.excluded || [];
+        defaults = state.defaults = state.defaults || {};
+        depth = state.depth = state.depth || 0;
+
+        if (depth > MAX_EXPAND_DEPTH) {
+            return;
+        }
+
+        for (property in options) {
+            if (!inArray(property, state.excluded)) {
+                propValue = options[property];
+                if (isFn(propValue)) {
+                    options[property] = valueOrDefault(propValue(context), defaults[property]);
+                } else if (typeof propValue === OBJECT) {
+                    state.defaults = defaults[property];
+                    state.depth++;
+                    evalOptions(propValue, context, state);
+                    state.depth--;
+                }
+            }
+        }
+    }
+
+    function groupSeries(series, data) {
+        var result = [],
+            nameTemplate,
+            legacyTemplate = series.groupNameTemplate,
+            groupIx,
+            dataLength = data.length,
+            seriesClone;
+
+        if (defined(legacyTemplate)) {
+            kendo.logToConsole(
+                "'groupNameTemplate' is obsolete and will be removed in future versions. " +
+                "Specify the group name template as 'series.name'"
+            );
+
+            if (legacyTemplate) {
+                nameTemplate = template(legacyTemplate);
+            }
+        } else {
+            nameTemplate = template(series.name || "");
+            if (nameTemplate._slotCount === 0) {
+                nameTemplate = template(defined(series.name) ?
+                    "#= group.value #: #= series.name #" :
+                    "#= group.value #"
+                );
+            }
+        }
+
+        for (groupIx = 0; groupIx < dataLength; groupIx++) {
+            seriesClone = deepExtend({}, series);
+            seriesClone.color = undefined;
+            seriesClone._groupIx = groupIx;
+            result.push(seriesClone);
+
+            if (nameTemplate) {
+                seriesClone.name = nameTemplate({
+                    series: seriesClone, group: data[groupIx]
+                });
+            }
+        }
+
+        return result;
+    }
+
+    function filterSeriesByType(series, types) {
+         var i, currentSeries,
+             result = [];
+
+         types = [].concat(types);
+         for (i = 0; i < series.length; i++) {
+             currentSeries = series[i];
+             if (inArray(currentSeries.type, types)) {
+                 result.push(currentSeries);
+             }
+         }
+
+         return result;
+    }
+
+    function indexOf(item, arr) {
+         if (item instanceof Date) {
+             for (var i = 0, length = arr.length; i < length; i++) {
+                 if (dateEquals(arr[i], item)) {
+                     return i;
+                 }
+             }
+
+             return -1;
+         } else {
+             return $.inArray(item, arr);
+         }
+    }
+
+    function sortDates(dates, comparer) {
+         comparer = comparer || dateComparer;
+
+         for (var i = 1, length = dates.length; i < length; i++) {
+             if (comparer(dates[i], dates[i - 1]) < 0) {
+                 dates.sort(comparer);
+                 break;
+             }
+         }
+
+         return dates;
+    }
+
+    // Will mutate srcDates, not cloned for performance
+    function uniqueDates(srcDates, comparer) {
+        var i,
+            dates = sortDates(srcDates, comparer),
+            length = dates.length,
+            result = length > 0 ? [dates[0]] : [];
+
+        comparer = comparer || dateComparer;
+
+        for (i = 1; i < length; i++) {
+            if (comparer(dates[i], last(result)) !== 0) {
+                result.push(dates[i]);
+            }
+        }
+
+        return result;
+    }
+
+    function isDateAxis(axisOptions, sampleCategory) {
+        var type = axisOptions.type,
+            dateCategory = sampleCategory instanceof Date;
+
+        return (!type && dateCategory) || equalsIgnoreCase(type, DATE);
+    }
+
+    function transpose(rows) {
+        var result = [],
+            rowCount = rows.length,
+            rowIx,
+            row,
+            colIx,
+            colCount;
+
+        for (rowIx = 0; rowIx < rowCount; rowIx++) {
+            row = rows[rowIx];
+            colCount = row.length;
+            for (colIx = 0; colIx < colCount; colIx++) {
+                result[colIx] = result[colIx] || [];
+                result[colIx].push(row[colIx]);
+            }
+        }
+
+        return result;
+    }
+
+    // Exports ================================================================
     dataviz.ui.plugin(Chart);
+
+    PlotAreaFactory.current.register(CategoricalPlotArea, [
+        BAR, COLUMN, LINE, VERTICAL_LINE, AREA, VERTICAL_AREA,
+        CANDLESTICK, OHLC, BULLET, VERTICAL_BULLET
+    ]);
+
+    PlotAreaFactory.current.register(XYPlotArea, [
+        SCATTER, SCATTER_LINE, BUBBLE
+    ]);
+
+    PlotAreaFactory.current.register(PiePlotArea, [PIE]);
+    PlotAreaFactory.current.register(DonutPlotArea, [DONUT]);
+
+    SeriesBinder.current.register(
+        [BAR, COLUMN, LINE, VERTICAL_LINE, AREA, VERTICAL_AREA],
+        [VALUE], [CATEGORY, COLOR, NOTE_TEXT]
+    );
+
+    SeriesBinder.current.register(
+        [SCATTER, SCATTER_LINE, BUBBLE],
+        [X, Y], [COLOR, NOTE_TEXT]
+    );
+
+    SeriesBinder.current.register(
+        [BUBBLE], [X, Y, "size"], [COLOR, CATEGORY, NOTE_TEXT]
+    );
+
+    SeriesBinder.current.register(
+        [CANDLESTICK, OHLC],
+        ["open", "high", "low", "close"], [CATEGORY, COLOR, "downColor", NOTE_TEXT]
+    );
+
+    SeriesBinder.current.register(
+        [BULLET, VERTICAL_BULLET],
+        ["current", "target"], [CATEGORY, COLOR, "visibleInLegend", NOTE_TEXT]
+    );
+
+    SeriesBinder.current.register(
+        [PIE, DONUT],
+        [VALUE], [CATEGORY, COLOR, "explode", "visibleInLegend", "visible"]
+    );
 
     deepExtend(dataviz, {
         Aggregates: Aggregates,
         AreaChart: AreaChart,
+        AreaSegment: AreaSegment,
+        AxisGroupRangeTracker: AxisGroupRangeTracker,
         Bar: Bar,
         BarAnimationDecorator: BarAnimationDecorator,
         BarChart: BarChart,
         BarLabel: BarLabel,
         BubbleAnimationDecorator: BubbleAnimationDecorator,
         BubbleChart: BubbleChart,
+        BulletChart: BulletChart,
+        CandlestickChart: CandlestickChart,
+        Candlestick: Candlestick,
+        CategoricalChart: CategoricalChart,
         CategoricalPlotArea: CategoricalPlotArea,
         CategoryAxis: CategoryAxis,
         ClusterLayout: ClusterLayout,
+        Crosshair: Crosshair,
+        CrosshairTooltip: CrosshairTooltip,
         DateCategoryAxis: DateCategoryAxis,
         DateValueAxis: DateValueAxis,
         DonutChart: DonutChart,
         DonutPlotArea: DonutPlotArea,
         DonutSegment: DonutSegment,
         Highlight: Highlight,
+        SharedTooltip: SharedTooltip,
         Legend: Legend,
         LineChart: LineChart,
         LinePoint: LinePoint,
+        LineSegment: LineSegment,
+        Pane: Pane,
         PieAnimation: PieAnimation,
         PieAnimationDecorator: PieAnimationDecorator,
         PieChart: PieChart,
         PiePlotArea: PiePlotArea,
         PieSegment: PieSegment,
+        PlotAreaBase: PlotAreaBase,
+        PlotAreaFactory: PlotAreaFactory,
         ScatterChart: ScatterChart,
         ScatterLineChart: ScatterLineChart,
+        Selection: Selection,
+        SeriesBinder: SeriesBinder,
         ShapeElement: ShapeElement,
         StackLayout: StackLayout,
         Tooltip: Tooltip,
+        OHLCChart: OHLCChart,
+        OHLCPoint: OHLCPoint,
         XYPlotArea: XYPlotArea,
 
         addDuration: addDuration,
+        areNumbers: areNumbers,
+        axisGroupBox: axisGroupBox,
         categoriesCount: categoriesCount,
         ceilDate: ceilDate,
         duration: duration,
+        indexOf: indexOf,
+        isNumber: isNumber,
         floorDate: floorDate,
-        bindPoint: bindPoint,
-        toDate: toDate
+        filterSeriesByType: filterSeriesByType,
+        limitValue: limitValue,
+        lteDateIndex: lteDateIndex,
+        evalOptions: evalOptions,
+        singleItemOrArray: singleItemOrArray,
+        sortDates: sortDates,
+        sparseArrayLimits: sparseArrayLimits,
+        startOfWeek: startOfWeek,
+        transpose: transpose,
+        toDate: toDate,
+        toTime: toTime,
+        uniqueDates: uniqueDates
     });
 
-})(jQuery);
+})(window.kendo.jQuery);
+
+kendo_module({
+    id: "dataviz.chart.polar",
+    name: "Polar Charts",
+    category: "dataviz",
+    depends: ["dataviz.chart"],
+    hidden: true
+});
+
+(function ($, undefined) {
+    // Imports ================================================================
+    var math = Math,
+
+        kendo = window.kendo,
+        deepExtend = kendo.deepExtend,
+
+        dataviz = kendo.dataviz,
+        AreaSegment = dataviz.AreaSegment,
+        Axis = dataviz.Axis,
+        AxisGroupRangeTracker = dataviz.AxisGroupRangeTracker,
+        BarChart = dataviz.BarChart,
+        Box2D = dataviz.Box2D,
+        CategoryAxis = dataviz.CategoryAxis,
+        CategoricalChart = dataviz.CategoricalChart,
+        CategoricalPlotArea = dataviz.CategoricalPlotArea,
+        ChartElement = dataviz.ChartElement,
+        DonutSegment = dataviz.DonutSegment,
+        LineChart = dataviz.LineChart,
+        LineSegment = dataviz.LineSegment,
+        NumericAxis = dataviz.NumericAxis,
+        PlotAreaBase = dataviz.PlotAreaBase,
+        PlotAreaFactory = dataviz.PlotAreaFactory,
+        Point2D = dataviz.Point2D,
+        Ring = dataviz.Ring,
+        ScatterChart = dataviz.ScatterChart,
+        ScatterLineChart = dataviz.ScatterLineChart,
+        SeriesBinder = dataviz.SeriesBinder,
+        append = dataviz.append,
+        getSpacing = dataviz.getSpacing,
+        filterSeriesByType = dataviz.filterSeriesByType,
+        limitValue = dataviz.limitValue,
+        round = dataviz.round;
+
+    // Constants ==============================================================
+    var ARC = "arc",
+        BLACK = "#000",
+        COORD_PRECISION = dataviz.COORD_PRECISION,
+        DEFAULT_PADDING = 0.15,
+        DEG_TO_RAD = math.PI / 180,
+        PLOT_AREA_CLICK = "plotAreaClick",
+        POLAR_AREA = "polarArea",
+        POLAR_LINE = "polarLine",
+        POLAR_SCATTER = "polarScatter",
+        RADAR_AREA = "radarArea",
+        RADAR_COLUMN = "radarColumn",
+        RADAR_LINE = "radarLine",
+        X = "x",
+        Y = "y",
+        ZERO = "zero",
+        POLAR_CHARTS = [
+            POLAR_AREA, POLAR_LINE, POLAR_SCATTER
+        ],
+        RADAR_CHARTS = [
+            RADAR_AREA, RADAR_COLUMN, RADAR_LINE
+        ];
+
+    // Polar and radar charts =================================================
+    var GridLinesMixin = {
+        renderGridLines: function(view, altAxis) {
+            var axis = this,
+                options = axis.options,
+                radius = math.abs(axis.box.center().y - altAxis.lineBox().y1),
+                majorAngles,
+                minorAngles,
+                skipMajor = false,
+                gridLines = [];
+
+            if (options.majorGridLines.visible) {
+                majorAngles = axis.majorGridLineAngles(altAxis);
+                skipMajor = true;
+
+                gridLines = axis.gridLineElements(
+                    view, majorAngles, radius, options.majorGridLines
+                );
+            }
+
+            if (options.minorGridLines.visible) {
+                minorAngles = axis.minorGridLineAngles(altAxis, skipMajor);
+
+                append(gridLines, axis.gridLineElements(
+                    view, minorAngles, radius, options.minorGridLines
+                ));
+            }
+
+            return gridLines;
+        },
+
+        gridLineElements: function(view, angles, radius, options) {
+            var axis = this,
+                center = axis.box.center(),
+                modelId = axis.plotArea.options.modelId,
+                i,
+                outerPt,
+                elements = [],
+                lineOptions;
+
+            lineOptions = {
+                data: { modelId: modelId },
+                zIndex: -1,
+                strokeWidth: options.width,
+                stroke: options.color,
+                dashType: options.dashType
+            };
+
+            for (i = 0; i < angles.length; i++) {
+                outerPt = Point2D.onCircle(center, angles[i], radius);
+
+                elements.push(view.createLine(
+                    center.x, center.y, outerPt.x, outerPt.y,
+                    lineOptions
+                ));
+            }
+
+            return elements;
+        },
+
+        gridLineAngles: function(altAxis, step, skipStep) {
+            var axis = this,
+                divs = axis.intervals(step, skipStep);
+
+            return $.map(divs, function(d) {
+                var alpha = axis.intervalAngle(d);
+
+                if (!altAxis.options.visible || alpha !== 90) {
+                    return alpha;
+                }
+            });
+        }
+    };
+
+    var RadarCategoryAxis = CategoryAxis.extend({
+        options: {
+            startAngle: 90,
+            labels: {
+                margin: getSpacing(10)
+            },
+            majorGridLines: {
+                visible: true
+            },
+            justified: true
+        },
+
+        range: function() {
+            return { min: 0, max: this.options.categories.length };
+        },
+
+        reflow: function(box) {
+            this.box = box;
+            this.reflowLabels();
+        },
+
+        lineBox: function() {
+            return this.box;
+        },
+
+        reflowLabels: function() {
+            var axis = this,
+                measureBox = new Box2D(),
+                labels = axis.labels,
+                labelBox,
+                i;
+
+            for (i = 0; i < labels.length; i++) {
+                labels[i].reflow(measureBox);
+                labelBox = labels[i].box;
+
+                labels[i].reflow(axis.getSlot(i).adjacentBox(
+                    0, labelBox.width(), labelBox.height()
+                ));
+            }
+        },
+
+        intervals: function(step, skipStep) {
+            var axis = this,
+                options = axis.options,
+                categories = options.categories.length,
+                angle = 0,
+                skipAngle = 0,
+                divCount = categories / step || 1,
+                divAngle = 360 / divCount,
+                divs = [],
+                i;
+
+            if (skipStep) {
+                skipAngle = 360 / (categories / skipStep);
+            }
+
+            for (i = 0; i < divCount; i++) {
+                angle = round(angle, COORD_PRECISION);
+
+                if (angle % skipAngle !== 0) {
+                    divs.push(angle % 360);
+                }
+
+                if (options.reverse) {
+                    angle = 360 + angle - divAngle;
+                } else {
+                    angle += divAngle;
+                }
+            }
+
+            return divs;
+        },
+
+        majorIntervals: function() {
+            return this.intervals(1);
+        },
+
+        minorIntervals: function() {
+            return this.intervals(0.5);
+        },
+
+        intervalAngle: function(interval) {
+            return (360 + interval + this.options.startAngle) % 360;
+        },
+
+        majorAngles: function() {
+            return $.map(this.majorIntervals(), $.proxy(this.intervalAngle, this));
+        },
+
+        renderLine: function() {
+            return [];
+        },
+
+        majorGridLineAngles: function(altAxis) {
+            return this.gridLineAngles(altAxis, 1);
+        },
+
+        minorGridLineAngles: function(altAxis, skipMajor) {
+            return this.gridLineAngles(altAxis, 0.5, skipMajor ? 1 : 0);
+        },
+
+        renderPlotBands: function(view) {
+            var axis = this,
+                options = axis.options,
+                plotBands = options.plotBands || [],
+                elements = [],
+                i,
+                band,
+                slot,
+                singleSlot,
+                head,
+                tail;
+
+            for (i = 0; i < plotBands.length; i++) {
+                band = plotBands[i];
+                slot = axis.plotBandSlot(band);
+                singleSlot = axis.getSlot(band.from);
+
+                head = band.from - math.floor(band.from);
+                slot.startAngle += head * singleSlot.angle;
+
+                tail = math.ceil(band.to) - band.to;
+                slot.angle -= (tail + head) * singleSlot.angle;
+
+                elements.push(view.createSector(slot, {
+                    fill: band.color,
+                    fillOpacity: band.opacity,
+                    strokeOpacity: band.opacity,
+                    zIndex: -1
+                }));
+            }
+
+            return elements;
+        },
+
+        plotBandSlot: function(band) {
+            return this.getSlot(band.from, band.to - 1);
+        },
+
+        getSlot: function(from, to) {
+            var axis = this,
+                options = axis.options,
+                justified = options.justified,
+                box = axis.box,
+                divs = axis.majorAngles(),
+                totalDivs = divs.length,
+                slots,
+                slotAngle = 360 / totalDivs,
+                slotStart,
+                angle;
+
+            if (options.reverse && !justified) {
+                from = (from + 1) % totalDivs;
+            }
+
+            from = limitValue(math.floor(from), 0, totalDivs - 1);
+            slotStart = divs[from];
+
+            if (justified) {
+                slotStart = slotStart - slotAngle / 2;
+
+                if (slotStart < 0) {
+                    slotStart += 360;
+                }
+            }
+
+            to = limitValue(math.ceil(to || from), from, totalDivs - 1);
+            slots = to - from + 1;
+            angle = slotAngle * slots;
+
+            return new Ring(
+                box.center(), 0, box.height() / 2,
+                slotStart, angle
+            );
+        },
+
+        pointCategoryIndex: function(point) {
+            var axis = this,
+                index = null,
+                i,
+                length = axis.options.categories.length,
+                slot;
+
+            for (i = 0; i < length; i++) {
+                slot = axis.getSlot(i);
+                if (slot.containsPoint(point)) {
+                    index = i;
+                    break;
+                }
+            }
+
+            return index;
+        }
+    });
+    deepExtend(RadarCategoryAxis.fn, GridLinesMixin);
+
+    var RadarNumericAxis = NumericAxis.extend({
+        options: {
+            majorGridLines: {
+                visible: true
+            }
+        },
+
+        renderPlotBands: function(view) {
+            var axis = this,
+                options = axis.options,
+                plotBands = options.plotBands || [],
+                elements = [],
+                type = options.majorGridLines.type,
+                altAxis = axis.plotArea.polarAxis,
+                majorAngles = altAxis.majorAngles(),
+                center = altAxis.box.center(),
+                i,
+                band,
+                bandStyle,
+                slot,
+                ring;
+
+            for (i = 0; i < plotBands.length; i++) {
+                band = plotBands[i];
+                bandStyle = {
+                    fill: band.color,
+                    fillOpacity: band.opacity,
+                    strokeOpacity: band.opacity,
+                    zIndex: -1
+                };
+
+                slot = axis.getSlot(band.from, band.to);
+                ring = new Ring(center, center.y - slot.y2, center.y - slot.y1, 0, 360);
+
+                elements.push(type === ARC ?
+                    view.createRing(ring, bandStyle) :
+                    view.createPolyline(
+                        axis.plotBandPoints(ring, majorAngles), true, bandStyle
+                    )
+                );
+            }
+
+            return elements;
+        },
+
+        plotBandPoints: function(ring, angles) {
+            var innerPoints = [],
+                outerPoints = [],
+                i;
+
+            for (i = 0; i < angles.length; i++) {
+                innerPoints.push(Point2D.onCircle(ring.c, angles[i], ring.ir));
+                outerPoints.push(Point2D.onCircle(ring.c, angles[i], ring.r));
+            }
+
+            innerPoints.reverse();
+            innerPoints.push(innerPoints[0]);
+            outerPoints.push(outerPoints[0]);
+
+            return outerPoints.concat(innerPoints);
+        },
+
+        renderGridLines: function(view, altAxis) {
+            var axis = this,
+                options = axis.options,
+                majorTicks = axis.getTickPositions(options.majorUnit),
+                majorAngles = altAxis.majorAngles(),
+                minorTicks,
+                minorSkipStep = 0,
+                center = altAxis.box.center(),
+                gridLines = [];
+
+            if (options.majorGridLines.visible) {
+                minorSkipStep = options.majorUnit;
+                gridLines = axis.gridLineElements(
+                    view, center, majorTicks, majorAngles, options.majorGridLines
+                );
+            }
+
+            if (options.minorGridLines.visible) {
+                minorTicks = axis.getTickPositions(options.minorUnit, minorSkipStep);
+                append(gridLines, axis.gridLineElements(
+                    view, center, minorTicks, majorAngles, options.minorGridLines
+                ));
+            }
+
+            return gridLines;
+        },
+
+        gridLineElements: function(view, center, ticks, angles, options) {
+            var axis = this,
+                modelId = axis.plotArea.options.modelId,
+                elements = [],
+                elementOptions,
+                points,
+                tickRadius,
+                tickIx,
+                angleIx;
+
+            elementOptions = {
+                data: { modelId: modelId },
+                zIndex: -1,
+                strokeWidth: options.width,
+                stroke: options.color,
+                dashType: options.dashType
+            };
+
+            for (tickIx = 0; tickIx < ticks.length; tickIx++) {
+                tickRadius = center.y - ticks[tickIx];
+                if(tickRadius > 0) {
+                    if (options.type === ARC) {
+                        elements.push(view.createCircle(
+                            center, tickRadius, elementOptions
+                        ));
+                    } else {
+                        points = [];
+                        for (angleIx = 0; angleIx < angles.length; angleIx++) {
+                            points.push(
+                                Point2D.onCircle(center, angles[angleIx], tickRadius)
+                            );
+                        }
+
+                        elements.push(view.createPolyline(points, true, elementOptions));
+                    }
+                }
+            }
+
+            return elements;
+        },
+
+        getValue: function(point) {
+            var axis = this,
+                options = axis.options,
+                lineBox = axis.lineBox(),
+                altAxis = axis.plotArea.polarAxis,
+                majorAngles = altAxis.majorAngles(),
+                center = altAxis.box.center(),
+                r = point.distanceTo(center),
+                distance = r;
+
+            if (options.majorGridLines.type !== ARC && majorAngles.length > 1) {
+                var dx = point.x - center.x,
+                    dy = point.y - center.y,
+                    theta = (math.atan2(dy, dx) / DEG_TO_RAD + 540) % 360;
+
+                majorAngles.sort(function(a, b) {
+                    return angularDistance(a, theta) - angularDistance(b, theta);
+                });
+
+                // Solve triangle (center, point, axis X) using one side (r) and two angles.
+                // Angles are derived from triangle (center, point, gridline X)
+                var midAngle = angularDistance(majorAngles[0], majorAngles[1]) / 2,
+                    alpha = angularDistance(theta, majorAngles[0]),
+                    gamma = 90 - midAngle,
+                    beta = 180 - alpha - gamma;
+
+                distance = r * (math.sin(beta * DEG_TO_RAD) / math.sin(gamma * DEG_TO_RAD));
+            }
+
+            return NumericAxis.fn.getValue.call(
+                axis, new Point2D(lineBox.x1, lineBox.y2 - distance)
+            );
+        }
+    });
+
+    var PolarAxis = Axis.extend({
+        init: function(options) {
+            var axis = this;
+
+            Axis.fn.init.call(axis, options);
+            options = axis.options;
+
+            options.minorUnit = options.minorUnit || axis.options.majorUnit / 2;
+        },
+
+        options: {
+            type: "polar",
+            startAngle: 0,
+            reverse: false,
+            majorUnit: 60,
+            min: 0,
+            max: 360,
+            labels: {
+                margin: getSpacing(10)
+            },
+            majorGridLines: {
+                color: BLACK,
+                visible: true
+            },
+            minorGridLines: {
+                color: "#aaa"
+            }
+        },
+
+        getDivisions: function(stepValue) {
+            return NumericAxis.fn.getDivisions.call(this, stepValue) - 1;
+        },
+
+        reflow: function(box) {
+            this.box = box;
+            this.reflowLabels();
+        },
+
+        reflowLabels: function() {
+            var axis = this,
+                measureBox = new Box2D(),
+                divs = axis.majorIntervals(),
+                labels = axis.labels,
+                labelBox,
+                i;
+
+            for (i = 0; i < labels.length; i++) {
+                labels[i].reflow(measureBox);
+                labelBox = labels[i].box;
+
+                labels[i].reflow(axis.getSlot(divs[i]).adjacentBox(
+                    0, labelBox.width(), labelBox.height()
+                ));
+            }
+        },
+
+        lineBox: function() {
+            return this.box;
+        },
+
+        intervals: function(step, skipStep) {
+            var axis = this,
+                options = axis.options,
+                divisions = axis.getDivisions(step),
+                angle = options.min,
+                divs = [],
+                i;
+
+            if (skipStep) {
+                skipStep = skipStep / step;
+            }
+
+            for (i = 0; i < divisions; i++) {
+                if (i % skipStep !== 0) {
+                    divs.push((360 + angle) % 360);
+                }
+
+                angle += step;
+            }
+
+            return divs;
+        },
+
+        majorIntervals: function() {
+            return this.intervals(this.options.majorUnit);
+        },
+
+        minorIntervals: function() {
+            return this.intervals(this.options.minorUnit);
+        },
+
+        intervalAngle: function(i) {
+            return (360 + i - this.options.startAngle) % 360;
+        },
+
+        majorAngles: RadarCategoryAxis.fn.majorAngles,
+
+        renderLine: function() {
+            return [];
+        },
+
+        majorGridLineAngles: function(altAxis) {
+            return this.gridLineAngles(altAxis, this.options.majorUnit);
+        },
+
+        minorGridLineAngles: function(altAxis, skipMajor) {
+            return this.gridLineAngles(altAxis, this.options.minorUnit,
+                      skipMajor ? this.options.majorUnit : 0);
+        },
+
+        renderPlotBands: RadarCategoryAxis.fn.renderPlotBands,
+
+        plotBandSlot: function(band) {
+            return this.getSlot(band.from, band.to);
+        },
+
+        getSlot: function(a, b) {
+            var axis = this,
+                options = axis.options,
+                start = options.startAngle,
+                box = axis.box,
+                tmp;
+
+            a = limitValue(a, options.min, options.max);
+            b = limitValue(b || a, a, options.max);
+
+            if (options.reverse) {
+                a *= -1;
+                b *= -1;
+            }
+
+            a = (540 - a - start) % 360;
+            b = (540 - b - start) % 360;
+
+            if (b < a) {
+                tmp = a;
+                a = b;
+                b = tmp;
+            }
+
+            return new Ring(
+                box.center(), 0, box.height() / 2,
+                a, b - a
+            );
+        },
+
+        getValue: function(point) {
+            var axis = this,
+                options = axis.options,
+                center = axis.box.center(),
+                dx = point.x - center.x,
+                dy = point.y - center.y,
+                theta = math.round(math.atan2(dy, dx) / DEG_TO_RAD),
+                start = options.startAngle;
+
+            if (!options.reverse) {
+                theta *= -1;
+                start *= -1;
+            }
+
+            return (theta + start + 360) % 360;
+        },
+
+        labelsCount: NumericAxis.fn.labelsCount,
+        createAxisLabel: NumericAxis.fn.createAxisLabel
+    });
+    deepExtend(PolarAxis.fn, GridLinesMixin);
+
+    var RadarClusterLayout = ChartElement.extend({
+        options: {
+            gap: 1,
+            spacing: 0
+        },
+
+        reflow: function(sector) {
+            var cluster = this,
+                options = cluster.options,
+                children = cluster.children,
+                gap = options.gap,
+                spacing = options.spacing,
+                count = children.length,
+                slots = count + gap + (spacing * (count - 1)),
+                slotAngle = sector.angle / slots,
+                slotSector,
+                angle = sector.startAngle + slotAngle * (gap / 2),
+                i;
+
+            for (i = 0; i < count; i++) {
+                slotSector = sector.clone();
+                slotSector.startAngle = angle;
+                slotSector.angle = slotAngle;
+
+                if (children[i].sector) {
+                    slotSector.r = children[i].sector.r;
+                }
+
+                children[i].reflow(slotSector);
+                children[i].sector = slotSector;
+
+                angle += slotAngle + (slotAngle * spacing);
+            }
+        }
+    });
+
+    var RadarStackLayout = ChartElement.extend({
+        reflow: function(sector) {
+            var stack = this,
+                reverse = stack.options.isReversed,
+                children = stack.children,
+                childrenCount = children.length,
+                childSector,
+                prevSector,
+                i,
+                first = reverse ? childrenCount - 1 : 0,
+                step = reverse ? -1 : 1;
+
+            stack.box = new Box2D();
+
+            for (i = first; i >= 0 && i < childrenCount; i += step) {
+                childSector = children[i].sector;
+                childSector.startAngle = sector.startAngle;
+                childSector.angle = sector.angle;
+
+                if (i !== first) {
+                    prevSector = children[reverse ? i + 1 : i - 1].sector;
+                    childSector.ir = prevSector.r;
+                    childSector.r += childSector.ir;
+                }
+            }
+        }
+    });
+
+    var RadarSegment = DonutSegment.extend({
+        init: function(value, options) {
+            DonutSegment.fn.init.call(this, value, null, options);
+        },
+
+        options: {
+            overlay: {
+                gradient: null
+            },
+            labels: {
+                distance: 10
+            }
+        }
+    });
+
+    // TODO: Rename to RadarColumnChart
+    var RadarBarChart = BarChart.extend({
+        pointType: function() {
+            return RadarSegment;
+        },
+
+        clusterType: function() {
+            return RadarClusterLayout;
+        },
+
+        stackType: function() {
+            return RadarStackLayout;
+        },
+
+        valueSlot: function(valueAxis, value) {
+            return valueAxis.getSlot(value);
+        },
+
+        categorySlot: function(categoryAxis, categoryIx) {
+            return categoryAxis.getSlot(categoryIx);
+        },
+
+        pointSlot: function(categorySlot, valueSlot) {
+            var slot = categorySlot.clone(),
+                valueRadius = categorySlot.c.y - valueSlot.y1;
+
+            slot.r = valueRadius;
+
+            return slot;
+        },
+
+        reflow: CategoricalChart.fn.reflow,
+
+        reflowPoint: function(point, pointSlot) {
+            point.sector = pointSlot;
+            point.reflow();
+        }
+    });
+
+    var RadarLineChart = LineChart.extend({
+        pointSlot: function(categorySlot, valueSlot) {
+            var valueRadius = categorySlot.c.y - valueSlot.y1,
+                slot = Point2D.onCircle(categorySlot.c, categorySlot.middle(), valueRadius);
+
+            return new Box2D(slot.x, slot.y, slot.x, slot.y);
+        },
+
+        createSegment: function(linePoints, currentSeries, seriesIx) {
+            var segment = new LineSegment(linePoints, currentSeries, seriesIx);
+
+            if (linePoints.length === currentSeries.data.length) {
+                segment.options.closed = true;
+            }
+
+            return segment;
+        }
+    });
+
+    var RadarAreaSegment = AreaSegment.extend({
+        points: function() {
+            return LineSegment.fn.points.call(this, this.stackPoints);
+        }
+    });
+
+    var RadarAreaChart = RadarLineChart.extend({
+        createSegment: function(linePoints, currentSeries, seriesIx, prevSegment) {
+            var chart = this,
+                options = chart.options,
+                stackPoints;
+
+            if (options.isStacked && seriesIx > 0 && prevSegment) {
+                stackPoints = prevSegment.linePoints.slice(0).reverse();
+            }
+
+            linePoints.push(linePoints[0]);
+
+            return new RadarAreaSegment(linePoints, stackPoints, currentSeries, seriesIx);
+        },
+
+        seriesMissingValues: function(series) {
+            return series.missingValues || ZERO;
+        }
+    });
+
+    var PolarScatterChart = ScatterChart.extend({
+        pointSlot: function(slotX, slotY) {
+            var valueRadius = slotX.c.y - slotY.y1,
+                slot = Point2D.onCircle(slotX.c, slotX.startAngle, valueRadius);
+
+            return new Box2D(slot.x, slot.y, slot.x, slot.y);
+        }
+    });
+
+    var PolarLineChart = ScatterLineChart.extend({
+        pointSlot: PolarScatterChart.fn.pointSlot
+    });
+
+    var PolarAreaSegment = AreaSegment.extend({
+        points: function() {
+            var segment = this,
+                chart = segment.parent,
+                plotArea = chart.plotArea,
+                polarAxis = plotArea.polarAxis,
+                center = polarAxis.box.center(),
+                stackPoints = segment.stackPoints,
+                points = LineSegment.fn.points.call(segment, stackPoints);
+
+            points.unshift(center);
+            points.push(center);
+
+            return points;
+        }
+    });
+
+    var PolarAreaChart = PolarLineChart.extend({
+        createSegment: function(linePoints, currentSeries, seriesIx) {
+            return new PolarAreaSegment(linePoints, [], currentSeries, seriesIx);
+        },
+
+        seriesMissingValues: function(series) {
+            return series.missingValues || ZERO;
+        },
+
+        sortPoints: function(points) {
+            return points.sort(xComparer);
+        }
+    });
+
+    var PolarPlotAreaBase = PlotAreaBase.extend({
+        init: function(series, options) {
+            var plotArea = this;
+
+            plotArea.valueAxisRangeTracker = new AxisGroupRangeTracker();
+
+            PlotAreaBase.fn.init.call(plotArea, series, options);
+        },
+
+        render: function() {
+            var plotArea = this;
+
+            plotArea.addToLegend(plotArea.series);
+            plotArea.createPolarAxis();
+            plotArea.createCharts();
+            plotArea.createValueAxis();
+        },
+
+        createValueAxis: function() {
+            var plotArea = this,
+                tracker = plotArea.valueAxisRangeTracker,
+                defaultRange = tracker.query(),
+                range,
+                valueAxis;
+
+            range = tracker.query(name) || defaultRange || { min: 0, max: 1 };
+
+            if (range && defaultRange) {
+                range.min = math.min(range.min, defaultRange.min);
+                range.max = math.max(range.max, defaultRange.max);
+            }
+
+            valueAxis = new RadarNumericAxis(
+                range.min, range.max,
+                plotArea.valueAxisOptions({ roundToMajorUnit: false })
+            );
+
+            plotArea.valueAxis = valueAxis;
+            plotArea.appendAxis(valueAxis);
+        },
+
+        reflowAxes: function () {
+            var plotArea = this,
+                options = plotArea.options.plotArea,
+                valueAxis = plotArea.valueAxis,
+                polarAxis = plotArea.polarAxis,
+                box = plotArea.box,
+                defaultPadding = math.min(box.width(), box.height()) * DEFAULT_PADDING,
+                padding = getSpacing(options.padding || {}, defaultPadding),
+                axisBox = box.clone().unpad(padding),
+                valueAxisBox = axisBox.clone().shrink(0, axisBox.height() / 2);
+
+            polarAxis.reflow(axisBox);
+            valueAxis.reflow(valueAxisBox);
+            var heightDiff = valueAxis.lineBox().height() - valueAxis.box.height();
+            valueAxis.reflow(valueAxis.box.unpad({ top: heightDiff }));
+
+            plotArea.axisBox = axisBox;
+            plotArea.alignAxes(axisBox);
+        },
+
+        alignAxes: function() {
+            var plotArea = this,
+                valueAxis = plotArea.valueAxis,
+                slot = valueAxis.getSlot(valueAxis.options.min),
+                slotEdge = valueAxis.options.reverse ? 2 : 1,
+                center = plotArea.polarAxis.getSlot(0).c,
+                box = valueAxis.box.translate(
+                    center.x - slot[X + slotEdge],
+                    center.y - slot[Y + slotEdge]
+                );
+
+            valueAxis.reflow(box);
+        },
+
+        backgroundBox: function() {
+            return this.box;
+        }
+    });
+
+    var RadarPlotArea = PolarPlotAreaBase.extend({
+        options: {
+            categoryAxis: {
+                categories: []
+            },
+            valueAxis: {}
+        },
+
+        createPolarAxis: function() {
+            var plotArea = this,
+                categoryAxis;
+
+            categoryAxis = new RadarCategoryAxis(plotArea.options.categoryAxis);
+
+            plotArea.polarAxis = categoryAxis;
+            plotArea.categoryAxis = categoryAxis;
+            plotArea.appendAxis(categoryAxis);
+        },
+
+        valueAxisOptions: function(defaults) {
+            var plotArea = this;
+
+            if (plotArea._hasBarCharts) {
+                deepExtend(defaults, {
+                    majorGridLines: { type: ARC },
+                    minorGridLines: { type: ARC }
+                });
+            }
+
+            return deepExtend(defaults, plotArea.options.valueAxis);
+        },
+
+        appendChart: CategoricalPlotArea.fn.appendChart,
+
+        createCharts: function() {
+            var plotArea = this,
+                series = plotArea.series,
+                pane = plotArea.panes[0];
+
+            // TODO: Extract createChartByType method
+            plotArea.createAreaChart(
+                filterSeriesByType(series, [RADAR_AREA]),
+                pane
+            );
+
+            plotArea.createLineChart(
+                filterSeriesByType(series, [RADAR_LINE]),
+                pane
+            );
+
+            plotArea.createBarChart(
+                filterSeriesByType(series, [RADAR_COLUMN]),
+                pane
+            );
+        },
+
+        createAreaChart: function(series, pane) {
+            if (series.length === 0) {
+                return;
+            }
+
+            var plotArea = this,
+                firstSeries = series[0],
+                filteredSeries = plotArea.filterVisibleSeries(series),
+                areaChart = new RadarAreaChart(plotArea, {
+                    isStacked: firstSeries.stack && filteredSeries.length > 1,
+                    series: series
+                });
+
+            plotArea.appendChart(areaChart, pane);
+        },
+
+        createLineChart: function(series, pane) {
+            if (series.length === 0) {
+                return;
+            }
+
+            var plotArea = this,
+                firstSeries = series[0],
+                filteredSeries = plotArea.filterVisibleSeries(series),
+                lineChart = new RadarLineChart(plotArea, {
+                    isStacked: firstSeries.stack && filteredSeries.length > 1,
+                    series: series
+                });
+
+            plotArea.appendChart(lineChart, pane);
+        },
+
+        createBarChart: function(series, pane) {
+            if (series.length === 0) {
+                return;
+            }
+
+            var plotArea = this,
+                firstSeries = series[0],
+                filteredSeries = plotArea.filterVisibleSeries(series),
+                lineChart = new RadarBarChart(plotArea, {
+                    isStacked: firstSeries.stack && filteredSeries.length > 1,
+                    series: series,
+                    gap: firstSeries.gap,
+                    spacing: firstSeries.spacing
+                });
+
+            plotArea._hasBarCharts = true;
+
+            plotArea.appendChart(lineChart, pane);
+        },
+
+        seriesCategoryAxis: function() {
+            return this.categoryAxis;
+        },
+
+        click: function(chart, e) {
+            var plotArea = this,
+                coords = chart._eventCoordinates(e),
+                point = new Point2D(coords.x, coords.y),
+                category,
+                value;
+
+            category = plotArea.categoryAxis.getCategory(point);
+            value = plotArea.valueAxis.getValue(point);
+
+            if (category !== null && value !== null) {
+                chart.trigger(PLOT_AREA_CLICK, {
+                    element: $(e.target),
+                    category: category,
+                    value: value
+                });
+            }
+        }
+    });
+
+    var PolarPlotArea = PolarPlotAreaBase.extend({
+        options: {
+            xAxis: {},
+            yAxis: {}
+        },
+
+        createPolarAxis: function() {
+            var plotArea = this,
+                polarAxis;
+
+            polarAxis = new PolarAxis(plotArea.options.xAxis);
+
+            plotArea.polarAxis = polarAxis;
+            plotArea.axisX = polarAxis;
+            plotArea.appendAxis(polarAxis);
+        },
+
+        valueAxisOptions: function(defaults) {
+            var plotArea = this;
+
+            return deepExtend(defaults, {
+                    majorGridLines: { type: ARC },
+                    minorGridLines: { type: ARC }
+                }, plotArea.options.yAxis
+            );
+        },
+
+        createValueAxis: function() {
+            var plotArea = this;
+
+            PolarPlotAreaBase.fn.createValueAxis.call(plotArea);
+            plotArea.axisY = plotArea.valueAxis;
+        },
+
+        appendChart: function(chart, pane) {
+            var plotArea = this;
+
+            plotArea.valueAxisRangeTracker.update(chart.yAxisRanges);
+
+            PlotAreaBase.fn.appendChart.call(plotArea, chart, pane);
+        },
+
+        createCharts: function() {
+            var plotArea = this,
+                series = plotArea.series,
+                pane = plotArea.panes[0];
+
+            // TODO: Extract createChartByType method
+            plotArea.createLineChart(
+                filterSeriesByType(series, [POLAR_LINE]),
+                pane
+            );
+
+            plotArea.createScatterChart(
+                filterSeriesByType(series, [POLAR_SCATTER]),
+                pane
+            );
+
+            plotArea.createAreaChart(
+                filterSeriesByType(series, [POLAR_AREA]),
+                pane
+            );
+        },
+
+        createLineChart: function(series, pane) {
+            if (series.length === 0) {
+                return;
+            }
+
+            var plotArea = this,
+                lineChart = new PolarLineChart(plotArea, { series: series });
+
+            plotArea.appendChart(lineChart, pane);
+        },
+
+        createScatterChart: function(series, pane) {
+            if (series.length === 0) {
+                return;
+            }
+
+            var plotArea = this,
+                scatterChart = new PolarScatterChart(plotArea, { series: series });
+
+            plotArea.appendChart(scatterChart, pane);
+        },
+
+        createAreaChart: function(series, pane) {
+            if (series.length === 0) {
+                return;
+            }
+
+            var plotArea = this,
+                areaChart = new PolarAreaChart(plotArea, { series: series });
+
+            plotArea.appendChart(areaChart, pane);
+        },
+
+        click: function(chart, e) {
+            var plotArea = this,
+                coords = chart._eventCoordinates(e),
+                point = new Point2D(coords.x, coords.y),
+                xValue,
+                yValue;
+
+            xValue = plotArea.axisX.getValue(point);
+            yValue = plotArea.axisY.getValue(point);
+
+            if (xValue !== null && yValue !== null) {
+                chart.trigger(PLOT_AREA_CLICK, {
+                    element: $(e.target),
+                    x: xValue,
+                    y: yValue
+                });
+            }
+        }
+    });
+
+    // Helpers ================================================================
+    function xComparer(a, b) {
+        return a.value.x - b.value.x;
+    }
+
+    function angularDistance(a, b) {
+        return 180 - math.abs(math.abs(a - b) - 180);
+    }
+
+    // Exports ================================================================
+    PlotAreaFactory.current.register(PolarPlotArea, POLAR_CHARTS);
+    PlotAreaFactory.current.register(RadarPlotArea, RADAR_CHARTS);
+
+    SeriesBinder.current.register(POLAR_CHARTS, [X, Y], ["color"]);
+    SeriesBinder.current.register(RADAR_CHARTS, ["value"], ["color"]);
+
+    deepExtend(dataviz, {
+        PolarAxis: PolarAxis,
+        PolarPlotArea: PolarPlotArea,
+        RadarBarChart: RadarBarChart,
+        RadarCategoryAxis: RadarCategoryAxis,
+        RadarClusterLayout: RadarClusterLayout,
+        RadarNumericAxis: RadarNumericAxis,
+        RadarPlotArea: RadarPlotArea,
+        RadarStackLayout: RadarStackLayout
+    });
+
+})(window.kendo.jQuery);
+
+kendo_module({
+    id: "dataviz.gauge",
+    name: "Gauge",
+    category: "dataviz",
+    description: "Radial gauge.",
+    depends: [ "dataviz.core", "dataviz.svg" ]
+});
+
 (function ($, undefined) {
 
     // Imports ================================================================
-    var doc = document,
-        math = Math,
+    var math = Math,
 
         kendo = window.kendo,
         Widget = kendo.ui.Widget,
@@ -15975,6 +26916,7 @@ function pad(number) {
         append = dataviz.append,
         animationDecorator = dataviz.animationDecorator,
         autoMajorUnit = dataviz.autoMajorUnit,
+        getElement = dataviz.getElement,
         getSpacing = dataviz.getSpacing,
         defined = dataviz.defined,
         rotatePoint = dataviz.rotatePoint,
@@ -16097,7 +27039,7 @@ function pad(number) {
             }
 
             if (animationOptions.transitions === false) {
-                needle.refresh(doc.getElementById(options.id));
+                needle.refresh(getElement(options.id));
             } else {
                 animation = needle._animation = new RotationAnimation(needle, deepExtend(animationOptions, {
                     startAngle: oldAngle,
@@ -16206,12 +27148,12 @@ function pad(number) {
 
     var RadialScale = NumericAxis.extend({
         init: function (options) {
-            var scale = this,
-                scaleOptions = scale.options;
+            var scale = this;
 
-            scaleOptions.majorUnit = autoMajorUnit(scale.options.min, scale.options.max);
+            scale.options = deepExtend({}, scale.options, options);
+            scale.options.majorUnit = scale.options.majorUnit || autoMajorUnit(scale.options.min, scale.options.max);
 
-            Axis.fn.init.call(scale, options);
+            Axis.fn.init.call(scale, scale.options);
             scale.options.minorUnit = scale.options.minorUnit || scale.options.majorUnit / 10;
         },
 
@@ -16654,22 +27596,19 @@ function pad(number) {
 
     var LinearScale = NumericAxis.extend({
         init: function (options) {
-            var scale = this,
-                scaleOptions = scale.options;
+            var scale = this;
 
-            scaleOptions.majorUnit = autoMajorUnit(scale.options.min, scale.options.max);
+            scale.options = deepExtend({}, scale.options, options);
+            scale.options = deepExtend({}, scale.options , { labels: { mirror: scale.options.mirror } });
+            scale.options.majorUnit = scale.options.majorUnit || autoMajorUnit(scale.options.min, scale.options.max);
 
-            options = deepExtend({}, scaleOptions, options);
-            options = deepExtend({}, options, { labels: { mirror: options.mirror } });
-
-            NumericAxis.fn.init.call(scale, 0, 1, options);
+            Axis.fn.init.call(scale, scale.options);
+            scale.options.minorUnit = scale.options.minorUnit || scale.options.majorUnit / 10;
         },
 
         options: {
             min: 0,
             max: 50,
-
-            minorUnit: 1,
 
             majorTicks: {
                 size: 15,
@@ -16793,7 +27732,7 @@ function pad(number) {
                 pointer.getViewElements(pointer._view);
 
                 element.points = pointer.element.points;
-                element.refresh(doc.getElementById(options.id));
+                element.refresh(getElement(options.id));
             } else {
                 options.animation = deepExtend({}, options.animation, {
                     endPosition: scale.getSlot(scale.options.min, options.value),
@@ -16809,7 +27748,7 @@ function pad(number) {
             }
         },
 
-        reflow: function(box) {
+        reflow: function() {
             var pointer = this,
                 options = pointer.options,
                 scale = pointer.scale,
@@ -16951,7 +27890,7 @@ function pad(number) {
             return shape;
         },
 
-        pointerSize: function(shape) {
+        pointerSize: function() {
             var pointer = this,
                 options = pointer.options,
                 scale = pointer.scale,
@@ -17146,16 +28085,19 @@ function pad(number) {
                 options,
                 themeOptions,
                 themeName,
-                themes = dataviz.ui.themes.gauge || {};
+                themes = dataviz.ui.themes || {},
+                theme;
 
             Widget.fn.init.call(gauge, element);
 
             gauge.wrapper = gauge.element;
 
+            gauge._originalOptions = deepExtend({}, userOptions);
             options = deepExtend({}, gauge.options, userOptions);
 
             themeName = options.theme;
-            themeOptions = themeName ? themes[themeName] || themes[themeName.toLowerCase()] : {};
+            theme = themes[themeName] || themes[themeName.toLowerCase()];
+            themeOptions = themeName && theme ? theme.gauge : {};
 
             gauge.options = deepExtend({}, themeOptions, options);
 
@@ -17166,39 +28108,44 @@ function pad(number) {
 
         options: {
             plotArea: {},
-            theme: "default"
+            theme: "default",
+            pointer: {},
+            scale: {},
+            gaugeArea: {}
         },
 
         value: function(value) {
+            var gauge = this,
+                pointer = gauge._pointers[0];
+
             if (arguments.length === 0) {
-                return this._pointers[0].value();
+                return pointer.value();
             }
 
-            this._pointers[0].value(value);
+            gauge.options.pointer.value = value;
+
+            if (gauge._view.renderElement) {
+                pointer.value(value);
+            } else {
+                gauge.redraw();
+            }
         },
 
         redraw: function() {
             var gauge = this,
                 element = gauge.element,
                 model = gauge._model = gauge._getModel(),
-                viewType = dataviz.ui.defaultView(),
                 view;
 
             gauge._plotArea = model._plotArea;
 
-            if (viewType) {
-                view = gauge._view = viewType.fromModel(model);
+            view = gauge._view =
+                dataviz.ViewFactory.current.create(model.options, gauge.options.renderAs);
 
-                element.css("position", "relative");
+            if (view) {
+                view.load(model);
                 gauge._viewElement = view.renderTo(element[0]);
             }
-        },
-
-        svg: function() {
-            var model = this._getModel(),
-                view = dataviz.SVGView.fromModel(model);
-
-            return view.render();
         },
 
         _createModel: function() {
@@ -17230,6 +28177,7 @@ function pad(number) {
             return { width: width, height: height };
         }
     });
+    deepExtend(Gauge.fn, dataviz.ExportMixin);
 
     var RadialGauge = Gauge.extend({
         init: function(element, options) {
@@ -17347,7 +28295,4080 @@ function pad(number) {
         BarIndicatorAnimationDecorator: BarIndicatorAnimationDecorator
     });
 
-})(jQuery);
+})(window.kendo.jQuery);
+
+﻿kendo_module({
+    id: "dataviz.barcode",
+    name: "Barcode",
+    category: "dataviz",
+    description: "Barcode widget",
+    depends: ["dataviz.core", "dataviz.svg"]
+});
+
+(function ($, undefined) {
+    var kendo = window.kendo,
+        extend = $.extend,
+        deepExtend = kendo.deepExtend,
+        inArray = $.inArray,
+        isPlainObject = $.isPlainObject,
+        dataviz = kendo.dataviz,
+        Widget = kendo.ui.Widget,
+        Box2D = dataviz.Box2D,
+        Text = dataviz.Text,
+        DEFAULT_WIDTH = 300,
+        DEFAULT_HEIGHT = 100,
+        DEFAULT_QUIETZONE_LENGTH = 10,
+        numberRegex = /^\d+$/,
+        alphanumericRegex = /^[a-z0-9]+$/i,
+        InvalidCharacterErrorTemplate = "Character '{0}'  is not valid for symbology {1}";
+
+    function getNext(value, index, count){
+        return value.substring(index, index + count);
+    }
+
+    var Encoding  = kendo.Class.extend({
+        init: function (options) {
+            this.setOptions(options);
+        },
+        setOptions: function(options){
+            var that = this;
+            that.options = extend({}, that.options, options);
+            that.quietZoneLength = that.options.addQuietZone ? 2 * that.options.quietZoneLength : 0;
+        },
+        encode: function (value, width, height) {
+            var that = this;
+            that.initValue(value, width, height);
+            if(that.options.addQuietZone){
+                that.addQuietZone();
+            }
+            that.addData();
+            if(that.options.addQuietZone){
+                that.addQuietZone();
+            }
+
+            return {
+                baseUnit: that.baseUnit,
+                pattern: that.pattern
+            };
+        },
+        options: {
+            quietZoneLength: DEFAULT_QUIETZONE_LENGTH,
+            addQuietZone: true,
+            addCheckSum: true
+        },
+        initValue: function () {},
+        addQuietZone: function () {
+            this.pattern.push(this.options.quietZoneLength || DEFAULT_QUIETZONE_LENGTH);
+        },
+        addData: function () {
+        },
+        invalidCharacterError: function(character){
+            throw new Error(kendo.format(InvalidCharacterErrorTemplate, character, this.name));
+        }
+    });
+
+    var encodings = {};
+
+    var code39Base = Encoding.extend({
+        minBaseUnitLength: 0.7,
+        addData: function(){
+            var that = this,
+                value  = that.value;
+
+            that.addStart();
+
+            for(var idx = 0; idx < value.length; idx++){
+                that.addCharacter(value.charAt(idx));
+            }
+
+            if(that.options.addCheckSum){
+                that.pushCheckSum();
+            }
+
+            that.addStop();
+            that.prepareValues();
+        },
+        addCharacter: function(character){
+            var that = this,
+                charData = that.characterMap[character];
+            if(!charData){
+                that.invalidCharacterError(character);
+            }
+            that.addBase(charData);
+        },
+        addBase: function(){}
+    });
+
+    var code39ExtendedBase = {
+        addCharacter: function(character){
+            var that = this;
+            if(that.characterMap[character]){
+                that.addBase(that.characterMap[character]);
+            }
+            else if(character.charCodeAt(0) > 127){
+                that.invalidCharacterError(character);
+            }
+            else{
+                that.addExtended(character.charCodeAt(0));
+            }
+        },
+        addExtended: function(code){
+            var that = this,
+                patterns;
+            for(var i = 0; i < that.extendedMappings.length; i++){
+                if((patterns = that.extendedMappings[i].call(that, code))){
+                    for(var j = 0; j < patterns.length; j++){
+                        that.addBase(patterns[j]);
+                    }
+                    that.dataLength+= patterns.length - 1;
+                    return;
+                }
+            }
+        },
+        extendedMappings: [
+            function(code){
+                if(97 <= code && code <= 122){
+                    var that = this;
+                    return [that.characterMap[that.shiftCharacters[0]], that.characterMap[String.fromCharCode(code - 32)]];
+                }
+            },
+            function(code){
+                if(33 <= code && code <= 58){
+                    var that = this;
+                    return [that.characterMap[that.shiftCharacters[1]], that.characterMap[String.fromCharCode(code + 32)]];
+                }
+            },
+            function(code){
+                if(1 <= code && code <= 26){
+                    var that = this;
+                    return [that.characterMap[that.shiftCharacters[2]], that.characterMap[String.fromCharCode(code + 64)]];
+                }
+            },
+            function(code){
+                var that = this,
+                    result,
+                    dataCharacter;
+                if(!that.specialAsciiCodes[code]){
+                    dataCharacter =  Math.floor(code / 32) * 6 + (code - 27) % 32 + 64;
+                    result = [that.characterMap[that.shiftCharacters[3]], that.characterMap[String.fromCharCode(dataCharacter)]];
+                }
+                else{
+                    result = [];
+                    for(var i = 0; i < that.specialAsciiCodes[code].length; i++){
+                        result.push(that.characterMap[that.shiftCharacters[3]]);
+                        result.push(that.characterMap[that.specialAsciiCodes[code][i]]);
+                    }
+                }
+
+                return result;
+            }
+        ],
+        specialAsciiCodes: {
+            "0": ["U"],
+            "64": ["V"],
+            "96": ["W"],
+            "127": ["T","X","Y","Z"]
+        },
+        shiftValuesAsciiCodes:{
+            "39": 36,
+            "40": 47,
+            "41": 43,
+            "42": 37
+        },
+        characterMap: {
+            "+": false,
+            "/": false,
+            "$": false,
+            "%": false
+        },
+        shiftCharacters: ["SHIFT0", "SHIFT1", "SHIFT2", "SHIFT3"]
+    };
+
+    encodings.code39 =  code39Base.extend({
+        name: "Code 39",
+        checkSumMod: 43,
+        minRatio: 2.5,
+        maxRatio: 3,
+        gapWidth: 1,
+        splitCharacter: "|",
+        initValue: function (value, width, height) {
+            var that = this;
+            that.width = width;
+            that.height = height;
+            that.value = value;
+            that.dataLength = value.length;
+            that.pattern = [];
+            that.patternString = "";
+        },
+        prepareValues: function(){
+            var that = this,
+                baseUnit,
+                minBaseUnit = that.minBaseUnitLength,
+                ratio = that.maxRatio,
+                minRatio = that.minRatio,
+                minHeight = Math.max(0.15 * that.width, 24);
+            if (that.height < minHeight) {
+                throw new Error("Insufficient Height. The minimum height for value: " + that.value + " is: " + minHeight);
+            }
+
+            while((baseUnit = that.getBaseUnit(ratio)) < minBaseUnit && ratio > minRatio){
+                ratio = parseFloat((ratio - 0.1).toFixed(1));
+            }
+
+            if(baseUnit < minBaseUnit){
+                var minWidth = Math.ceil(that.getBaseWidth(minRatio) * minBaseUnit);
+                throw new Error("Insufficient width. The minimum width for value: " + that.value + " is: " + minWidth);
+            }
+
+            that.ratio = ratio;
+            that.baseUnit = baseUnit;
+            that.patternString = that.patternString.substring(0, that.patternString.length - 1);
+            that.pattern = that.pattern.concat(that.patternString.replace(/ratio/g, ratio).split(that.splitCharacter));
+        },
+        getBaseUnit: function(ratio){
+            return this.width / this.getBaseWidth(ratio);
+        },
+        getBaseWidth: function(ratio){
+            var that = this,
+                characterLength = 3 * (ratio + 2);
+            return that.quietZoneLength + characterLength * (that.dataLength + 2) + that.gapWidth * (that.dataLength + 1);
+        },
+        addStart: function () {
+            var that = this;
+            that.addPattern(that.characterMap.START.pattern);
+            that.addCharacterGap();
+        },
+        addBase: function(character){
+            this.addPattern(character.pattern);
+            this.addCharacterGap();
+        },
+        addStop: function () {
+            this.addPattern(this.characterMap.START.pattern);
+        },
+        addPattern: function (pattern) {
+            for (var i = 0; i < pattern.length; i++) {
+                 this.patternString+= this.patternMappings[pattern.charAt(i)];
+            }
+        },
+        addCharacterGap: function () {
+            var that = this;
+            that.patternString+=that.gapWidth + that.splitCharacter;
+        },
+        patternMappings: {
+            "b": "1|",
+            "w": "1|",
+            "B": "ratio|",
+            "W": "ratio|"
+        },
+        characterMap: {
+            "0":{"pattern":"bwbWBwBwb","value":0},
+            "1":{"pattern":"BwbWbwbwB","value":1},
+            "2":{"pattern":"bwBWbwbwB","value":2},
+            "3":{"pattern":"BwBWbwbwb","value":3},
+            "4":{"pattern":"bwbWBwbwB","value":4},
+            "5":{"pattern":"BwbWBwbwb","value":5},
+            "6":{"pattern":"bwBWBwbwb","value":6},
+            "7":{"pattern":"bwbWbwBwB","value":7},
+            "8":{"pattern":"BwbWbwBwb","value":8},
+            "9":{"pattern":"bwBWbwBwb","value":9},
+            "A":{"pattern":"BwbwbWbwB","value":10},
+            "B":{"pattern":"bwBwbWbwB","value":11},
+            "C":{"pattern":"BwBwbWbwb","value":12},
+            "D":{"pattern":"bwbwBWbwB","value":13},
+            "E":{"pattern":"BwbwBWbwb","value":14},
+            "F":{"pattern":"bwBwBWbwb","value":15},
+            "G":{"pattern":"bwbwbWBwB","value":16},
+            "H":{"pattern":"BwbwbWBwb","value":17},
+            "I":{"pattern":"bwBwbWBwb","value":18},
+            "J":{"pattern":"bwbwBWBwb","value":19},
+            "K":{"pattern":"BwbwbwbWB","value":20},
+            "L":{"pattern":"bwBwbwbWB","value":21},
+            "M":{"pattern":"BwBwbwbWb","value":22},
+            "N":{"pattern":"bwbwBwbWB","value":23},
+            "O":{"pattern":"BwbwBwbWb","value":24},
+            "P":{"pattern":"bwBwBwbWb","value":25},
+            "Q":{"pattern":"bwbwbwBWB","value":26},
+            "R":{"pattern":"BwbwbwBWb","value":27},
+            "S":{"pattern":"bwBwbwBWb","value":28},
+            "T":{"pattern":"bwbwBwBWb","value":29},
+            "U":{"pattern":"BWbwbwbwB","value":30},
+            "V":{"pattern":"bWBwbwbwB","value":31},
+            "W":{"pattern":"BWBwbwbwb","value":32},
+            "X":{"pattern":"bWbwBwbwB","value":33},
+            "Y":{"pattern":"BWbwBwbwb","value":34},
+            "Z":{"pattern":"bWBwBwbwb","value":35},
+            "-":{"pattern":"bWbwbwBwB","value":36},
+            ".":{"pattern":"BWbwbwBwb","value":37},
+            " ":{"pattern":"bWBwbwBwb","value":38},
+            "$":{"pattern":"bWbWbWbwb","value":39},
+            "/":{"pattern":"bWbWbwbWb","value":40},
+            "+":{"pattern":"bWbwbWbWb","value":41},
+            "%":{"pattern":"bwbWbWbWb","value":42},
+            START: { pattern: "bWbwBwBwb"}
+        },
+        options: {
+            addCheckSum: false
+        }
+    });
+
+    encodings.code39extended = encodings.code39.extend(deepExtend({}, code39ExtendedBase, {
+        name: "Code 39 extended",
+        characterMap: {
+            SHIFT0: {"pattern":"bWbwbWbWb","value":41},
+            SHIFT1: {"pattern":"bWbWbwbWb","value":40},
+            SHIFT2: {"pattern":"bWbWbWbwb","value":39},
+            SHIFT3: {"pattern":"bwbWbWbWb","value":42}
+        }
+    }));
+
+    encodings.code93 = code39Base.extend({
+        name: "Code 93",
+        cCheckSumTotal: 20,
+        kCheckSumTotal: 15,
+        checkSumMod: 47,
+        initValue: function(value, width, height){
+            var that = this;
+            that.value = value;
+            that.width = width;
+            that.height = height;
+            that.pattern = [];
+            that.values = [];
+            that.dataLength = value.length;
+        },
+        prepareValues: function(){
+            var that = this,
+                minHeight = Math.max(0.15 * that.width, 24);
+            if (that.height < minHeight) {
+                throw new Error("Insufficient Height");
+            }
+
+            that.setBaseUnit();
+
+            if(that.baseUnit < that.minBaseUnitLength){
+                throw new Error("Insufficient Width");
+            }
+        },
+        setBaseUnit: function(){
+            var that = this,
+                checkSumLength = 2;
+            that.baseUnit = that.width / (9 * (that.dataLength + 2 + checkSumLength) + that.quietZoneLength + 1);
+        },
+        addStart: function(){
+            var pattern = this.characterMap.START.pattern;
+            this.addPattern(pattern);
+        },
+        addStop: function(){
+            var that = this;
+            that.addStart();
+            that.pattern.push(that.characterMap.TERMINATION_BAR);
+        },
+        addBase: function(charData){
+            this.addPattern(charData.pattern);
+            this.values.push(charData.value);
+        },
+        pushCheckSum: function(){
+            var that = this,
+                checkValues = that._getCheckValues(),
+                charData;
+
+            that.checksum = checkValues.join("");
+            for(var i = 0; i < checkValues.length; i++){
+                charData = that.characterMap[that._findCharacterByValue(checkValues[i])];
+                that.addPattern(charData.pattern);
+            }
+        },
+        _getCheckValues: function(){
+            var that = this,
+                values = that.values,
+                length = values.length,
+                wightedSum = 0,
+                cValue,
+                kValue,
+                idx;
+
+            for(idx = length - 1; idx >= 0; idx--){
+                wightedSum += that.weightedValue(values[idx],length - idx, that.cCheckSumTotal);
+            }
+            cValue = wightedSum % that.checkSumMod;
+
+            wightedSum = that.weightedValue(cValue, 1, that.kCheckSumTotal);
+            for(idx = length - 1; idx >= 0; idx--){
+                wightedSum += that.weightedValue(values[idx], length - idx + 1, that.kCheckSumTotal);
+            }
+
+            kValue = wightedSum % that.checkSumMod;
+            return [cValue, kValue];
+        },
+        _findCharacterByValue: function (value) {
+            for (var character in this.characterMap) {
+                if (this.characterMap[character].value === value) {
+                    return character;
+                }
+            }
+        },
+        weightedValue: function(value, index, total){
+            return (index % total || total) * value;
+        },
+        addPattern: function(pattern){
+            var value;
+
+            for(var i = 0; i < pattern.length; i++){
+                value = parseInt(pattern.charAt(i),10);
+                this.pattern.push(value);
+            }
+        },
+        characterMap: {
+            "0":{"pattern":"131112","value":0},
+            "1":{"pattern":"111213","value":1},
+            "2":{"pattern":"111312","value":2},
+            "3":{"pattern":"111411","value":3},
+            "4":{"pattern":"121113","value":4},
+            "5":{"pattern":"121212","value":5},
+            "6":{"pattern":"121311","value":6},
+            "7":{"pattern":"111114","value":7},
+            "8":{"pattern":"131211","value":8},
+            "9":{"pattern":"141111","value":9},
+            "A":{"pattern":"211113","value":10},
+            "B":{"pattern":"211212","value":11},
+            "C":{"pattern":"211311","value":12},
+            "D":{"pattern":"221112","value":13},
+            "E":{"pattern":"221211","value":14},
+            "F":{"pattern":"231111","value":15},
+            "G":{"pattern":"112113","value":16},
+            "H":{"pattern":"112212","value":17},
+            "I":{"pattern":"112311","value":18},
+            "J":{"pattern":"122112","value":19},
+            "K":{"pattern":"132111","value":20},
+            "L":{"pattern":"111123","value":21},
+            "M":{"pattern":"111222","value":22},
+            "N":{"pattern":"111321","value":23},
+            "O":{"pattern":"121122","value":24},
+            "P":{"pattern":"131121","value":25},
+            "Q":{"pattern":"212112","value":26},
+            "R":{"pattern":"212211","value":27},
+            "S":{"pattern":"211122","value":28},
+            "T":{"pattern":"211221","value":29},
+            "U":{"pattern":"221121","value":30},
+            "V":{"pattern":"222111","value":31},
+            "W":{"pattern":"112122","value":32},
+            "X":{"pattern":"112221","value":33},
+            "Y":{"pattern":"122121","value":34},
+            "Z":{"pattern":"123111","value":35},
+            "-":{"pattern":"121131","value":36},
+            ".":{"pattern":"311112","value":37},
+            " ":{"pattern":"311211","value":38},
+            "$":{"pattern":"321111","value":39},
+            "/":{"pattern":"112131","value":40},
+            "+":{"pattern":"113121","value":41},
+            "%":{"pattern":"211131","value":42},
+            SHIFT0:{"pattern":"122211","value":46},
+            SHIFT1:{"pattern":"311121","value":45},
+            SHIFT2:{"pattern":"121221","value":43},
+            SHIFT3:{"pattern":"312111","value":44},
+            START: {"pattern":"111141"},
+            TERMINATION_BAR: "1"
+        }
+    });
+
+    encodings.code93extended = encodings.code93.extend(deepExtend({}, code39ExtendedBase, {
+        name: "Code 93 extended",
+        pushCheckSum: function(){
+            var that = this,
+                checkValues = that._getCheckValues(),
+                value;
+
+            that.checksum = checkValues.join("");
+
+            for(var i = 0; i < checkValues.length; i++){
+                value = checkValues[i];
+                if(that.shiftValuesAsciiCodes[value]){
+                    that.addExtended(that.shiftValuesAsciiCodes[value]);
+                }
+                else{
+                    that.addPattern(that.characterMap[that._findCharacterByValue(value)].pattern);
+                }
+            }
+        }
+    }));
+
+    var state128 = kendo.Class.extend({
+        init: function(encoding){
+            this.encoding = encoding;
+        },
+        addStart: function(){},
+        is: function (){},
+        move: function (){},
+        pushState: function(){}
+    });
+
+    var state128AB = state128.extend({
+        FNC4: "FNC4",
+        init: function(encoding, states){
+            var that = this;
+            that.encoding = encoding;
+            that.states = states;
+            that._initMoves(states);
+        },
+        addStart: function(){
+            this.encoding.addPattern(this.START);
+        },
+        is: function (value, index){
+            var code = value.charCodeAt(index);
+            return this.isCode(code);
+        },
+        move: function(encodingState){
+            var that = this,
+                idx = 0;
+
+            while(!that._moves[idx].call(that, encodingState) && idx < that._moves.length){
+                idx++;
+            }
+        },
+        pushState: function(encodingState){
+            var that = this,
+                states = that.states,
+                value = encodingState.value,
+                maxLength = value.length,
+                code;
+
+            if(inArray("C", states) >= 0){
+                var numberMatch = value.substr(encodingState.index).match(/\d{4,}/g);
+                if(numberMatch){
+                    maxLength = value.indexOf(numberMatch[0], encodingState.index);
+                }
+            }
+
+            while((code = encodingState.value.charCodeAt(encodingState.index)) >= 0 &&
+                that.isCode(code) && encodingState.index < maxLength){
+                that.encoding.addPattern(that.getValue(code));
+                encodingState.index++;
+            }
+        },
+        _initMoves: function(states){
+            var that = this;
+            that._moves = [];
+
+            if(inArray(that.FNC4, states) >= 0){
+                that._moves.push(that._moveFNC);
+            }
+
+            if(inArray(that.shiftKey, states) >= 0){
+                that._moves.push(that._shiftState);
+            }
+            that._moves.push(that._moveState);
+        },
+        _moveFNC: function(encodingState){
+            if(encodingState.fnc){
+                encodingState.fnc = false;
+                return encodingState.previousState == this.key;
+            }
+        },
+        _shiftState: function(encodingState){
+            var that = this;
+            if(encodingState.previousState == that.shiftKey &&
+                (encodingState.index + 1 >= encodingState.value.length ||
+                    that.encoding[that.shiftKey].is(encodingState.value, encodingState.index + 1))){
+                that.encoding.addPattern(that.SHIFT);
+                encodingState.shifted = true;
+                return true;
+            }
+        },
+        _moveState: function(){
+            this.encoding.addPattern(this.MOVE);
+            return true;
+        },
+        SHIFT: 98
+    });
+
+    var states128 = {};
+
+    states128.A = state128AB.extend({
+        key: "A",
+        shiftKey: "B",
+        isCode: function(code){
+            return 0 <= code && code < 96;
+        },
+        getValue: function(code){
+            if(code < 32){
+                return code + 64;
+            }
+
+            return code - 32;
+        },
+        MOVE: 101,
+        START: 103
+    });
+
+    states128.B = state128AB.extend({
+        key: "B",
+        shiftKey: "A",
+        isCode: function(code){
+            return 32 <= code && code < 128;
+        },
+        getValue: function(code){
+            return code - 32;
+        },
+        MOVE: 100,
+        START: 104
+    });
+
+    states128.C = state128.extend({
+        key: "C",
+        addStart: function(){
+            this.encoding.addPattern(this.START);
+        },
+        is: function (value, index){
+            var next4 = getNext(value, index, 4);
+            return (index + 4 <= value.length || value.length == 2) && numberRegex.test(next4);
+        },
+        move: function (){
+            this.encoding.addPattern(this.MOVE);
+        },
+        pushState: function(encodingState){
+            var code;
+            while(( code = getNext(encodingState.value, encodingState.index, 2)) &&
+                numberRegex.test(code) && code.length == 2)
+            {
+                this.encoding.addPattern(parseInt(code, 10));
+                encodingState.index+=2;
+            }
+        },
+        getValue: function(code){
+            return code;
+        },
+        MOVE: 99,
+        START: 105
+    });
+
+    states128.FNC4 = state128.extend({
+        key: "FNC4",
+        dependentStates: ["A","B"],
+        init: function(encoding, states){
+            this.encoding = encoding;
+            this._initSubStates(states);
+        },
+        addStart: function(encodingState){
+            var code = encodingState.value.charCodeAt(0) - 128,
+                subState = this._getSubState(code);
+
+            this.encoding[subState].addStart();
+        },
+        is: function(value, index){
+            var code = value.charCodeAt(index);
+            return this.isCode(code);
+        },
+        isCode: function(code){
+            return 128 <= code && code < 256;
+        },
+        pushState: function(encodingState){
+            var that = this,
+                subState = that._initSubState(encodingState),
+                encoding = that.encoding,
+                length = subState.value.length;
+            encodingState.index += length;
+
+            if(length < 3){
+                var code;
+                for(; subState.index < length; subState.index++){
+                    code = subState.value.charCodeAt(subState.index);
+                    subState.state = that._getSubState(code);
+                    if(subState.previousState != subState.state){
+                        subState.previousState = subState.state;
+                        encoding[subState.state].move(subState);
+                    }
+                    encoding.addPattern(encoding[subState.state].MOVE);
+                    encoding.addPattern(encoding[subState.state].getValue(code));
+                }
+            }
+            else{
+                if(subState.state != subState.previousState){
+                    encoding[subState.state].move(subState);
+                }
+                that._pushStart(subState);
+                encoding.pushData(subState, that.subStates);
+                if(encodingState.index < encodingState.value.length){
+                    that._pushStart(subState);
+                }
+            }
+
+            encodingState.fnc = true;
+            encodingState.state = subState.state;
+        },
+        _pushStart: function(subState){
+            var that = this;
+            that.encoding.addPattern(that.encoding[subState.state].MOVE);
+            that.encoding.addPattern(that.encoding[subState.state].MOVE);
+        },
+        _initSubState: function(encodingState){
+            var that = this,
+                subState = {
+                    value: that._getAll(encodingState.value, encodingState.index),
+                    index: 0
+                };
+            subState.state = that._getSubState(subState.value.charCodeAt(0));
+            subState.previousState = encodingState.previousState == that.key ?
+                subState.state : encodingState.previousState;
+            return subState;
+        },
+        _initSubStates: function(states){
+            var that = this;
+            that.subStates = [];
+            for(var i = 0; i < states.length; i++){
+                if(inArray(states[i], that.dependentStates) >= 0){
+                    that.subStates.push(states[i]);
+                }
+            }
+        },
+        _getSubState: function(code){
+            var that = this;
+            for(var i = 0; i < that.subStates.length; i++){
+                if(that.encoding[that.subStates[i]].isCode(code)){
+                    return that.subStates[i];
+                }
+            }
+        },
+        _getAll: function(value, index){
+            var code,
+                result = "";
+            while((code = value.charCodeAt(index++)) && this.isCode(code)){
+                result += String.fromCharCode(code - 128);
+            }
+            return result;
+        }
+    });
+
+    states128.FNC1 = state128.extend({
+        key: "FNC1",
+        startState: "C",
+        dependentStates: ["C","B"],
+        startAI: "(",
+        endAI: ")",
+        init: function(encoding, states){
+            this.encoding = encoding;
+            this.states = states;
+        },
+        addStart: function(){
+            this.encoding[this.startState].addStart();
+        },
+        is: function(){
+            return inArray(this.key, this.states) >= 0;
+        },
+        pushState: function(encodingState){
+            var that = this,
+                encoding = that.encoding,
+                value = encodingState.value.replace(/\s/g, ""),
+                regexSeparators = new RegExp("[" +  that.startAI + that.endAI + "]", "g"),
+                index = encodingState.index,
+                subState= {
+                    state: that.startState
+                },
+                current,
+                nextStart,
+                separatorLength;
+
+            encoding.addPattern(that.START);
+
+            while(true){
+                subState.index = 0;
+
+                separatorLength = value.charAt(index) === that.startAI ? 2 : 0;
+                current = separatorLength > 0 ? that.getBySeparator(value, index) : that.getByLength(value, index);
+                if(current.ai.length){
+                    nextStart = index + separatorLength + current.id.length + current.ai.length;
+                }
+                else{
+                    nextStart = value.indexOf(that.startAI, index + 1);
+                    if(nextStart < 0){
+                        if(index + current.ai.max + current.id.length + separatorLength < value.length){
+                            throw new Error("Separators are required after variable length identifiers");
+                        }
+                        nextStart = value.length;
+                    }
+                }
+                subState.value = value.substring(index, nextStart).replace(regexSeparators, "");
+                that.validate(current, subState.value);
+
+                encoding.pushData(subState, that.dependentStates);
+
+                if(nextStart >= value.length){
+                    break;
+                }
+
+                index = nextStart;
+
+                if(subState.state != that.startState){
+                    encoding[that.startState].move(subState);
+                    subState.state = that.startState;
+                }
+
+                if(!current.ai.length){
+                    encoding.addPattern(that.START);
+                }
+            }
+            encodingState.index = encodingState.value.length;
+        },
+        validate: function(current, value){
+            var code = value.substr(current.id.length),
+                ai = current.ai;
+            if(!ai.type && !numberRegex.test(code)){
+                throw new Error("Application identifier " + current.id+ " is numeric only but contains non numeric character(s).");
+            }
+
+            if(ai.type == "alphanumeric" && !alphanumericRegex.test(code)){
+                 throw new Error("Application identifier " + current.id+ " is alphanumeric only but contains non alphanumeric character(s).");
+            }
+
+            if(ai.length && ai.length !== code.length){
+                 throw new Error("Application identifier " + current.id + " must be " + ai.length + " characters long.");
+            }
+
+            if(ai.min && ai.min > code.length){
+                 throw new Error("Application identifier " + current.id + " must be at least " + ai.min + " characters long.");
+            }
+
+            if(ai.max && ai.max < code.length){
+                 throw new Error("Application identifier " + current.id + " must be at most " + ai.max + " characters long.");
+            }
+        },
+        getByLength: function(value, index){
+            var that = this,
+                id,
+                ai;
+            for(var i = 2; i <= 4; i++){
+                id = getNext(value, index, i);
+                ai = that.getAI(id) || that.getAI(id.substring(0, id.length - 1));
+                if(ai){
+                    return {
+                        id: id,
+                        ai: ai
+                    };
+                }
+            }
+            that.unsupportedAIError(id);
+        },
+        unsupportedAIError: function(id){
+            throw new Error(kendo.format("'{0}' is not a supported Application Identifier"),id);
+        },
+        getBySeparator: function(value, index){
+            var that = this,
+                start = value.indexOf(that.startAI, index),
+                end = value.indexOf(that.endAI, start),
+                id = value.substring(start + 1,end),
+                ai = that.getAI(id) || that.getAI(id.substr(id.length - 1));
+            if(!ai){
+                that.unsupportedAIError(id);
+            }
+
+            return {
+                ai: ai,
+                id: id
+            };
+        },
+        getAI: function(id){
+            var ai = this.applicationIdentifiers,
+                multiKey = ai.multiKey;
+            if(ai[id]){
+                return ai[id];
+            }
+
+            for(var i = 0; i < multiKey.length; i++){
+                if(multiKey[i].ids && inArray(id, multiKey[i].ids) >= 0){
+                    return multiKey[i].type;
+                }
+                else if(multiKey[i].ranges){
+                    var ranges = multiKey[i].ranges;
+                    for(var j = 0; j < ranges.length; j++){
+                        if(ranges[j][0] <= id && id <= ranges[j][1]){
+                            return multiKey[i].type;
+                        }
+                    }
+                }
+            }
+        },
+        applicationIdentifiers: {
+            "22": {max: 29, type: "alphanumeric"},
+            "402": {length: 17},
+            "7004": {max: 4, type: "alphanumeric"},
+            "242": {max: 6, type: "alphanumeric"},
+            "8020": {max: 25, type: "alphanumeric"},
+            "703": { min: 3, max: 30, type: "alphanumeric"},
+            "8008": { min: 8, max: 12, type: "alphanumeric"},
+            "253": { min: 13, max: 17, type: "alphanumeric"},
+            "8003": { min: 14, max: 30, type: "alphanumeric"},
+            multiKey: [{
+                ids: ["15", "17", "8005", "8100"],
+                ranges: [
+                    [11, 13],
+                    [310, 316],
+                    [320, 336],
+                    [340, 369]
+                ],
+                type: { length: 6}
+            },{
+                ids: ["240", "241", "250", "251", "400", "401", "403", "7002", "8004", "8007", "8110"],
+                ranges: [[90-99]],
+                type: {max: 30, type: "alphanumeric"}
+            },{
+                ids: ["7001"],
+                ranges: [[410, 414]],
+                type: { length: 13}
+            },{
+                ids: ["10","21", "254", "420", "8002"],
+                type: {max: 20, type: "alphanumeric"}
+            },{
+                ids: ["00", "8006", "8017", "8018"],
+                type: {length: 18}
+            },{
+                ids: ["01", "02", "8001"],
+                type: { length: 14}
+            },{
+                ids: ["422"],
+                ranges: [
+                    [424, 426]
+                ],
+                type: {length: 3}
+            },{
+                ids: ["20", "8102"],
+                type: { length: 2}
+            },{
+                ids: ["30","37"],
+                type: {max: 8, type: "alphanumeric"}
+            },{
+                ids: ["390","392"],
+                type: {max: 15, type: "alphanumeric"}
+            },{
+                ids: ["421", "423"],
+                type: { min: 3, max: 15, type: "alphanumeric"}
+            }, {
+                ids: ["391", "393"],
+                type: { min: 3, max: 18, type: "alphanumeric"}
+            },{
+                ids: ["7003", "8101"],
+                type: {length: 10}
+            }]
+        },
+        START: 102
+    });
+
+    var code128Base = Encoding.extend({
+        init: function (options) {
+            Encoding.fn.init.call(this, options);
+            this._initStates();
+        },
+        _initStates: function(){
+            var that = this;
+            for(var i = 0; i < that.states.length; i++){
+                that[that.states[i]]  = new states128[that.states[i]](that, that.states);
+            }
+        },
+        initValue: function (value, width, height) {
+           var that = this;
+           that.pattern = [];
+           that.value = value;
+           that.width = width;
+           that.height = height;
+           that.checkSum = 0;
+           that.totalUnits = 0;
+           that.index = 0;
+           that.position = 1;
+        },
+        addData: function(){
+            var that = this,
+                encodingState = {
+                    value: that.value,
+                    index: 0,
+                    state: ""
+                };
+            if(that.value.length === 0){
+                return;
+            }
+
+            encodingState.state =
+                encodingState.previousState = that.getNextState(encodingState, that.states);
+
+            that.addStart(encodingState);
+
+            that.pushData(encodingState, that.states);
+
+            that.addCheckSum();
+            that.addStop();
+            that.setBaseUnit();
+        },
+        pushData: function(encodingState, states){
+            var that = this;
+            while(true){
+                that[encodingState.state].pushState(encodingState);
+                if(encodingState.index >= encodingState.value.length){
+                    break;
+                }
+
+                if(!encodingState.shifted){
+                    encodingState.previousState = encodingState.state;
+                    encodingState.state  = that.getNextState(encodingState, states);
+                    that[encodingState.state].move(encodingState);
+                }
+                else{
+                   var temp = encodingState.state;
+                   encodingState.state = encodingState.previousState;
+                   encodingState.previousState = temp;
+                   encodingState.shifted = false;
+                }
+            }
+        },
+        addStart: function(encodingState){
+            this[encodingState.state].addStart(encodingState);
+            this.position = 1;
+        },
+        addCheckSum: function(){
+            var that = this;
+
+            that.checksum = that.checkSum % 103;
+            that.addPattern(that.checksum);
+        },
+        addStop: function(){
+            this.addPattern(this.STOP);
+        },
+        setBaseUnit: function(){
+            var that = this;
+            that.baseUnit = that.width / (that.totalUnits + that.quietZoneLength);
+        },
+        addPattern: function(code){
+            var that = this,
+                pattern = that.characterMap[code].toString(),
+                value;
+
+            for(var i = 0; i < pattern.length; i++){
+                value = parseInt(pattern.charAt(i),10);
+                that.pattern.push(value);
+                that.totalUnits += value;
+            }
+            that.checkSum += code * that.position++;
+        },
+        getNextState: function(encodingState, states){
+            for(var i = 0; i < states.length; i++){
+                if(this[states[i]].is(encodingState.value, encodingState.index)){
+                    return states[i];
+                }
+            }
+            this.invalidCharacterError(encodingState.value.charAt(encodingState.index));
+        },
+        characterMap: [
+            212222,222122,222221,121223,121322,131222,122213,122312,132212,221213,
+            221312,231212,112232,122132,122231,113222,123122,123221,223211,221132,
+            221231,213212,223112,312131,311222,321122,321221,312212,322112,322211,
+            212123,212321,232121,111323,131123,131321,112313,132113,132311,211313,
+            231113,231311,112133,112331,132131,113123,113321,133121,313121,211331,
+            231131,213113,213311,213131,311123,311321,331121,312113,312311,332111,
+            314111,221411,431111,111224,111422,121124,121421,141122,141221,112214,
+            112412,122114,122411,142112,142211,241211,221114,413111,241112,134111,
+            111242,121142,121241,114212,124112,124211,411212,421112,421211,212141,
+            214121,412121,111143,111341,131141,114113,114311,411113,411311,113141,
+            114131,311141,411131,211412,211214,211232,2331112
+        ],
+        STOP: 106
+    });
+
+    encodings.code128a = code128Base.extend({
+        name: "Code 128 A",
+        states: ["A"]
+    });
+
+
+    encodings.code128b = code128Base.extend({
+        name: "Code 128 B",
+        states: ["B"]
+    });
+
+    encodings.code128c = code128Base.extend({
+        name: "Code 128 C",
+        states: ["C"]
+    });
+
+    encodings.code128 = code128Base.extend({
+        name: "Code 128",
+        states: ["C", "B", "A", "FNC4"]
+    });
+
+    encodings["gs1-128"] = code128Base.extend({
+       name: "Code GS1-128",
+       states: ["FNC1", "C", "B"]
+    });
+
+    var msiBase = Encoding.extend({
+        initValue: function(value, width){
+            var that = this;
+            that.pattern = [];
+            that.value = value;
+            that.checkSumLength = 0;
+            that.width = width;
+        },
+        setBaseUnit: function(){
+            var that = this,
+                startStopLength = 7;
+
+            that.baseUnit = that.width /
+                    ( 12 * (that.value.length + that.checkSumLength) + that.quietZoneLength + startStopLength);
+        },
+        addData:  function(){
+            var that = this,
+                value = that.value;
+            that.addPattern(that.START);
+
+            for(var i = 0; i < value.length; i++){
+                that.addCharacter(value.charAt(i));
+            }
+
+            if(that.options.addCheckSum){
+                that.addCheckSum();
+            }
+
+            that.addPattern(that.STOP);
+            that.setBaseUnit();
+        },
+        addCharacter: function(character){
+            var that = this,
+                pattern = that.characterMap[character];
+            if(!pattern){
+                that.invalidCharacterError(character);
+            }
+            that.addPattern(pattern);
+        },
+        addPattern: function(pattern){
+            for(var i = 0; i < pattern.length; i++){
+                this.pattern.push(parseInt(pattern.charAt(i),10));
+            }
+        },
+        addCheckSum: function(){
+            var that = this,
+                checkSumFunction = that.checkSums[that.checkSumType],
+                checkValues;
+
+            checkValues = checkSumFunction.call(that.checkSums, that.value);
+
+            that.checksum = checkValues.join("");
+            for(var i = 0; i < checkValues.length; i++){
+                that.checkSumLength++;
+                that.addPattern(that.characterMap[checkValues[i]]);
+            }
+        },
+        checkSums: {
+            Modulo10: function(value){
+                var checkValues = [0, ""],
+                odd = value.length % 2,
+                idx,
+                evenSum,
+                oddSum;
+
+                for(idx = 0; idx < value.length; idx++){
+                    checkValues[(idx + odd) % 2] += parseInt(value.charAt(idx),10);
+                }
+
+                oddSum = checkValues[0];
+                evenSum = (checkValues[1] * 2).toString();
+
+                for(idx = 0; idx < evenSum.length; idx++){
+                    oddSum += parseInt(evenSum.charAt(idx),10);
+                }
+
+                return [(10 - (oddSum % 10)) % 10];
+            },
+            Modulo11: function(value){
+                var weightedSum = 0,
+                    mod = 11,
+                    length = value.length,
+                    weight,
+                    checkValue;
+
+                for(var i = 0; i < length; i++){
+                    weight = ((length - i) % 6 || 6) + 1;
+                    weightedSum +=  weight * value.charAt(i);
+                }
+                checkValue = (mod - weightedSum % mod) % mod;
+                if(checkValue != 10){
+                    return [checkValue];
+                }
+                return [1, 0];
+            },
+            Modulo11Modulo10: function(value){
+                var checkValues = this.Modulo11(value),
+                    mod11Value;
+                mod11Value = value + checkValues[0];
+
+                return checkValues.concat(this.Modulo10(mod11Value));
+            },
+            Modulo10Modulo10: function(value){
+                var checkValues = this.Modulo10(value),
+                    mod10Value;
+                mod10Value = value + checkValues[0];
+
+                return checkValues.concat(this.Modulo10(mod10Value));
+            }
+        },
+        characterMap: ["12121212", "12121221","12122112", "12122121", "12211212", "12211221", "12212112", "12212121", "21121212", "21121221"],
+        START: "21",
+        STOP: "121",
+        checkSumType: ""
+    });
+
+    encodings.msimod10 = msiBase.extend({
+        name: "MSI Modulo10",
+        checkSumType: "Modulo10"
+    });
+
+    encodings.msimod11 = msiBase.extend({
+        name: "MSI Modulo11",
+        checkSumType: "Modulo11"
+    });
+
+    encodings.msimod1110 = msiBase.extend({
+        name: "MSI Modulo11 Modulo10",
+        checkSumType: "Modulo11Modulo10"
+    });
+
+    encodings.msimod1010 = msiBase.extend({
+        name: "MSI Modulo10 Modulo10",
+        checkSumType: "Modulo10Modulo10"
+    });
+
+    encodings.code11 = Encoding.extend({
+        name: "Code 11",
+        cCheckSumTotal: 10,
+        kCheckSumTotal: 9,
+        kCheckSumMinLength: 10,
+        checkSumMod: 11,
+        DASH_VALUE: 10,
+        DASH: "-",
+        START: "112211",
+        STOP: "11221",
+        initValue: function(value, width){
+            var that = this;
+            that.pattern = [];
+            that.value = value;
+            that.width = width;
+            that.totalUnits = 0;
+        },
+        addData:  function(){
+            var that = this;
+            var value = that.value;
+            that.addPattern(that.START);
+
+            for(var i = 0; i < value.length; i++){
+                that.addCharacter(value.charAt(i));
+            }
+
+            if(that.options.addCheckSum){
+                that.addCheckSum();
+            }
+
+            that.addPattern(that.STOP);
+            that.setBaseUnit();
+        },
+        setBaseUnit: function(){
+            var that = this;
+            that.baseUnit = that.width / (that.totalUnits + that.quietZoneLength);
+        },
+        addCheckSum: function(){
+            var that = this,
+                value = that.value,
+                length = value.length,
+                cValue;
+
+            cValue = that.getWeightedSum(value, length, that.cCheckSumTotal) % that.checkSumMod;
+            that.checksum = cValue + "";
+            that.addPattern(that.characterMap[cValue]);
+
+            length++;
+            if(length >= that.kCheckSumMinLength){
+                var kValue = (cValue + that.getWeightedSum(value, length, that.kCheckSumTotal)) % that.checkSumMod;
+                that.checksum += kValue;
+                that.addPattern(that.characterMap[kValue]);
+            }
+        },
+        getWeightedSum: function(value, length, total){
+            var weightedSum = 0;
+            for(var i = 0; i < value.length; i++){
+                weightedSum+= this.weightedValue(this.getValue(value.charAt(i)), length, i, total);
+            }
+
+            return weightedSum;
+        },
+        weightedValue: function(value, length, index, total){
+            var weight = (length - index) % total || total;
+            return weight * value;
+        },
+        getValue: function(character){
+            var that = this;
+            if(!isNaN(character)){
+                return parseInt(character,10);
+            }
+            else if(character !== that.DASH){
+                that.invalidCharacterError(character);
+            }
+            return that.DASH_VALUE;
+        },
+        addCharacter: function(character){
+            var that = this,
+                value = that.getValue(character),
+                pattern = that.characterMap[value];
+            that.addPattern(pattern);
+        },
+        addPattern: function(pattern){
+            var value;
+            for(var i = 0; i < pattern.length; i++){
+                value = parseInt(pattern.charAt(i),10);
+                this.pattern.push(value);
+                this.totalUnits+=value;
+            }
+        },
+        characterMap: ["111121", "211121", "121121", "221111", "112121", "212111", "122111", "111221", "211211", "211111", "112111"],
+        options: {
+            addCheckSum: true
+        }
+    });
+
+    encodings.postnet = Encoding.extend({
+        name: "Postnet",
+        START: "2",
+        VALID_CODE_LENGTHS: [5,9, 11],
+        DIGIT_SEPARATOR: "-",
+        initValue: function(value, width, height){
+            var that = this;
+            that.height = height;
+            that.width = width;
+            that.baseHeight = height /2;
+            that.value = value.replace(new RegExp(that.DIGIT_SEPARATOR,"g"), "");
+            that.pattern = [];
+            that.validate(that.value);
+            that.checkSum = 0;
+            that.setBaseUnit();
+        },
+        addData:  function(){
+            var that = this,
+                value = that.value;
+            that.addPattern(that.START);
+
+            for(var i = 0; i < value.length; i++){
+                that.addCharacter(value.charAt(i));
+            }
+
+            if(that.options.addCheckSum){
+                that.addCheckSum();
+            }
+
+            that.addPattern(that.START);
+            that.pattern.pop();
+        },
+        addCharacter: function(character){
+            var that = this,
+                pattern = that.characterMap[character];
+            that.checkSum+= parseInt(character,10);
+            that.addPattern(pattern);
+        },
+        addCheckSum: function(){
+            var that = this;
+            that.checksum = (10 - (that.checkSum % 10)) % 10;
+            that.addCharacter(that.checksum);
+        },
+        setBaseUnit: function(){
+            var that=this,
+                startStopLength = 3;
+            that.baseUnit = that.width / ((that.value.length + 1) * 10 +  startStopLength + that.quietZoneLength);
+        },
+        validate: function(value){
+            var that = this;
+
+            if(!numberRegex.test(value)){
+                that.invalidCharacterError(value.match(/[^0-9]/)[0]);
+            }
+            if(inArray(value.length, that.VALID_CODE_LENGTHS) < 0){
+                throw new Error("Invalid value length. Valid lengths for the Postnet symbology are " + that.VALID_CODE_LENGTHS.join(","));
+            }
+        },
+        addPattern: function(pattern){
+            var that = this,
+                y1;
+            for(var i = 0; i < pattern.length; i++){
+                y1 = that.height - that.baseHeight * pattern.charAt(i);
+                that.pattern.push({width: 1, y1: y1, y2: that.height});
+                that.pattern.push(1);
+            }
+        },
+        characterMap: ["22111", "11122", "11212", "11221", "12112", "12121", "12211", "21112", "21121", "21211"]
+    });
+
+    encodings.ean13 = Encoding.extend({
+        initValue: function(value, width, height){
+            if(typeof(value)=="number"){
+                value+="";
+            }
+            if(value.length!=12 || /\D/.test(value)){
+                throw new Error('Invalid value provided');
+            }
+            else if(value.length<12){
+                value = '';
+            }
+            var that = this;
+            that.pattern = [];
+            that.options.height = height;
+            that.baseUnit = width /(95 + that.quietZoneLength);
+            that.value = value;
+            that.checksum = that.calculateChecksum();
+            that.leftKey = value[0];
+            that.leftPart = value.substr(1,6);
+            that.rightPart = value.substr(7)+that.checksum;
+        },
+        addData:  function(){
+            var that = this;
+            that.addPieces(that.characterMap.start);
+            that.addSide(that.leftPart,that.leftKey);
+            that.addPieces(that.characterMap.middle);
+            that.addSide(that.rightPart);
+            that.addPieces(that.characterMap.start);
+        },
+        addSide:function(leftPart,key){
+            var that = this;
+            for(var i = 0; i < leftPart.length; i++){
+                if(key && parseInt(that.keyTable[key].charAt(i),10)){
+                    that.addPieces(Array.prototype.slice.call(that.characterMap.digits[leftPart.charAt(i)]).reverse(),true);
+                }else{
+                    that.addPieces(that.characterMap.digits[leftPart.charAt(i)],true);
+                }
+            }
+        },
+        addPieces:function(arrToAdd,limitedHeight){
+            var that = this;
+            for(var i=0;i<arrToAdd.length;i++){
+                if(limitedHeight){
+                    that.pattern.push({
+                        y1:0,
+                        y2:that.options.height*0.95,
+                        width:arrToAdd[i]
+                    });
+                }else{
+                    that.pattern.push(arrToAdd[i]);
+                }
+            }
+        },
+        calculateChecksum: function (){
+            var odd = 0,
+                even = 0,
+                value = this.value.split("").reverse().join("");
+            for(var i = 0;i < value.length;i++){
+                if(i%2){
+                    even += parseInt(value.charAt(i),10);
+                }
+                else{
+                    odd += parseInt(value.charAt(i),10);
+                }
+            }
+            var checksum = (10 - ((3*odd + even)%10))%10;
+            return checksum;
+        },
+        keyTable:[
+            '000000',
+            '001011',
+            '001101',
+            '001110',
+            '010011',
+            '011001',
+            '011100',
+            '010101',
+            '010110',
+            '011010'
+        ],
+        characterMap: {
+            digits:[
+                [3,2,1,1],
+                [2,2,2,1],
+                [2,1,2,2],
+                [1,4,1,1],
+                [1,1,3,2],
+                [1,2,3,1],
+                [1,1,1,4],
+                [1,3,1,2],
+                [1,2,1,3],
+                [3,1,1,2]
+            ],
+            start: [1,1,1],
+            middle: [1,1,1,1,1]
+        }
+    });
+
+    encodings.ean8 = encodings.ean13.extend({
+        initValue: function(value, width, height){
+            var that = this;
+            if(value.length!=7 || /\D/.test(value)){
+                throw new Error('Invalid value provided');
+            }
+            that.value = value;
+            that.options.height = height;
+            that.checksum = that.calculateChecksum(that.value);
+            that.leftPart  = that.value.substr(0,4);
+            that.rightPart = that.value.substr(4) + that.checksum;
+            that.pattern = [];
+            that.baseUnit = width /(67 + that.quietZoneLength);
+        }
+    });
+
+    var Barcode = Widget.extend({
+        init: function (element, options) {
+             var that = this;
+             Widget.fn.init.call(that, element, options);
+             that.element = $(element);
+             that.element.addClass("k-barcode");
+             that.view = dataviz.ViewFactory.current.create({}, that.options.renderAs);
+             that.setOptions(options);
+        },
+        setOptions: function (options) {
+            var that = this;
+            that.type = (options.type || that.options.type).toLowerCase();
+            if(that.type=="upca"){ //extend instead
+                that.type = "ean13";
+                options.value = '0' + options.value;
+            }
+            if(that.type=="upce"){
+                that.type = "ean8";
+                options.value = '0' + options.value;
+            }
+            if(!encodings[that.type]){
+                throw new Error('Encoding ' + that.type + 'is not supported.');
+            }
+            options.value+='';
+            that.encoding = new encodings[that.type]();
+
+            that.options = $.extend(true,that.options, options);
+            that.redraw();
+        },
+
+        redraw: function () {
+            var that = this,
+                view = that.view;
+
+            that._redraw(view);
+            view.renderTo(that.element[0]);
+        },
+
+        svg: function() {
+            if (dataviz.SVGView) {
+                var view = new dataviz.SVGView();
+
+                this._redraw(view);
+
+                return view.render();
+            } else {
+                throw new Error("Unable to create SVGView. Check that kendo.dataviz.svg.js is loaded.");
+            }
+        },
+
+        imageDataURL: function() {
+            if (dataviz.CanvasView) {
+                if (dataviz.supportsCanvas()) {
+                    var container = document.createElement("div"),
+                        view = new dataviz.CanvasView();
+
+                    this._redraw(view);
+
+                    return view.renderTo(container).toDataURL();
+                } else {
+                    kendo.logToConsole(
+                        "Warning: Unable to generate image. The browser does not support Canvas.\n" +
+                        "User agent: " + navigator.userAgent);
+
+                    return null;
+                }
+            } else {
+                throw new Error("Unable to create CanvasView. Check that kendo.dataviz.canvas.js is loaded.");
+            }
+        },
+
+        _redraw: function(view) {
+            var that = this,
+                options = that.options,
+                textOptions = options.text,
+                size = that._getSize(),
+                border = options.border || {},
+                encoding = that.encoding,
+                contentBox = Box2D(0, 0, size.width, size.height).unpad(border.width).unpad(options.padding),
+                barHeight = contentBox.height(),
+                result, textToDisplay;
+
+            that.contentBox = contentBox;
+            view.children = [];
+            that._renderBackground(view, size);
+            var textHeight = dataviz.measureText( contentBox,{ font: options.text.font }).height;
+
+            if (textOptions.visible) {
+                barHeight -= textHeight;
+            }
+
+            result = encoding.encode(options.value,size.width-(options.padding.left+options.padding.right), barHeight);
+
+            if (textOptions.visible) {
+                textToDisplay = options.value;
+
+                if(options.checksum && encoding.checksum!==undefined){
+                    textToDisplay += " "+encoding.checksum;
+                }
+                that._renderTextElement(view, textToDisplay);
+            }
+            that.barHeight = barHeight;
+
+            view.options.width = size.width;
+            view.options.height = size.height;
+
+            that._renderElements(view, result.pattern, result.baseUnit);
+        },
+
+        _getSize: function(){
+            var that = this,
+                element = that.element,
+                size = {width:DEFAULT_WIDTH,height:DEFAULT_HEIGHT};
+
+            if(element.width()>0){
+                size.width = element.width();
+            }
+            if(element.height()>0){
+                size.height = element.height();
+            }
+            if(that.options.width){
+               size.width = that.options.width;
+            }
+            if(that.options.height){
+               size.height = that.options.height;
+            }
+
+            return size;
+        },
+        value: function(value){
+            var that = this;
+            if(value===undefined){
+                return that.options.value;
+            }
+            that.options.value = value + '';
+            that.redraw();
+        },
+
+        _renderElements: function (view, pattern, baseUnit) {
+            var that = this,
+                position = 0 + that.options.padding.left,
+                step,
+                item;
+
+            for (var i = 0; i < pattern.length; i++) {
+
+                item = isPlainObject(pattern[i]) ? pattern[i] : {
+                        width: pattern[i],
+                        y1: 0,
+                        y2: that.barHeight
+                    };
+                step = item.width * baseUnit;
+                if(i%2){
+                    view.children.push(view.createRect(
+                        new Box2D(
+                            position,
+                            item.y1 + that.contentBox.y1,
+                            position + step,
+                            item.y2 + that.contentBox.y1
+                        ),
+                        {
+                            fill: that.options.color
+                        }
+                    ));
+                }
+                position+= step;
+            }
+        },
+
+        _renderBackground: function (view, size) {
+            var that = this,
+                options = that.options,
+                border = options.border || {},
+                box = Box2D(0,0, size.width, size.height).unpad(border.width / 2),
+                rect = view.createRect(box, {
+                    fill: options.background,
+                    stroke: border.width ? border.color : "",
+                    strokeWidth: border.width,
+                    dashType: border.dashType
+                });
+
+            view.children.push(rect);
+        },
+
+        _renderTextElement: function (view, value) {
+            var that = this,
+                textOptions = that.options.text,
+                text = new Text(value, {
+                    font: textOptions.font,
+                    color: textOptions.color,
+                    align: "center",
+                    vAlign: "bottom"
+                });
+
+            that.text = text;
+
+            text.reflow(that.contentBox);
+            text.box.unpad(textOptions.margin);
+            view.children.push(view.createText(value, {
+                baseline: text.baseline,
+                x: text.box.x1,
+                y: text.box.y1,
+                color: textOptions.color,
+                font: textOptions.font
+            }));
+        },
+        options: {
+            name: "Barcode",
+            renderAs: "canvas",
+            value: "",
+            type: "code39",
+            checksum: false,
+            width: 0,
+            height: 0,
+            color: "black",
+            background: "white",
+            text: {
+                visible: true,
+                font: "16px Consolas, Monaco, Sans Mono, monospace, sans-serif",
+                color: "black",
+                margin: {
+                    top: 0,
+                    bottom: 0,
+                    left: 0,
+                    right: 0
+                }
+            },
+            border: {
+                width: 0,
+                dashType: "solid",
+                color: "black"
+            },
+            padding: {
+                top: 0,
+                bottom: 0,
+                left: 0,
+                right: 0
+            }
+        }
+    });
+
+   dataviz.ui.plugin(Barcode);
+
+   kendo.deepExtend(dataviz, {
+        encodings: encodings,
+        Encoding: Encoding
+   });
+
+})(window.kendo.jQuery);
+
+kendo_module({
+    id: "dataviz.qrcode",
+    name: "QRCode",
+    category: "dataviz",
+    description: "QRCode widget.",
+    depends: ["dataviz.core", "dataviz.svg"]
+});
+
+
+(function ($, undefined) {
+    var kendo = window.kendo,
+        extend = $.extend,
+        dataviz = kendo.dataviz,
+        Widget = kendo.ui.Widget,
+        Box2D = dataviz.Box2D,
+        terminator = "0000",
+        NUMERIC = "numeric",
+        ALPHA_NUMERIC = "alphanumeric",
+        BYTE = "byte",
+        powersOfTwo = {"1": 0},
+        powersOfTwoResult = {"0": 1},
+        generatorPolynomials = [[1,0],[1,25,0]],
+        irregularAlignmentPatternsStartDistance = {15:20,16:20,18:24,19:24,22:20,24:22,26:24,28:20,30:20,31:24,32:28,33:24,36:18,37:22,39:20,40:24},
+        versionsCodewordsInformation = [{L:{groups:[[1,19]],totalDataCodewords:19,errorCodewordsPerBlock:7},M:{groups:[[1,16]],totalDataCodewords:16,errorCodewordsPerBlock:10},Q:{groups:[[1,13]],totalDataCodewords:13,errorCodewordsPerBlock:13},H:{groups:[[1,9]],totalDataCodewords:9,errorCodewordsPerBlock:17}},{L:{groups:[[1,34]],totalDataCodewords:34,errorCodewordsPerBlock:10},M:{groups:[[1,28]],totalDataCodewords:28,errorCodewordsPerBlock:16},Q:{groups:[[1,22]],totalDataCodewords:22,errorCodewordsPerBlock:22},H:{groups:[[1,16]],totalDataCodewords:16,errorCodewordsPerBlock:28}},{L:{groups:[[1,55]],totalDataCodewords:55,errorCodewordsPerBlock:15},M:{groups:[[1,44]],totalDataCodewords:44,errorCodewordsPerBlock:26},Q:{groups:[[2,17]],totalDataCodewords:34,errorCodewordsPerBlock:18},H:{groups:[[2,13]],totalDataCodewords:26,errorCodewordsPerBlock:22}},{L:{groups:[[1,80]],totalDataCodewords:80,errorCodewordsPerBlock:20},M:{groups:[[2,32]],totalDataCodewords:64,errorCodewordsPerBlock:18},Q:{groups:[[2,24]],totalDataCodewords:48,errorCodewordsPerBlock:26},H:{groups:[[4,9]],totalDataCodewords:36,errorCodewordsPerBlock:16}},{L:{groups:[[1,108]],totalDataCodewords:108,errorCodewordsPerBlock:26},M:{groups:[[2,43]],totalDataCodewords:86,errorCodewordsPerBlock:24},Q:{groups:[[2,15],[2,16]],totalDataCodewords:62,errorCodewordsPerBlock:18},H:{groups:[[2,11],[2,12]],totalDataCodewords:46,errorCodewordsPerBlock:22}},{L:{groups:[[2,68]],totalDataCodewords:136,errorCodewordsPerBlock:18},M:{groups:[[4,27]],totalDataCodewords:108,errorCodewordsPerBlock:16},Q:{groups:[[4,19]],totalDataCodewords:76,errorCodewordsPerBlock:24},H:{groups:[[4,15]],totalDataCodewords:60,errorCodewordsPerBlock:28}},{L:{groups:[[2,78]],totalDataCodewords:156,errorCodewordsPerBlock:20},M:{groups:[[4,31]],totalDataCodewords:124,errorCodewordsPerBlock:18},Q:{groups:[[2,14],[4,15]],totalDataCodewords:88,errorCodewordsPerBlock:18},H:{groups:[[4,13],[1,14]],totalDataCodewords:66,errorCodewordsPerBlock:26}},{L:{groups:[[2,97]],totalDataCodewords:194,errorCodewordsPerBlock:24},M:{groups:[[2,38],[2,39]],totalDataCodewords:154,errorCodewordsPerBlock:22},Q:{groups:[[4,18],[2,19]],totalDataCodewords:110,errorCodewordsPerBlock:22},H:{groups:[[4,14],[2,15]],totalDataCodewords:86,errorCodewordsPerBlock:26}},{L:{groups:[[2,116]],totalDataCodewords:232,errorCodewordsPerBlock:30},M:{groups:[[3,36],[2,37]],totalDataCodewords:182,errorCodewordsPerBlock:22},Q:{groups:[[4,16],[4,17]],totalDataCodewords:132,errorCodewordsPerBlock:20},H:{groups:[[4,12],[4,13]],totalDataCodewords:100,errorCodewordsPerBlock:24}},{L:{groups:[[2,68],[2,69]],totalDataCodewords:274,errorCodewordsPerBlock:18},M:{groups:[[4,43],[1,44]],totalDataCodewords:216,errorCodewordsPerBlock:26},Q:{groups:[[6,19],[2,20]],totalDataCodewords:154,errorCodewordsPerBlock:24},H:{groups:[[6,15],[2,16]],totalDataCodewords:122,errorCodewordsPerBlock:28}},{L:{groups:[[4,81]],totalDataCodewords:324,errorCodewordsPerBlock:20},M:{groups:[[1,50],[4,51]],totalDataCodewords:254,errorCodewordsPerBlock:30},Q:{groups:[[4,22],[4,23]],totalDataCodewords:180,errorCodewordsPerBlock:28},H:{groups:[[3,12],[8,13]],totalDataCodewords:140,errorCodewordsPerBlock:24}},{L:{groups:[[2,92],[2,93]],totalDataCodewords:370,errorCodewordsPerBlock:24},M:{groups:[[6,36],[2,37]],totalDataCodewords:290,errorCodewordsPerBlock:22},Q:{groups:[[4,20],[6,21]],totalDataCodewords:206,errorCodewordsPerBlock:26},H:{groups:[[7,14],[4,15]],totalDataCodewords:158,errorCodewordsPerBlock:28}},{L:{groups:[[4,107]],totalDataCodewords:428,errorCodewordsPerBlock:26},M:{groups:[[8,37],[1,38]],totalDataCodewords:334,errorCodewordsPerBlock:22},Q:{groups:[[8,20],[4,21]],totalDataCodewords:244,errorCodewordsPerBlock:24},H:{groups:[[12,11],[4,12]],totalDataCodewords:180,errorCodewordsPerBlock:22}},{L:{groups:[[3,115],[1,116]],totalDataCodewords:461,errorCodewordsPerBlock:30},M:{groups:[[4,40],[5,41]],totalDataCodewords:365,errorCodewordsPerBlock:24},Q:{groups:[[11,16],[5,17]],totalDataCodewords:261,errorCodewordsPerBlock:20},H:{groups:[[11,12],[5,13]],totalDataCodewords:197,errorCodewordsPerBlock:24}},{L:{groups:[[5,87],[1,88]],totalDataCodewords:523,errorCodewordsPerBlock:22},M:{groups:[[5,41],[5,42]],totalDataCodewords:415,errorCodewordsPerBlock:24},Q:{groups:[[5,24],[7,25]],totalDataCodewords:295,errorCodewordsPerBlock:30},H:{groups:[[11,12],[7,13]],totalDataCodewords:223,errorCodewordsPerBlock:24}},{L:{groups:[[5,98],[1,99]],totalDataCodewords:589,errorCodewordsPerBlock:24},M:{groups:[[7,45],[3,46]],totalDataCodewords:453,errorCodewordsPerBlock:28},Q:{groups:[[15,19],[2,20]],totalDataCodewords:325,errorCodewordsPerBlock:24},H:{groups:[[3,15],[13,16]],totalDataCodewords:253,errorCodewordsPerBlock:30}},{L:{groups:[[1,107],[5,108]],totalDataCodewords:647,errorCodewordsPerBlock:28},M:{groups:[[10,46],[1,47]],totalDataCodewords:507,errorCodewordsPerBlock:28},Q:{groups:[[1,22],[15,23]],totalDataCodewords:367,errorCodewordsPerBlock:28},H:{groups:[[2,14],[17,15]],totalDataCodewords:283,errorCodewordsPerBlock:28}},{L:{groups:[[5,120],[1,121]],totalDataCodewords:721,errorCodewordsPerBlock:30},M:{groups:[[9,43],[4,44]],totalDataCodewords:563,errorCodewordsPerBlock:26},Q:{groups:[[17,22],[1,23]],totalDataCodewords:397,errorCodewordsPerBlock:28},H:{groups:[[2,14],[19,15]],totalDataCodewords:313,errorCodewordsPerBlock:28}},{L:{groups:[[3,113],[4,114]],totalDataCodewords:795,errorCodewordsPerBlock:28},M:{groups:[[3,44],[11,45]],totalDataCodewords:627,errorCodewordsPerBlock:26},Q:{groups:[[17,21],[4,22]],totalDataCodewords:445,errorCodewordsPerBlock:26},H:{groups:[[9,13],[16,14]],totalDataCodewords:341,errorCodewordsPerBlock:26}},{L:{groups:[[3,107],[5,108]],totalDataCodewords:861,errorCodewordsPerBlock:28},M:{groups:[[3,41],[13,42]],totalDataCodewords:669,errorCodewordsPerBlock:26},Q:{groups:[[15,24],[5,25]],totalDataCodewords:485,errorCodewordsPerBlock:30},H:{groups:[[15,15],[10,16]],totalDataCodewords:385,errorCodewordsPerBlock:28}},{L:{groups:[[4,116],[4,117]],totalDataCodewords:932,errorCodewordsPerBlock:28},M:{groups:[[17,42]],totalDataCodewords:714,errorCodewordsPerBlock:26},Q:{groups:[[17,22],[6,23]],totalDataCodewords:512,errorCodewordsPerBlock:28},H:{groups:[[19,16],[6,17]],totalDataCodewords:406,errorCodewordsPerBlock:30}},{L:{groups:[[2,111],[7,112]],totalDataCodewords:1006,errorCodewordsPerBlock:28},M:{groups:[[17,46]],totalDataCodewords:782,errorCodewordsPerBlock:28},Q:{groups:[[7,24],[16,25]],totalDataCodewords:568,errorCodewordsPerBlock:30},H:{groups:[[34,13]],totalDataCodewords:442,errorCodewordsPerBlock:24}},{L:{groups:[[4,121],[5,122]],totalDataCodewords:1094,errorCodewordsPerBlock:30},M:{groups:[[4,47],[14,48]],totalDataCodewords:860,errorCodewordsPerBlock:28},Q:{groups:[[11,24],[14,25]],totalDataCodewords:614,errorCodewordsPerBlock:30},H:{groups:[[16,15],[14,16]],totalDataCodewords:464,errorCodewordsPerBlock:30}},{L:{groups:[[6,117],[4,118]],totalDataCodewords:1174,errorCodewordsPerBlock:30},M:{groups:[[6,45],[14,46]],totalDataCodewords:914,errorCodewordsPerBlock:28},Q:{groups:[[11,24],[16,25]],totalDataCodewords:664,errorCodewordsPerBlock:30},H:{groups:[[30,16],[2,17]],totalDataCodewords:514,errorCodewordsPerBlock:30}},{L:{groups:[[8,106],[4,107]],totalDataCodewords:1276,errorCodewordsPerBlock:26},M:{groups:[[8,47],[13,48]],totalDataCodewords:1000,errorCodewordsPerBlock:28},Q:{groups:[[7,24],[22,25]],totalDataCodewords:718,errorCodewordsPerBlock:30},H:{groups:[[22,15],[13,16]],totalDataCodewords:538,errorCodewordsPerBlock:30}},{L:{groups:[[10,114],[2,115]],totalDataCodewords:1370,errorCodewordsPerBlock:28},M:{groups:[[19,46],[4,47]],totalDataCodewords:1062,errorCodewordsPerBlock:28},Q:{groups:[[28,22],[6,23]],totalDataCodewords:754,errorCodewordsPerBlock:28},H:{groups:[[33,16],[4,17]],totalDataCodewords:596,errorCodewordsPerBlock:30}},{L:{groups:[[8,122],[4,123]],totalDataCodewords:1468,errorCodewordsPerBlock:30},M:{groups:[[22,45],[3,46]],totalDataCodewords:1128,errorCodewordsPerBlock:28},Q:{groups:[[8,23],[26,24]],totalDataCodewords:808,errorCodewordsPerBlock:30},H:{groups:[[12,15],[28,16]],totalDataCodewords:628,errorCodewordsPerBlock:30}},{L:{groups:[[3,117],[10,118]],totalDataCodewords:1531,errorCodewordsPerBlock:30},M:{groups:[[3,45],[23,46]],totalDataCodewords:1193,errorCodewordsPerBlock:28},Q:{groups:[[4,24],[31,25]],totalDataCodewords:871,errorCodewordsPerBlock:30},H:{groups:[[11,15],[31,16]],totalDataCodewords:661,errorCodewordsPerBlock:30}},{L:{groups:[[7,116],[7,117]],totalDataCodewords:1631,errorCodewordsPerBlock:30},M:{groups:[[21,45],[7,46]],totalDataCodewords:1267,errorCodewordsPerBlock:28},Q:{groups:[[1,23],[37,24]],totalDataCodewords:911,errorCodewordsPerBlock:30},H:{groups:[[19,15],[26,16]],totalDataCodewords:701,errorCodewordsPerBlock:30}},{L:{groups:[[5,115],[10,116]],totalDataCodewords:1735,errorCodewordsPerBlock:30},M:{groups:[[19,47],[10,48]],totalDataCodewords:1373,errorCodewordsPerBlock:28},Q:{groups:[[15,24],[25,25]],totalDataCodewords:985,errorCodewordsPerBlock:30},H:{groups:[[23,15],[25,16]],totalDataCodewords:745,errorCodewordsPerBlock:30}},{L:{groups:[[13,115],[3,116]],totalDataCodewords:1843,errorCodewordsPerBlock:30},M:{groups:[[2,46],[29,47]],totalDataCodewords:1455,errorCodewordsPerBlock:28},Q:{groups:[[42,24],[1,25]],totalDataCodewords:1033,errorCodewordsPerBlock:30},H:{groups:[[23,15],[28,16]],totalDataCodewords:793,errorCodewordsPerBlock:30}},{L:{groups:[[17,115]],totalDataCodewords:1955,errorCodewordsPerBlock:30},M:{groups:[[10,46],[23,47]],totalDataCodewords:1541,errorCodewordsPerBlock:28},Q:{groups:[[10,24],[35,25]],totalDataCodewords:1115,errorCodewordsPerBlock:30},H:{groups:[[19,15],[35,16]],totalDataCodewords:845,errorCodewordsPerBlock:30}},{L:{groups:[[17,115],[1,116]],totalDataCodewords:2071,errorCodewordsPerBlock:30},M:{groups:[[14,46],[21,47]],totalDataCodewords:1631,errorCodewordsPerBlock:28},Q:{groups:[[29,24],[19,25]],totalDataCodewords:1171,errorCodewordsPerBlock:30},H:{groups:[[11,15],[46,16]],totalDataCodewords:901,errorCodewordsPerBlock:30}},{L:{groups:[[13,115],[6,116]],totalDataCodewords:2191,errorCodewordsPerBlock:30},M:{groups:[[14,46],[23,47]],totalDataCodewords:1725,errorCodewordsPerBlock:28},Q:{groups:[[44,24],[7,25]],totalDataCodewords:1231,errorCodewordsPerBlock:30},H:{groups:[[59,16],[1,17]],totalDataCodewords:961,errorCodewordsPerBlock:30}},{L:{groups:[[12,121],[7,122]],totalDataCodewords:2306,errorCodewordsPerBlock:30},M:{groups:[[12,47],[26,48]],totalDataCodewords:1812,errorCodewordsPerBlock:28},Q:{groups:[[39,24],[14,25]],totalDataCodewords:1286,errorCodewordsPerBlock:30},H:{groups:[[22,15],[41,16]],totalDataCodewords:986,errorCodewordsPerBlock:30}},{L:{groups:[[6,121],[14,122]],totalDataCodewords:2434,errorCodewordsPerBlock:30},M:{groups:[[6,47],[34,48]],totalDataCodewords:1914,errorCodewordsPerBlock:28},Q:{groups:[[46,24],[10,25]],totalDataCodewords:1354,errorCodewordsPerBlock:30},H:{groups:[[2,15],[64,16]],totalDataCodewords:1054,errorCodewordsPerBlock:30}},{L:{groups:[[17,122],[4,123]],totalDataCodewords:2566,errorCodewordsPerBlock:30},M:{groups:[[29,46],[14,47]],totalDataCodewords:1992,errorCodewordsPerBlock:28},Q:{groups:[[49,24],[10,25]],totalDataCodewords:1426,errorCodewordsPerBlock:30},H:{groups:[[24,15],[46,16]],totalDataCodewords:1096,errorCodewordsPerBlock:30}},{L:{groups:[[4,122],[18,123]],totalDataCodewords:2702,errorCodewordsPerBlock:30},M:{groups:[[13,46],[32,47]],totalDataCodewords:2102,errorCodewordsPerBlock:28},Q:{groups:[[48,24],[14,25]],totalDataCodewords:1502,errorCodewordsPerBlock:30},H:{groups:[[42,15],[32,16]],totalDataCodewords:1142,errorCodewordsPerBlock:30}},{L:{groups:[[20,117],[4,118]],totalDataCodewords:2812,errorCodewordsPerBlock:30},M:{groups:[[40,47],[7,48]],totalDataCodewords:2216,errorCodewordsPerBlock:28},Q:{groups:[[43,24],[22,25]],totalDataCodewords:1582,errorCodewordsPerBlock:30},H:{groups:[[10,15],[67,16]],totalDataCodewords:1222,errorCodewordsPerBlock:30}},{L:{groups:[[19,118],[6,119]],totalDataCodewords:2956,errorCodewordsPerBlock:30},M:{groups:[[18,47],[31,48]],totalDataCodewords:2334,errorCodewordsPerBlock:28},Q:{groups:[[34,24],[34,25]],totalDataCodewords:1666,errorCodewordsPerBlock:30},H:{groups:[[20,15],[61,16]],totalDataCodewords:1276,errorCodewordsPerBlock:30}}],
+        finderPattern = [1,0,1,1,1],
+        alignmentPattern = [1,0,1],
+        errorCorrectionPatterns = {L: "01", M: "00", Q: "11", H: "10"},
+        formatMaskPattern = "101010000010010",
+        formatGeneratorPolynomial = "10100110111",
+        versionGeneratorPolynomial = "1111100100101",
+        paddingCodewords = ["11101100", "00010001"],
+        finderPatternValue = 93,
+        maskPatternConditions = [
+            function(row,column){return (row + column) % 2 === 0;},
+            function(row){return row % 2 === 0;},
+            function(row,column){return column % 3 === 0;},
+            function(row,column){return (row + column) % 3 === 0;},
+            function(row,column){return (Math.floor(row/2) + Math.floor(column/3)) % 2 === 0;},
+            function(row,column){return ((row * column) % 2) + ((row * column) % 3) === 0;},
+            function(row,column){return (((row * column) % 2) + ((row * column) % 3)) % 2 === 0;},
+            function(row,column){return (((row + column) % 2) + ((row * column) % 3)) % 2 === 0;}
+        ],
+        numberRegex = /^\d+/,
+        alphaPattern = "A-Z0-9 $%*+./:-",
+        alphaExclusiveSet = "A-Z $%*+./:-",
+        alphaRegex = new RegExp("^[" + alphaExclusiveSet + "]+"),
+        alphaNumericRegex = new RegExp("^[" + alphaPattern+ "]+"),
+        byteRegex = new RegExp("^[^" + alphaPattern+ "]+"),
+        initMinNumericBeforeAlpha = 8,
+        initMinNumericBeforeByte = 5,
+        initMinAlphaBeforeByte = 8,
+        minNumericBeforeAlpha = 17,
+        minNumericBeforeByte = 9,
+        minAlphaBeforeByte =  16,
+        round = Math.round;
+
+        function toDecimal(value){
+            return parseInt(value, 2);
+        }
+
+        function toBitsString(value, length){
+            var result = Number(value).toString(2);
+            if(result.length < length){
+                result = new Array(length - result.length + 1).join(0) + result;
+            }
+            return result;
+        }
+
+        function splitInto(str, n){
+            var result = [],
+                idx = 0;
+            while(idx < str.length){
+                result.push(str.substring(idx, idx + n));
+                idx+= n;
+            }
+            return result;
+        }
+
+        var QRDataMode = kendo.Class.extend({
+            getVersionIndex: function(version){
+                if(version < 10){
+                    return 0;
+                }
+                else if(version > 26){
+                    return 2;
+                }
+
+                return 1;
+            },
+            getBitsCharacterCount: function(version){
+                var mode = this;
+                return mode.bitsInCharacterCount[mode.getVersionIndex(version || 40)];
+            },
+            getModeCountString: function(length, version){
+                var mode = this;
+                return mode.modeIndicator + toBitsString(length, mode.getBitsCharacterCount(version));
+            },
+            encode: function(){},
+            getStringBitsLength: function(){},
+            getValue: function(){},
+            modeIndicator: "",
+            bitsInCharacterCount: []
+        });
+
+        var modes = {};
+        modes[NUMERIC] = QRDataMode.extend({
+            bitsInCharacterCount: [10, 12, 14],
+            modeIndicator: "0001",
+            getValue: function(character){
+                return parseInt(character, 10);
+            },
+            encode: function(str, version){
+                var mode = this,
+                    parts = splitInto(str, 3),
+                    result = mode.getModeCountString(str.length, version);
+
+                for(var i = 0; i < parts.length - 1; i++){
+                    result += toBitsString(parts[i], 10);
+                }
+                return result + toBitsString(parts[i], 1 + 3 * parts[i].length);
+            },
+            getStringBitsLength: function(inputLength, version){
+                var mod3 = inputLength % 3;
+                return 4 + this.getBitsCharacterCount(version) + 10 * Math.floor(inputLength / 3) + 3 * mod3 + (mod3 === 0 ? 0 : 1);
+            }
+        });
+
+        modes[ALPHA_NUMERIC] = QRDataMode.extend({
+            characters: {"0":0,"1": 1,"2": 2,"3": 3,"4": 4,"5": 5,"6": 6,"7": 7,"8": 8,"9": 9,"A": 10,"B": 11,"C": 12,"D": 13,"E": 14,"F": 15,"G": 16,"H": 17,"I": 18,"J": 19,"K": 20,"L": 21,"M": 22,"N": 23,"O": 24,"P": 25,"Q": 26,"R": 27,"S": 28,"T": 29,"U": 30,"V": 31,"W": 32,"X": 33,"Y": 34,"Z": 35," ": 36,"$": 37,"%": 38,"*": 39,"+": 40,"-": 41,".": 42,"/": 43,":": 44},
+            bitsInCharacterCount: [9,11,13],
+            modeIndicator: "0010",
+            getValue: function(character){
+                return this.characters[character];
+            },
+            encode: function(str, version){
+                var mode = this,
+                    parts = splitInto(str, 2),
+                    result = mode.getModeCountString(str.length, version),
+                    value;
+                for(var i = 0; i < parts.length - 1; i++){
+                    value = 45 * mode.getValue(parts[i].charAt(0)) + mode.getValue(parts[i].charAt(1));
+                    result += toBitsString(value, 11);
+                }
+                value = parts[i].length == 2 ?
+                    45 * mode.getValue(parts[i].charAt(0)) + mode.getValue(parts[i].charAt(1)) :
+                    mode.getValue(parts[i].charAt(0));
+                return result + toBitsString(value, 1 + 5 * parts[i].length);
+            },
+            getStringBitsLength: function(inputLength, version){
+                return 4 + this.getBitsCharacterCount(version) + 11 * Math.floor(inputLength / 2) + 6 * (inputLength % 2);
+            }
+        });
+
+        modes[BYTE] = QRDataMode.extend({
+            bitsInCharacterCount: [8,16,16],
+            modeIndicator: "0100",
+            getValue: function(character){
+                var code = character.charCodeAt(0);
+                if(code <= 127 || (160 <= code && code <= 255)){
+                    return code;
+                }
+                else{
+                    throw new Error("Unsupported character: " + character);
+                }
+            },
+            encode: function(str, version){
+                var mode = this,
+                    result = mode.getModeCountString(str.length, version);
+
+                for(var i = 0; i < str.length; i++){
+                    result += toBitsString(mode.getValue(str.charAt(i)), 8);
+                }
+                return result;
+            },
+            getStringBitsLength: function(inputLength, version){
+                return 4 + this.getBitsCharacterCount(version) + 8 * inputLength;
+            }
+        });
+
+        var modeInstances = {};
+        for(var mode in modes){
+            modeInstances[mode] = new modes[mode]();
+        }
+
+        var FreeCellVisitor = function (matrix){
+            var that = this,
+                row = matrix.length - 1,
+                column = matrix.length - 1,
+                startColumn = column,
+                dir = -1,
+                c = 0;
+            that.move = function(){
+                row += dir * c;
+                c^=1;
+                column = startColumn - c;
+            };
+            that.getNextCell = function(){
+                while(matrix[row][column] !== undefined){
+                    that.move();
+                    if(row < 0 || row >= matrix.length){
+                        dir = -dir;
+                        startColumn-= startColumn != 8 ? 2 : 3;
+                        column = startColumn;
+                        row = dir < 0 ? matrix.length - 1 : 0;
+                    }
+                }
+                return {row: row, column: column};
+            };
+            that.getNextRemainderCell = function(){
+                that.move();
+                if(matrix[row][column] === undefined){
+                     return {row: row, column: column};
+                }
+            };
+        };
+
+        function fillFunctionCell(matrices, bit, x, y){
+            for(var i = 0; i< matrices.length;i++){
+                matrices[i][x][y] = bit;
+            }
+        }
+
+        function fillDataCell(matrices, bit, x, y){
+            for(var i = 0; i < maskPatternConditions.length;i++){
+                matrices[i][x][y] = maskPatternConditions[i](x,y) ? bit ^ 1 : parseInt(bit, 10);
+            }
+        }
+
+        var fillData = function (matrices, blocks){
+            var cellVisitor = new FreeCellVisitor(matrices[0]),
+                block,
+                codewordIdx,
+                cell;
+
+            for(var blockIdx = 0; blockIdx < blocks.length;blockIdx++){
+                block = blocks[blockIdx];
+                codewordIdx = 0;
+                while(block.length > 0){
+                    for(var i = 0; i< block.length; i++){
+                         for(var j = 0; j < 8;j++){
+                            cell = cellVisitor.getNextCell();
+                            fillDataCell(matrices, block[i][codewordIdx].charAt(j), cell.row, cell.column);
+                        }
+                    }
+
+                    codewordIdx++;
+                    while(block[0] && codewordIdx == block[0].length){
+                        block.splice(0,1);
+                    }
+                }
+            }
+
+            while((cell = cellVisitor.getNextRemainderCell())){
+                fillDataCell(matrices, 0, cell.row, cell.column);
+            }
+        };
+
+        var padDataString = function (dataString, totalDataCodewords){
+            var dataBitsCount = totalDataCodewords * 8,
+                terminatorIndex = 0,
+                paddingCodewordIndex = 0;
+            while(dataString.length < dataBitsCount && terminatorIndex < terminator.length){
+                dataString+=terminator.charAt(terminatorIndex++);
+            }
+
+            if(dataString.length % 8 !== 0){
+                dataString+= new Array(9 - dataString.length % 8).join("0");
+            }
+
+            while(dataString.length < dataBitsCount){
+                dataString+= paddingCodewords[paddingCodewordIndex];
+                paddingCodewordIndex ^= 1;
+            }
+            return dataString;
+        };
+
+        function generatePowersOfTwo(){
+            var result;
+            for(var power = 1; power < 255; power++){
+
+                result =  powersOfTwoResult[power - 1] * 2;
+                if(result > 255){
+                    result = result ^ 285;
+                }
+
+                powersOfTwoResult[power] = result;
+                powersOfTwo[result] = power;
+            }
+
+            result = (powersOfTwoResult[power - 1] * 2) ^ 285;
+            powersOfTwoResult[power] =   result;
+            powersOfTwoResult[-1] = 0;
+        }
+
+        var xorPolynomials = function (x,y){
+            var result = [],
+                idx = x.length - 2;
+            for(var i = idx; i>=0; i--){
+                 result[i] = x[i] ^ y[i];
+            }
+
+            return result;
+        };
+
+        var multiplyPolynomials = function (x, y){
+            var result = [];
+            for(var i = 0; i < x.length; i++){
+                for(var j = 0; j < y.length; j++){
+                    if(result[i+j] === undefined){
+                         result[i+j] = (x[i] + (y[j] >= 0 ? y[j] : 0)) % 255;
+                    }
+                    else{
+                       result[i+j] = powersOfTwo[powersOfTwoResult[result[i+j]] ^ powersOfTwoResult[(x[i] + y[j]) % 255]];
+                    }
+                }
+            }
+
+            return result;
+        };
+
+        function generateGeneratorPolynomials(){
+            var maxErrorCorrectionCodeWordsCount = 68;
+            for(var idx = 2; idx <= maxErrorCorrectionCodeWordsCount; idx++){
+                var firstPolynomial = generatorPolynomials[idx - 1],
+                    secondPolynomial = [idx, 0];
+                generatorPolynomials[idx] =  multiplyPolynomials(firstPolynomial, secondPolynomial);
+            }
+        }
+
+        //possibly generate on demand
+        generatePowersOfTwo();
+        generateGeneratorPolynomials();
+
+        function multiplyByConstant(polynomial, power){
+            var result = [],
+                idx = polynomial.length - 1;
+            do{
+                result[idx] = powersOfTwoResult[(polynomial[idx] + power) % 255];
+                idx--;
+            }while(polynomial[idx] !== undefined);
+
+            return result;
+        }
+
+        var generateErrorCodewords = function (data, errorCodewordsCount){
+            var generator = generatorPolynomials[errorCodewordsCount - 1],
+                result = new Array(errorCodewordsCount).concat(data),
+                generatorPolynomial = new Array(result.length - generator.length).concat(generator),
+                steps = data.length,
+                errorCodewords = [],
+                divisor,
+                idx;
+
+            for(idx = 0; idx < steps; idx++){
+                divisor = multiplyByConstant(generatorPolynomial, powersOfTwo[result[result.length - 1]]);
+                generatorPolynomial.splice(0,1);
+
+                result = xorPolynomials(divisor, result);
+            }
+
+            for(idx = result.length - 1; idx >= 0;idx--){
+                errorCodewords[errorCodewordsCount - 1 - idx] = toBitsString(result[idx], 8);
+            }
+
+            return errorCodewords;
+        };
+
+        var getBlocks = function (dataStream, versionCodewordsInformation){
+            var codewordStart = 0,
+                dataBlocks = [],
+                errorBlocks = [],
+                dataBlock,
+                versionGroups = versionCodewordsInformation.groups,
+                blockCodewordsCount,
+                groupBlocksCount,
+                messagePolynomial,
+                codeword;
+
+            for(var groupIdx = 0; groupIdx < versionGroups.length; groupIdx++){
+                groupBlocksCount = versionGroups[groupIdx][0];
+                for(var blockIdx = 0; blockIdx < groupBlocksCount;blockIdx++){
+                    blockCodewordsCount = versionGroups[groupIdx][1];
+                    dataBlock = [];
+                    messagePolynomial = [];
+                    for(var codewordIdx = 1; codewordIdx <= blockCodewordsCount; codewordIdx++){
+                        codeword = dataStream.substring(codewordStart, codewordStart + 8);
+                        dataBlock.push(codeword);
+                        messagePolynomial[blockCodewordsCount - codewordIdx] = toDecimal(codeword);
+                        codewordStart+=8;
+                    }
+                    dataBlocks.push(dataBlock);
+                    errorBlocks.push(generateErrorCodewords(messagePolynomial,
+                        versionCodewordsInformation.errorCodewordsPerBlock));
+                }
+            }
+            return [dataBlocks, errorBlocks];
+        };
+
+        var chooseMode = function (str, minNumericBeforeAlpha, minNumericBeforeByte, minAlphaBeforeByte, previousMode){
+             var numeric = numberRegex.exec(str),
+                numericMatch = numeric ? numeric[0] : "",
+                alpha = alphaRegex.exec(str),
+                alphaMatch = alpha ? alpha[0] : "",
+                alphaNumeric = alphaNumericRegex.exec(str),
+                alphaNumericMatch = alphaNumeric ? alphaNumeric[0] : "",
+                mode,
+                modeString;
+
+             if(numericMatch && (numericMatch.length >= minNumericBeforeAlpha ||
+                     str.length == numericMatch.length || (numericMatch.length >= minNumericBeforeByte &&
+                     !alphaNumericRegex.test(str.charAt(numericMatch.length))))){
+                mode = NUMERIC;
+                modeString = numericMatch;
+             }
+             else if(alphaNumericMatch && (str.length == alphaNumericMatch.length ||
+                alphaNumericMatch.length >= minAlphaBeforeByte || previousMode == ALPHA_NUMERIC)){
+                mode = ALPHA_NUMERIC;
+                modeString =  numericMatch || alphaMatch;
+             }
+             else {
+                mode = BYTE;
+                if(alphaNumericMatch){
+                    modeString = alphaNumericMatch + byteRegex.exec(str.substring(alphaNumericMatch.length))[0];
+                }
+                else{
+                    modeString = byteRegex.exec(str)[0];
+                }
+             }
+
+             return {
+                mode: mode,
+                modeString: modeString
+             };
+        };
+
+        var getModes = function (str){
+            var modes = [],
+                previousMode,
+                idx = 0;
+            modes.push(chooseMode(str, initMinNumericBeforeAlpha, initMinNumericBeforeByte, initMinAlphaBeforeByte, previousMode));
+            previousMode = modes[0].mode;
+            str = str.substr(modes[0].modeString.length);
+
+            while(str.length > 0){
+               var nextMode = chooseMode(str, minNumericBeforeAlpha, minNumericBeforeByte, minAlphaBeforeByte, previousMode);
+               if(nextMode.mode != previousMode){
+                    previousMode = nextMode.mode;
+                    modes.push(nextMode);
+                    idx++;
+               }
+               else{
+                    modes[idx].modeString += nextMode.modeString;
+               }
+               str = str.substr(nextMode.modeString.length);
+            }
+
+            return modes;
+        };
+
+        var getDataCodewordsCount = function (modes){
+            var length = 0,
+                mode;
+            for(var i = 0; i < modes.length; i++){
+                mode = modeInstances[modes[i].mode];
+                length+= mode.getStringBitsLength(modes[i].modeString.length);
+            }
+
+            return Math.ceil(length / 8);
+        };
+
+        var getVersion = function (dataCodewordsCount, errorCorrectionLevel){
+            var x = 0,
+                y = versionsCodewordsInformation.length - 1,
+                version = Math.floor(versionsCodewordsInformation.length / 2);
+
+            do{
+                if(dataCodewordsCount < versionsCodewordsInformation[version][errorCorrectionLevel].totalDataCodewords){
+                    y = version;
+                }
+                else{
+                    x = version;
+                }
+                version = x + Math.floor((y - x) / 2);
+
+            }while(y - x > 1);
+
+            if(dataCodewordsCount <= versionsCodewordsInformation[x][errorCorrectionLevel].totalDataCodewords){
+                return version + 1;
+            }
+            return y + 1;
+        };
+
+        var getDataString = function (modes, version){
+            var dataString = "",
+                mode;
+            for(var i = 0; i < modes.length; i++){
+                mode = modeInstances[modes[i].mode];
+                dataString+= mode.encode(modes[i].modeString, version);
+            }
+
+            return dataString;
+        };
+
+        //fix case all zeros
+        var encodeFormatInformation = function (format){
+            var formatNumber = toDecimal(format),
+                encodedString,
+                result = "";
+            if(formatNumber === 0){
+                return "101010000010010";
+            }
+            else{
+                encodedString = encodeBCH(toDecimal(format), formatGeneratorPolynomial, 15);
+            }
+            for(var i = 0; i < encodedString.length; i++){
+                result += encodedString.charAt(i) ^ formatMaskPattern.charAt(i);
+            }
+
+            return result;
+        };
+
+        var encodeBCH = function (value, generatorPolynomial, codeLength){
+            var generatorNumber = toDecimal(generatorPolynomial),
+                polynomialLength = generatorPolynomial.length - 1,
+                valueNumber = value << polynomialLength,
+                length = codeLength - polynomialLength,
+                valueString = toBitsString(value, length),
+                result = dividePolynomials(valueNumber, generatorNumber);
+            result = valueString + toBitsString(result, polynomialLength);
+            return result;
+        };
+
+        var dividePolynomials = function (numberX,numberY){
+                var yLength = numberY.toString(2).length,
+                    xLength = numberX.toString(2).length;
+                do{
+                    numberX ^= numberY << xLength - yLength;
+                    xLength = numberX.toString(2).length;
+                }
+                while(xLength >= yLength);
+
+                return numberX;
+        };
+
+        function getNumberAt(str, idx){
+            return parseInt(str.charAt(idx), 10);
+        }
+
+        var initMatrices = function (version){
+            var matrices = [],
+                modules =  17 + 4 * version;
+            for(var i = 0; i < maskPatternConditions.length; i++){
+                matrices[i] = new Array(modules);
+                for(var j = 0; j < modules; j++){
+                    matrices[i][j] = new Array(modules);
+                }
+            }
+
+            return matrices;
+        };
+
+        var addFormatInformation =function (matrices, formatString){
+            var matrix = matrices[0],
+                x,
+                y,
+                idx = 0,
+                length = formatString.length;
+
+            for(x=0, y=8; x <= 8;x++){
+                if(x!== 6){
+                    fillFunctionCell(matrices, getNumberAt(formatString, length - 1 - idx++), x, y);
+                }
+            }
+
+            for(x=8, y=7; y>=0;y--){
+                if(y!== 6){
+                    fillFunctionCell(matrices, getNumberAt(formatString, length - 1 - idx++), x, y);
+                }
+            }
+            idx=0;
+            for(y = matrix.length - 1, x = 8; y >= matrix.length - 8;y--){
+                fillFunctionCell(matrices,getNumberAt(formatString, length - 1 - idx++), x, y);
+            }
+
+            fillFunctionCell(matrices, 1, matrix.length - 8, 8);
+
+            for(x = matrix.length - 7, y = 8; x < matrix.length;x++){
+                fillFunctionCell(matrices, getNumberAt(formatString, length - 1 - idx++), x, y);
+            }
+        };
+
+        var encodeVersionInformation = function (version){
+            return encodeBCH(version, versionGeneratorPolynomial, 18);
+        };
+
+        var addVersionInformation = function (matrices, dataString){
+            var matrix = matrices[0],
+                modules = matrix.length,
+                x1 = 0,
+                y1 = modules - 11,
+                x2 = modules - 11,
+                y2 = 0,
+                quotient,
+                mod,
+                value;
+
+            for(var idx =0; idx < dataString.length; idx++){
+                quotient = Math.floor(idx / 3);
+                mod = idx % 3;
+                value = getNumberAt(dataString, dataString.length - idx - 1);
+                fillFunctionCell(matrices, value, x1 + quotient, y1 + mod);
+                fillFunctionCell(matrices, value, x2 + mod, y2 + quotient);
+            }
+        };
+
+        var addCentricPattern = function (matrices, pattern, x, y){
+            var size = pattern.length + 2,
+                length = pattern.length + 1,
+                value;
+
+            for(var i = 0; i < pattern.length; i++){
+                for(var j = i; j < size - i; j++){
+                    value = pattern[i];
+                    fillFunctionCell(matrices, value, x + j, y + i);
+                    fillFunctionCell(matrices, value, x + i, y + j);
+                    fillFunctionCell(matrices, value, x + length - j, y + length - i);
+                    fillFunctionCell(matrices, value, x + length - i, y + length - j);
+                }
+            }
+        };
+
+        var addFinderSeparator = function (matrices, direction, x, y){
+            var nextX = x,
+                nextY = y,
+                matrix = matrices[0];
+            do{
+                fillFunctionCell(matrices, 0, nextX, y);
+                fillFunctionCell(matrices, 0, x, nextY);
+                nextX+= direction[0];
+                nextY+= direction[1];
+            }
+            while(nextX >=0 && nextX < matrix.length);
+        };
+
+        var addFinderPatterns = function (matrices){
+            var modules = matrices[0].length;
+            addCentricPattern(matrices, finderPattern, 0, 0);
+            addFinderSeparator(matrices, [-1,-1], 7,7);
+            addCentricPattern(matrices, finderPattern, modules - 7, 0);
+            addFinderSeparator(matrices, [1,-1], modules - 8, 7);
+            addCentricPattern(matrices, finderPattern, 0 , modules - 7);
+            addFinderSeparator(matrices, [-1,1],7, modules - 8);
+        };
+
+        var addAlignmentPatterns = function (matrices, version){
+            if(version < 2) {
+                return;
+            }
+
+            var matrix = matrices[0],
+                modules = matrix.length,
+                pointsCount = Math.floor(version / 7),
+                points = [6],
+                startDistance,
+                distance,
+                idx = 0;
+
+            if((startDistance = irregularAlignmentPatternsStartDistance[version])){
+                distance = (modules - 13 - startDistance) / pointsCount;
+            }
+            else{
+                startDistance = distance = (modules - 13) / (pointsCount + 1);
+            }
+            points.push(points[idx++] + startDistance);
+            while((points[idx] + distance) < modules){
+                points.push(points[idx++] + distance);
+            }
+            for(var i = 0; i < points.length;i++){
+                for(var j = 0; j < points.length; j++){
+                    if(matrix[points[i]][points[j]] === undefined){
+                        addCentricPattern(matrices, alignmentPattern, points[i] - 2, points[j] - 2);
+                    }
+                }
+            }
+        };
+
+        var addTimingFunctions = function (matrices){
+            var row = 6,
+                column = 6,
+                value = 1,
+                modules = matrices[0].length;
+            for(var i = 8; i < modules - 8;i++){
+                fillFunctionCell(matrices, value, row, i);
+                fillFunctionCell(matrices, value, i, column);
+                value ^= 1;
+            }
+        };
+
+        var scoreMaskMatrixes = function (matrices){
+            var scores = [],
+                previousBits = [],
+                darkModules =  [],
+                patterns = [],
+                adjacentSameBits = [],
+                matrix,
+                i,
+                row = 0,
+                column = 1,
+                modules = matrices[0].length;
+
+
+            for(i = 0; i < matrices.length; i++){
+                scores[i] = 0;
+                darkModules[i] = 0;
+                adjacentSameBits[i] = [0,0];
+                patterns[i] = [0, 0];
+                previousBits[i] = [];
+            }
+            for(i = 0; i < modules; i++){
+                for(var j = 0; j < modules; j++){
+                    for(var k = 0; k < matrices.length; k++){
+                        matrix = matrices[k];
+                        darkModules[k]+= parseInt(matrix[i][j], 10);
+                        if(previousBits[k][row] === matrix[i][j] && i + 1 < modules && j - 1 >= 0 &&
+                            matrix[i + 1][j] == previousBits[k][row] && matrix[i + 1][j - 1] == previousBits[k][row]){
+                            scores[k]+=3;
+                        }
+                        scoreFinderPatternOccurance(k, patterns, scores, row, matrix[i][j]);
+                        scoreFinderPatternOccurance(k, patterns, scores, column, matrix[j][i]);
+                        scoreAdjacentSameBits(k,scores,previousBits,matrix[i][j],adjacentSameBits,row);
+                        scoreAdjacentSameBits(k,scores,previousBits,matrix[j][i],adjacentSameBits,column);
+                    }
+                }
+            }
+            var total = modules * modules,
+                minIdx,
+                min = Number.MAX_VALUE;
+
+            for(i = 0; i < scores.length; i++){
+                scores[i]+= calculateDarkModulesRatioScore(darkModules[i], total);
+                if(scores[i] < min){
+                    min = scores[i];
+                    minIdx = i;
+                }
+            }
+
+            return minIdx;
+        };
+
+        function scoreFinderPatternOccurance(idx, patterns, scores, rowColumn, bit){
+            patterns[idx][rowColumn] = ((patterns[idx][rowColumn] << 1) ^ bit) % 128;
+            if(patterns[idx][rowColumn] == finderPatternValue){
+                scores[idx] += 40;
+            }
+        }
+
+        function scoreAdjacentSameBits(idx, scores, previousBits, bit, adjacentBits, rowColumn){
+            if(previousBits[idx][rowColumn] == bit){
+                adjacentBits[idx][rowColumn]++;
+            }
+            else{
+                previousBits[idx][rowColumn] = bit;
+                if(adjacentBits[idx][rowColumn] >= 5){
+                    scores[idx]+= 3 + adjacentBits[idx][rowColumn] - 5;
+                }
+                adjacentBits[idx][rowColumn] = 1;
+            }
+        }
+
+        function calculateDarkModulesRatioScore(darkModules, total){
+            var percent = Math.floor((darkModules / total) * 100),
+                mod5 = percent % 5,
+                previous = Math.abs(percent - mod5 - 50),
+                next = Math.abs(percent +  5 - mod5 - 50),
+                score = 10 * Math.min(previous / 5, next / 5);
+            return score;
+        }
+
+        var EncodingResult = function(dataString, version){
+            this.dataString = dataString;
+            this.version = version;
+        };
+
+        var IsoEncoder = function(){
+            this.getEncodingResult = function(inputString, errorCorrectionLevel){
+                var modes = getModes(inputString),
+                dataCodewordsCount = getDataCodewordsCount(modes),
+                version = getVersion(dataCodewordsCount, errorCorrectionLevel),
+                dataString = getDataString(modes, version);
+
+                return new EncodingResult(dataString, version);
+            };
+        };
+
+        var UTF8Encoder = function(){
+            this.mode = modeInstances[this.encodingMode];
+        };
+
+        UTF8Encoder.fn = UTF8Encoder.prototype = {
+            encodingMode: BYTE,
+            utfBOM: "111011111011101110111111",
+            initialModeCountStringLength: 20,
+            getEncodingResult: function(inputString, errorCorrectionLevel){
+                var that = this,
+                    data = that.encode(inputString),
+                    dataCodewordsCount = that.getDataCodewordsCount(data),
+                    version = getVersion(dataCodewordsCount, errorCorrectionLevel),
+                    dataString = that.mode.getModeCountString(data.length / 8, version) + data;
+
+                return new EncodingResult(dataString, version);
+            },
+            getDataCodewordsCount: function(data){
+                var that = this,
+                    dataLength = data.length,
+                    dataCodewordsCount = Math.ceil(( that.initialModeCountStringLength + dataLength) / 8);
+
+                return dataCodewordsCount;
+            },
+            encode: function(str){
+                var that = this,
+                    result = that.utfBOM;
+                for(var i = 0; i < str.length; i++){
+                    result += that.encodeCharacter(str.charCodeAt(i));
+                }
+                return result;
+            },
+            encodeCharacter: function(code){
+                var bytesCount = this.getBytesCount(code),
+                    bc = bytesCount - 1,
+                    result = "";
+
+                if(bytesCount == 1){
+                    result = toBitsString(code, 8);
+                }
+                else{
+                    var significantOnes = 8 - bytesCount;
+
+                    for(var i = 0; i < bc; i++){
+                        result = toBitsString(code >> (i * 6) & 63 | 128, 8) + result;
+                    }
+
+                    result = ((code >> bc * 6) | ((255 >> significantOnes) << significantOnes)).toString(2) + result;
+                }
+                return result;
+            },
+            getBytesCount: function(code){
+                var ranges = this.ranges;
+                for(var i = 0; i < ranges.length;i++){
+                    if(code < ranges[i]){
+                        return i + 1;
+                    }
+                }
+            },
+            ranges: [128,2048,65536,2097152,67108864]
+        };
+
+        var QRCodeDataEncoder = function(encoding){
+            if(encoding && encoding.toLowerCase().indexOf("utf_8") >= 0){
+                return new UTF8Encoder();
+            }
+            else{
+                return new IsoEncoder();
+            }
+        };
+
+        var encodeData = function (inputString, errorCorrectionLevel, encoding){
+            var encoder = new QRCodeDataEncoder(encoding),
+                encodingResult = encoder.getEncodingResult(inputString, errorCorrectionLevel),
+                version = encodingResult.version,
+                versionInformation = versionsCodewordsInformation[version - 1][errorCorrectionLevel],
+                dataString = padDataString(encodingResult.dataString, versionInformation.totalDataCodewords),
+                blocks = getBlocks(dataString, versionInformation),
+                matrices = initMatrices(version);
+
+            addFinderPatterns(matrices);
+            addAlignmentPatterns(matrices, version);
+            addTimingFunctions(matrices);
+
+            if(version >= 7){
+                addVersionInformation(matrices, toBitsString(0, 18));
+            }
+
+            addFormatInformation(matrices, toBitsString(0, 15));
+            fillData(matrices, blocks);
+
+            var minIdx = scoreMaskMatrixes(matrices),
+                optimalMatrix = matrices[minIdx];
+
+            if(version >= 7){
+                addVersionInformation([optimalMatrix], encodeVersionInformation(version));
+            }
+
+            var formatString = errorCorrectionPatterns[errorCorrectionLevel] + toBitsString(minIdx, 3);
+            addFormatInformation([optimalMatrix], encodeFormatInformation(formatString));
+
+            return optimalMatrix;
+        };
+
+        var QRCodeDefaults= {
+            DEFAULT_SIZE: 200,
+            QUIET_ZONE_LENGTH: 4,
+            DEFAULT_ERROR_CORRECTION_LEVEL:"L",
+            DEFAULT_BACKGROUND: "#fff",
+            DEFAULT_DARK_MODULE_COLOR: "#000",
+            MIN_BASE_UNIT_SIZE: 1
+        };
+
+        var QRCode = Widget.extend({
+            init: function (element, options) {
+                var that = this;
+
+                Widget.fn.init.call(that, element, options);
+
+                that.element = $(element);
+                that.element.addClass("k-qrcode");
+                that._view = dataviz.ViewFactory.current.create({}, that.options.renderAs);
+                that.setOptions(options);
+            },
+
+            redraw: function(){
+                var that = this,
+                    view = that._view;
+
+                that._redraw(view);
+                view.renderTo(that.element[0]);
+            },
+
+            svg: function() {
+                if (dataviz.SVGView) {
+                    var view = new dataviz.SVGView();
+
+                    this._redraw(view);
+
+                    return view.render();
+                } else {
+                    throw new Error("Unable to create SVGView. Check that kendo.dataviz.svg.js is loaded.");
+                }
+            },
+
+            imageDataURL: function() {
+                if (dataviz.CanvasView) {
+                    if (dataviz.supportsCanvas()) {
+                        var container = document.createElement("div"),
+                            view = new dataviz.CanvasView();
+
+                        this._redraw(view);
+
+                        return view.renderTo(container).toDataURL();
+                    } else {
+                        kendo.logToConsole(
+                            "Warning: Unable to generate image. The browser does not support Canvas.\n" +
+                            "User agent: " + navigator.userAgent);
+
+                        return null;
+                    }
+                } else {
+                    throw new Error("Unable to create CanvasView. Check that kendo.dataviz.canvas.js is loaded.");
+                }
+            },
+
+            _redraw: function(view) {
+                var that = this,
+                    value = that._value,
+                    baseUnit,
+                    border = that.options.border || {},
+                    borderWidth = border.width || 0,
+                    quietZoneSize,
+                    matrix,
+                    size,
+                    dataSize,
+                    contentSize;
+
+                border.width = borderWidth;
+
+                if(!value){
+                    return;
+                }
+
+                matrix = encodeData(value, that.options.errorCorrection, that.options.encoding);
+                size = that._getSize();
+                contentSize = size - 2 * borderWidth;
+                baseUnit = that._calculateBaseUnit(contentSize, matrix.length);
+                dataSize =  matrix.length * baseUnit;
+
+                quietZoneSize = that._calculateQuietZone(dataSize, contentSize, borderWidth);
+
+                view.children = [];
+                view.options.width = size;
+                view.options.height = size;
+                that._renderBackground(view, size, border);
+                that._renderMatrix(view, matrix, baseUnit, quietZoneSize);
+            },
+
+            _getSize: function(){
+                var that = this,
+                    size;
+                if(that.options.size){
+                   size = parseInt(that.options.size, 10);
+                }
+                else {
+                    var element = that.element,
+                        min = Math.min(element.width(), element.height());
+
+                    if(min > 0){
+                        size =  min;
+                    }
+                    else{
+                        size = QRCodeDefaults.DEFAULT_SIZE;
+                    }
+                }
+
+                return size;
+            },
+            _calculateBaseUnit: function(size, matrixSize){
+                var baseUnit = Math.floor(size/ matrixSize);
+
+                if(baseUnit < QRCodeDefaults.MIN_BASE_UNIT_SIZE){
+                    throw new Error("Insufficient size.");
+                }
+
+                if(baseUnit * matrixSize >= size &&
+                    baseUnit - 1 >= QRCodeDefaults.MIN_BASE_UNIT_SIZE){
+                    baseUnit--;
+                }
+
+                return baseUnit;
+            },
+            _calculateQuietZone: function(dataSize, contentSize, border){
+                return border + (contentSize - dataSize) / 2;
+            },
+
+            _renderMatrix: function(view, matrix, baseUnit, quietZoneSize){
+                var that = this,
+                    y,
+                    x1,
+                    box,
+                    column;
+
+                for(var row = 0; row < matrix.length; row++){
+                    y = quietZoneSize + row * baseUnit;
+                    column = 0;
+                    while(column < matrix.length){
+                        while(matrix[row][column] === 0 && column < matrix.length){
+                            column++;
+                        }
+                        if(column < matrix.length){
+                            x1 = column;
+                            while(matrix[row][column] == 1){
+                                column++;
+                            }
+                            box = new Box2D(
+                                round(quietZoneSize + x1 * baseUnit), round(y),
+                                round(quietZoneSize + column * baseUnit), round(y + baseUnit));
+
+                            view.children.push(view.createRect(box, {
+                                fill: that.options.color,
+                                stroke: that.options.color, strokeWidth: 0.2,
+                                strokeLineJoin: "miter", align: false
+                            }));
+                        }
+                    }
+                }
+            },
+
+            _renderBackground: function (view, size, border) {
+                var that = this;
+                view.children.push(view.createRect(Box2D(0,0, size, size).unpad(border.width / 2),
+                    {
+                        fill: that.options.background,
+                        stroke: border.color,
+                        strokeWidth: border.width,
+                        align: false
+                    }));
+            },
+
+            setOptions: function (options) {
+                var that = this;
+                options = options || {};
+                that.options = extend(that.options, options);
+                if (options.value !== undefined) {
+                    that._value = that.options.value + "";
+                }
+                that.redraw();
+            },
+            value: function(value){
+                var that = this;
+                if (value === undefined) {
+                    return that._value;
+                }
+                that._value = value + "";
+                that.redraw();
+            },
+            options: {
+                name: "QRCode",
+                renderAs: "canvas",
+                encoding: "ISO_8859_1",
+                value: "",
+                errorCorrection: QRCodeDefaults.DEFAULT_ERROR_CORRECTION_LEVEL,
+                background: QRCodeDefaults.DEFAULT_BACKGROUND,
+                color: QRCodeDefaults.DEFAULT_DARK_MODULE_COLOR,
+                size: "",
+                border: {
+                    color: "",
+                    width: 0
+                }
+            }
+        });
+
+      dataviz.ui.plugin(QRCode);
+
+      kendo.deepExtend(dataviz, {
+            QRCode: QRCode,
+            QRCodeDefaults: QRCodeDefaults,
+            QRCodeFunctions: {
+                FreeCellVisitor: FreeCellVisitor,
+                fillData: fillData,
+                padDataString: padDataString,
+                generateErrorCodewords: generateErrorCodewords,
+                xorPolynomials: xorPolynomials,
+                getBlocks: getBlocks,
+                multiplyPolynomials: multiplyPolynomials,
+                chooseMode: chooseMode,
+                getModes: getModes,
+                getDataCodewordsCount: getDataCodewordsCount,
+                getVersion: getVersion,
+                getDataString: getDataString,
+                encodeFormatInformation: encodeFormatInformation,
+                encodeBCH: encodeBCH,
+                dividePolynomials: dividePolynomials,
+                initMatrices: initMatrices,
+                addFormatInformation: addFormatInformation,
+                encodeVersionInformation: encodeVersionInformation,
+                addVersionInformation: addVersionInformation,
+                addCentricPattern: addCentricPattern,
+                addFinderSeparator: addFinderSeparator,
+                addFinderPatterns: addFinderPatterns,
+                addAlignmentPatterns: addAlignmentPatterns,
+                addTimingFunctions: addTimingFunctions,
+                scoreMaskMatrixes: scoreMaskMatrixes,
+                encodeData: encodeData,
+                UTF8Encoder: UTF8Encoder
+            },
+            QRCodeFields: {
+                modes: modeInstances,
+                powersOfTwo: powersOfTwo,
+                powersOfTwoResult: powersOfTwoResult,
+                generatorPolynomials: generatorPolynomials
+            }
+      });
+
+})(window.kendo.jQuery);
+
+kendo_module({
+    id: "dataviz.stockchart",
+    name: "StockChart",
+    category: "dataviz",
+    description: "StockChart widget and associated financial series.",
+    depends: [ "dataviz.chart" ]
+});
+
+(function ($, undefined) {
+    // Imports ================================================================
+    var kendo = window.kendo,
+        Class = kendo.Class,
+        Observable = kendo.Observable,
+        deepExtend = kendo.deepExtend,
+        math = Math,
+        proxy = $.proxy,
+
+        dataviz = kendo.dataviz,
+        template = kendo.template,
+        defined = dataviz.defined,
+        Chart = dataviz.ui.Chart,
+        Selection = dataviz.Selection,
+        addDuration = dataviz.addDuration,
+        duration = dataviz.duration,
+        last = dataviz.last,
+        lteDateIndex = dataviz.lteDateIndex,
+        renderTemplate = dataviz.renderTemplate,
+        toDate = dataviz.toDate,
+        toTime = dataviz.toTime;
+
+    // Constants =============================================================
+    var AUTO_CATEGORY_WIDTH = 28,
+        CHANGE = "change",
+        CSS_PREFIX = "k-",
+        DRAG = "drag",
+        DRAG_END = "dragEnd",
+        NAVIGATOR_PANE = "_navigator",
+        NAVIGATOR_AXIS = NAVIGATOR_PANE,
+        ZOOM_ACCELERATION = 3,
+        ZOOM = "zoom",
+        ZOOM_END = "zoomEnd";
+
+    // Stock chart ===========================================================
+    var StockChart = Chart.extend({
+        init: function(element, userOptions) {
+            $(element).addClass(CSS_PREFIX + "chart");
+            Chart.fn.init.call(this, element, userOptions);
+        },
+
+        _applyDefaults: function(options, themeOptions) {
+            var chart = this,
+                width = chart.element.width() || dataviz.DEFAULT_WIDTH;
+
+            var stockDefaults = {
+                seriesDefaults: {
+                    categoryField: options.dateField
+                },
+                axisDefaults: {
+                    categoryAxis: {
+                        name: "default",
+                        majorGridLines: {
+                            visible: false
+                        },
+                        labels: {
+                            step: 2
+                        },
+                        majorTicks: {
+                            visible: false
+                        },
+                        maxDateGroups: math.floor(width / AUTO_CATEGORY_WIDTH)
+                    }
+                }
+            };
+
+            if (themeOptions) {
+                themeOptions = deepExtend({}, themeOptions, stockDefaults);
+            }
+
+            if (!chart._navigator) {
+                Navigator.setup(options, themeOptions);
+            }
+
+            Chart.fn._applyDefaults.call(chart, options, themeOptions);
+        },
+
+        _initDataSource: function(userOptions) {
+            var options = userOptions || {},
+                dataSource = options.dataSource,
+                hasServerFiltering = dataSource && dataSource.serverFiltering,
+                mainAxis = [].concat(options.categoryAxis)[0],
+                naviOptions = options.navigator || {},
+                select = naviOptions.select,
+                hasSelect = select && select.from && select.to,
+                filter,
+                dummyAxis;
+
+            if (hasServerFiltering && hasSelect) {
+                filter = [].concat(dataSource.filter || []);
+
+                dummyAxis = new dataviz.DateCategoryAxis(deepExtend({
+                    baseUnit: "fit"
+                }, mainAxis, {
+                    categories: [select.from, select.to]
+                }));
+
+                dataSource.filter =
+                    Navigator.buildFilter(dummyAxis.range().min, select.to)
+                    .concat(filter);
+            }
+
+            Chart.fn._initDataSource.call(this, userOptions);
+        },
+
+        options: {
+            name: "StockChart",
+            dateField: "date",
+            axisDefaults: {
+                categoryAxis: {
+                    type: "date",
+                    baseUnit: "fit",
+                    justified: true
+                },
+                valueAxis: {
+                    narrowRange: true,
+                    labels: {
+                        format: "C"
+                    }
+                }
+            },
+            navigator: {
+                select: {},
+                seriesDefaults: {
+                    markers: {
+                        visible: false
+                    },
+                    tooltip: {
+                        visible: true,
+                        template: "#= kendo.toString(category, 'd') #"
+                    },
+                    line: {
+                        width: 2
+                    }
+                },
+                hint: {},
+                visible: true
+            },
+            tooltip: {
+                visible: true
+            },
+            legend: {
+                visible: false
+            }
+        },
+
+        _redraw: function() {
+            var chart = this,
+                navigator = chart._navigator;
+
+            if (navigator && navigator.dataSource) {
+                navigator.redrawSlaves();
+            } else {
+                if (!navigator) {
+                    navigator = chart._navigator = new Navigator(chart);
+                }
+
+                navigator.filterAxes();
+                Chart.fn._redraw.call(chart);
+                navigator.redraw();
+            }
+        },
+
+        _onDataChanged: function() {
+            var chart = this;
+
+            Chart.fn._onDataChanged.call(chart);
+            chart._dataBound = true;
+        },
+
+        _bindCategoryAxis: function(axis, data, axisIx) {
+            var chart = this,
+                categoryAxes = chart.options.categoryAxis,
+                axesLength = categoryAxes.length,
+                currentAxis;
+
+            Chart.fn._bindCategoryAxis.apply(this, arguments);
+
+            if (axis.name === NAVIGATOR_AXIS) {
+                while (axisIx < axesLength) {
+                    currentAxis = categoryAxes[axisIx++];
+                    if (currentAxis.pane == NAVIGATOR_PANE) {
+                        currentAxis.categories = axis.categories;
+                    }
+                }
+            }
+        },
+
+        _trackSharedTooltip: function(coords) {
+            var chart = this,
+                plotArea = chart._plotArea,
+                pane = plotArea.paneByPoint(coords);
+
+            if (pane && pane.options.name === NAVIGATOR_PANE) {
+                chart._unsetActivePoint();
+            } else {
+                Chart.fn._trackSharedTooltip.call(chart, coords);
+            }
+        },
+
+        destroy: function() {
+            var chart = this;
+
+            chart._navigator.destroy();
+
+            Chart.fn.destroy.call(chart);
+        }
+    });
+
+    var Navigator = Observable.extend({
+        init: function(chart) {
+            var navi = this;
+
+            navi.chart = chart;
+            navi.options = deepExtend({}, navi.options, chart.options.navigator);
+
+            navi._initDataSource();
+
+            if (!defined(navi.options.hint.visible)) {
+                navi.options.hint.visible = navi.options.visible;
+            }
+
+            chart.bind(DRAG, proxy(navi._drag, navi));
+            chart.bind(DRAG_END, proxy(navi._dragEnd, navi));
+            chart.bind(ZOOM, proxy(navi._zoom, navi));
+            chart.bind(ZOOM_END, proxy(navi._zoomEnd, navi));
+        },
+
+        options: { },
+
+        _initDataSource: function() {
+            var navi = this,
+                options = navi.options,
+                autoBind = options.autoBind,
+                dsOptions = options.dataSource;
+
+            if (!defined(autoBind)) {
+               autoBind = navi.chart.options.autoBind;
+            }
+
+            navi._dataChangedHandler = proxy(navi._onDataChanged, navi);
+
+            if (dsOptions) {
+                navi.dataSource = kendo.data.DataSource
+                    .create(dsOptions)
+                    .bind(CHANGE, navi._dataChangedHandler);
+
+                if (autoBind) {
+                    navi.dataSource.fetch();
+                }
+            }
+        },
+
+        _onDataChanged: function() {
+            var navi = this,
+                chart = navi.chart,
+                series = chart.options.series,
+                seriesIx,
+                seriesLength = series.length,
+                categoryAxes = chart.options.categoryAxis,
+                axisIx,
+                axesLength = categoryAxes.length,
+                data = navi.dataSource.view(),
+                currentSeries,
+                currentAxis,
+                naviCategories;
+
+            for (seriesIx = 0; seriesIx < seriesLength; seriesIx++) {
+                currentSeries = series[seriesIx];
+
+                if (currentSeries.axis == NAVIGATOR_AXIS && chart._isBindable(currentSeries)) {
+                    currentSeries.data = data;
+                }
+            }
+
+            for (axisIx = 0; axisIx < axesLength; axisIx++) {
+                currentAxis = categoryAxes[axisIx];
+
+                if (currentAxis.pane == NAVIGATOR_PANE) {
+                    if (currentAxis.name == NAVIGATOR_AXIS) {
+                        chart._bindCategoryAxis(currentAxis, data, axisIx);
+                        naviCategories = currentAxis.categories;
+                    } else {
+                        currentAxis.categories = naviCategories;
+                    }
+                }
+            }
+
+            if (chart._model) {
+               navi.redraw();
+               navi.filterAxes();
+
+               if (!chart.options.dataSource || (chart.options.dataSource && chart._dataBound)) {
+                   navi.redrawSlaves();
+               }
+            }
+        },
+
+        destroy: function() {
+            var navi = this,
+                dataSource = navi.dataSource;
+
+            if (dataSource) {
+                dataSource.unbind(CHANGE, navi._dataChangeHandler);
+            }
+
+            if (navi.selection) {
+                navi.selection.destroy();
+            }
+        },
+
+        redraw: function() {
+            this._redrawSelf();
+
+            var navi = this,
+                chart = navi.chart,
+                options = navi.options,
+                axis = navi.mainAxis(),
+                axisClone = clone(axis),
+                groups = axis.options.categories,
+                select = navi.options.select || {},
+                selection = navi.selection,
+                min = groups[0],
+                max = last(groups),
+                from = select.from || min,
+                to = select.to || max;
+
+            if (groups.length > 0) {
+                if (selection) {
+                    selection.destroy();
+                    selection.wrapper.remove();
+                }
+
+                // "Freeze" the selection axis position until the next redraw
+                axisClone.box = axis.box;
+
+                // TODO: Move selection initialization to PlotArea.redraw
+                selection = navi.selection = new Selection(chart, axisClone, {
+                    min: min,
+                    max: max,
+                    from: from,
+                    to: to,
+                    selectStart: $.proxy(navi._selectStart, navi),
+                    select: $.proxy(navi._select, navi),
+                    selectEnd: $.proxy(navi._selectEnd, navi),
+                    mousewheel: {
+                        zoom: "left"
+                    }
+                });
+
+                if (options.hint.visible) {
+                    navi.hint = new NavigatorHint(chart.element, {
+                        min: groups[0],
+                        max: last(groups),
+                        template: options.hint.template,
+                        format: options.hint.format
+                    });
+                }
+            }
+        },
+
+        _redrawSelf: function(silent) {
+            var plotArea = this.chart._plotArea;
+
+            if (plotArea) {
+                plotArea.redraw(last(plotArea.panes), silent);
+            }
+        },
+
+        redrawSlaves: function() {
+            var navi = this,
+                chart = navi.chart,
+                plotArea = chart._plotArea,
+                slavePanes = plotArea.panes.slice(0, -1);
+
+            // Update the original series before partial refresh.
+            plotArea.srcSeries = chart.options.series;
+
+            plotArea.redraw(slavePanes);
+        },
+
+        _drag: function(e) {
+            var navi = this,
+                chart = navi.chart,
+                coords = chart._eventCoordinates(e.originalEvent),
+                navigatorAxis = navi.mainAxis(),
+                inNavigator = navigatorAxis.pane.box.containsPoint(coords),
+                groups = navigatorAxis.options.categories,
+                axis = chart._plotArea.categoryAxis,
+                baseUnit = axis.options.baseUnit,
+                range = e.axisRanges[axis.options.name],
+                selection = navi.selection,
+                selectionDuration,
+                from,
+                to;
+
+            if (!range || inNavigator || !selection) {
+                return;
+            }
+
+            if (axis.options.min && axis.options.max) {
+                selectionDuration = duration(
+                    axis.options.min, axis.options.max, baseUnit
+                );
+            } else {
+                selectionDuration = duration(
+                    selection.options.from, selection.options.to, baseUnit
+                );
+            }
+
+            from = toDate(math.min(
+                math.max(groups[0], range.min),
+                addDuration(
+                    dataviz.last(groups), -selectionDuration, baseUnit
+                )
+            ));
+
+            to = toDate(math.min(
+                addDuration(from, selectionDuration, baseUnit),
+                dataviz.last(groups)
+            ));
+
+            navi.options.select = { from: from, to: to };
+
+            if (navi._liveDrag()) {
+                navi.filterAxes();
+                navi.redrawSlaves();
+            }
+
+            selection.set(
+                from,
+                addDuration(from, selectionDuration, baseUnit)
+            );
+
+            navi.showHint(from, to);
+        },
+
+        _dragEnd: function() {
+            var navi = this;
+
+            navi.filterAxes();
+            navi.filterDataSource();
+            navi.redrawSlaves();
+
+            if (navi.hint) {
+                navi.hint.hide();
+            }
+        },
+
+        _liveDrag: function() {
+            var support = kendo.support,
+                isTouch = support.touch,
+                browser = support.browser,
+                isFirefox = browser.mozilla,
+                isOldIE = browser.msie && browser.version < 9;
+
+            return !isTouch && !isFirefox && !isOldIE;
+        },
+
+        readSelection: function() {
+            var navi = this,
+                selection = navi.selection,
+                src = selection.options,
+                dst = navi.options.select;
+
+            dst.from = src.from;
+            dst.to = src.to;
+        },
+
+        filterAxes: function() {
+            var navi = this,
+                categories,
+                select = navi.options.select || {},
+                chart = navi.chart,
+                allAxes = chart.options.categoryAxis,
+                from = select.from,
+                to = select.to,
+                min,
+                max,
+                i,
+                axis;
+
+            for (i = 0; i < allAxes.length; i++) {
+                axis = allAxes[i];
+                if (axis.name === NAVIGATOR_AXIS) {
+                    categories = axis.categories;
+                    if (categories && categories.length > 0) {
+                        min = toTime(categories[0]);
+                        max = toTime(last(categories));
+
+                        from = toTime(from);
+                        if (from < min || from > max) {
+                            from = min;
+                        }
+
+                        to = toTime(to);
+                        if (to < min || to > max) {
+                            to = max;
+                        }
+
+                        break;
+                    }
+                }
+            }
+
+            for (i = 0; i < allAxes.length; i++) {
+                axis = allAxes[i];
+                if (axis.pane !== NAVIGATOR_PANE) {
+                    axis.min = toDate(from);
+                    axis.max = toDate(to);
+                }
+            }
+        },
+
+        filterDataSource: function() {
+            var navi = this,
+                select = navi.options.select || {},
+                chart = navi.chart,
+                chartDataSource = chart.dataSource,
+                hasServerFiltering = chartDataSource && chartDataSource.options.serverFiltering,
+                axisOptions;
+
+            if (navi.dataSource && hasServerFiltering) {
+                axisOptions = new dataviz.DateCategoryAxis(deepExtend({
+                    baseUnit: "fit"
+                }, chart.options.categoryAxis[0], {
+                    categories: [select.from, select.to]
+                })).options;
+
+                chartDataSource.filter(
+                    Navigator.buildFilter(
+                        addDuration(axisOptions.min, -axisOptions.baseUnitStep, axisOptions.baseUnit),
+                        addDuration(axisOptions.max, axisOptions.baseUnitStep, axisOptions.baseUnit)
+                    )
+                );
+            }
+        },
+
+        _zoom: function(e) {
+            var navi = this,
+                chart = navi.chart,
+                delta = e.delta,
+                axis = chart._plotArea.categoryAxis,
+                select = navi.options.select,
+                selection = navi.selection,
+                categories = navi.mainAxis().options.categories,
+                fromIx,
+                toIx;
+
+            if (!selection) {
+                return;
+            }
+
+            fromIx = lteDateIndex(selection.options.from, categories);
+            toIx = lteDateIndex(selection.options.to, categories);
+
+            e.originalEvent.preventDefault();
+
+            if (math.abs(delta) > 1) {
+                delta *= ZOOM_ACCELERATION;
+            }
+
+            if (toIx - fromIx > 1) {
+                selection.expand(delta);
+                navi.readSelection();
+            } else {
+                axis.options.min = select.from;
+                select.from = axis.scaleRange(-e.delta).min;
+            }
+
+            if (!kendo.support.touch) {
+                navi.filterAxes();
+                navi.redrawSlaves();
+            }
+
+            selection.set(select.from, select.to);
+
+            navi.showHint(navi.options.select.from, navi.options.select.to);
+        },
+
+        _zoomEnd: function(e) {
+            this._dragEnd(e);
+        },
+
+        showHint: function(from, to) {
+            var navi = this,
+                chart = navi.chart,
+                plotArea = chart._plotArea;
+
+            if (navi.hint) {
+                navi.hint.show(
+                    from,
+                    to,
+                    plotArea.backgroundBox()
+                );
+            }
+        },
+
+        _selectStart: function(e) {
+            var chart = this.chart;
+            chart._selectStart.call(chart, e);
+        },
+
+        _select: function(e) {
+            var navi = this,
+                chart = navi.chart;
+
+            navi.showHint(e.from, e.to);
+
+            chart._select.call(chart, e);
+        },
+
+        _selectEnd: function(e) {
+            var navi = this,
+                chart = navi.chart;
+
+            if (navi.hint) {
+                navi.hint.hide();
+            }
+
+            navi.readSelection();
+            navi.filterAxes();
+            navi.filterDataSource();
+            navi.redrawSlaves();
+
+            chart._selectEnd.call(chart, e);
+        },
+
+        mainAxis: function() {
+            var plotArea = this.chart._plotArea;
+
+            if (plotArea) {
+                return plotArea.namedCategoryAxes[NAVIGATOR_AXIS];
+            }
+        }
+    });
+
+    Navigator.setup = function(options, themeOptions) {
+        options = options || {};
+        themeOptions = themeOptions || {};
+
+        var naviOptions = deepExtend({}, themeOptions.navigator, options.navigator),
+            panes = options.panes = [].concat(options.panes),
+            paneOptions = deepExtend({}, naviOptions.pane, { name: NAVIGATOR_PANE });
+
+        if (!naviOptions.visible) {
+            paneOptions.visible = false;
+            paneOptions.height = 0.1;
+        }
+
+        panes.push(paneOptions);
+
+        Navigator.attachAxes(options, naviOptions);
+        Navigator.attachSeries(options, naviOptions, themeOptions);
+    };
+
+    Navigator.attachAxes = function(options, naviOptions) {
+        var categoryAxes,
+            valueAxes;
+
+        categoryAxes = options.categoryAxis = [].concat(options.categoryAxis);
+        valueAxes = options.valueAxis = [].concat(options.valueAxis);
+
+        var base = deepExtend({
+            type: "date",
+            pane: NAVIGATOR_PANE,
+            roundToBaseUnit: false,
+            justified: true,
+            tooltip: { visible: false },
+            labels: { step: 1 },
+            autoBind: !naviOptions.dataSource,
+            autoBaseUnitSteps: {
+                minutes: [1],
+                hours: [1],
+                days: [1],
+                weeks: [],
+                months: [1],
+                years: [1]
+            },
+            _overlap: false
+        }, naviOptions.categoryAxis);
+
+        categoryAxes.push(
+            deepExtend({}, base, {
+                name: NAVIGATOR_AXIS,
+                baseUnit: "fit",
+                // TODO: Width based
+                maxDateGroups: 200,
+                baseUnitStep: "auto",
+                labels: { visible: false },
+                majorTicks: { visible: false }
+            }), deepExtend({}, base, {
+                name: NAVIGATOR_AXIS + "_labels",
+                // TODO: Width based
+                maxDateGroups: 20,
+                baseUnitStep: "auto",
+                autoBaseUnitSteps: {
+                    minutes: []
+                },
+                majorTicks: { visible: true }
+            }), deepExtend({}, base, {
+                name: NAVIGATOR_AXIS + "_ticks",
+                // TODO: Width based
+                maxDateGroups: 200,
+                majorTicks: {
+                    visible: true,
+                    width: 0.5
+                },
+                labels: { visible: false, mirror: true }
+            })
+        );
+
+        valueAxes.push({
+            // TODO: Extend navigator.valueAxis
+            name: NAVIGATOR_AXIS,
+            pane: NAVIGATOR_PANE,
+            majorGridLines: {
+                visible: false
+            },
+            visible: false
+        });
+    };
+
+    Navigator.attachSeries = function(options, naviOptions, themeOptions) {
+        var series = options.series = options.series || [],
+            navigatorSeries = [].concat(naviOptions.series),
+            seriesColors = themeOptions.seriesColors,
+            defaults = naviOptions.seriesDefaults,
+            i;
+
+        for (i = 0; i < navigatorSeries.length; i++) {
+            series.push(
+                deepExtend({
+                    color: seriesColors[i % seriesColors.length],
+                    categoryField: naviOptions.dateField,
+                    visibleInLegend: false,
+                    tooltip: {
+                        visible: false
+                    }
+                }, defaults, navigatorSeries[i], {
+                    axis: NAVIGATOR_AXIS,
+                    categoryAxis: NAVIGATOR_AXIS,
+                    autoBind: !naviOptions.dataSource
+                })
+            );
+        }
+    };
+
+    Navigator.buildFilter = function(from, to) {
+        return [{
+            field: "Date", operator: "gte", value: toDate(from)
+        }, {
+            field: "Date", operator: "lt", value: toDate(to)
+        }];
+    };
+
+    var NavigatorHint = Class.extend({
+        init: function(container, options) {
+            var hint = this;
+
+            hint.options = deepExtend({}, hint.options, options);
+
+            hint.container = container;
+            hint.chartPadding = {
+                top: parseInt(container.css("paddingTop"), 10),
+                left: parseInt(container.css("paddingLeft"), 10)
+            };
+
+            hint.template = hint.template;
+            if (!hint.template) {
+                hint.template = hint.template = renderTemplate(
+                    "<div class='" + CSS_PREFIX + "navigator-hint' " +
+                    "style='display: none; position: absolute; top: 1px; left: 1px;'>" +
+                        "<div class='" + CSS_PREFIX + "tooltip'>&nbsp;</div>" +
+                        "<div class='" + CSS_PREFIX + "scroll' />" +
+                    "</div>"
+                );
+            }
+
+            hint.element = $(hint.template()).appendTo(container);
+        },
+
+        options: {
+            format: "{0:d} - {1:d}",
+            hideDelay: 500
+        },
+
+        show: function(from, to, bbox) {
+            var hint = this,
+                middle = toDate(toTime(from) + toTime(to - from) / 2),
+                options = hint.options,
+                text = kendo.format(hint.options.format, from, to),
+                tooltip = hint.element.find("." + CSS_PREFIX + "tooltip"),
+                scroll = hint.element.find("." + CSS_PREFIX + "scroll"),
+                scrollWidth = bbox.width() * 0.4,
+                minPos = bbox.center().x - scrollWidth,
+                maxPos = bbox.center().x,
+                posRange = maxPos - minPos,
+                range = options.max - options.min,
+                scale = posRange / range,
+                offset = middle - options.min,
+                hintTemplate;
+
+            if (hint._hideTimeout) {
+                clearTimeout(hint._hideTimeout);
+            }
+
+            if (!hint._visible) {
+                hint.element
+                    .stop(false, true)
+                    .css("visibility", "hidden")
+                    .show();
+                hint._visible = true;
+            }
+
+            if (options.template) {
+                hintTemplate = template(options.template);
+                text = hintTemplate({
+                    from: from,
+                    to: to
+                });
+            }
+
+            tooltip
+                .text(text)
+                .css({
+                    left: bbox.center().x - tooltip.outerWidth() / 2,
+                    top: bbox.y1
+                });
+
+            scroll
+                .css({
+                    width: scrollWidth,
+                    left: minPos + offset * scale,
+                    top: bbox.y1 +
+                         parseInt(tooltip.css("margin-top"), 10) +
+                         parseInt(tooltip.css("border-top-width"), 10) +
+                         tooltip.height() / 2
+                });
+
+            hint.element.css("visibility", "visible");
+        },
+
+        hide: function() {
+            var hint = this;
+
+            if (hint._hideTimeout) {
+                clearTimeout(hint._hideTimeout);
+            }
+
+            hint._hideTimeout = setTimeout(function() {
+                hint._visible = false;
+                hint.element.fadeOut("slow");
+            }, hint.options.hideDelay);
+        }
+    });
+
+    function ClonedObject() { }
+    function clone(obj) {
+        ClonedObject.prototype = obj;
+        return new ClonedObject();
+    }
+
+    // Exports ================================================================
+
+    dataviz.ui.plugin(StockChart);
+
+    deepExtend(dataviz, {
+        Navigator: Navigator
+    });
+
+})(window.kendo.jQuery);
+
+kendo_module({
+    id: "dataviz.sparkline",
+    name: "Sparkline",
+    category: "dataviz",
+    description: "Sparkline widgets.",
+    depends: [ "dataviz.chart" ]
+});
+
+(function ($, undefined) {
+    // Imports ===============================================================
+    var kendo = window.kendo,
+        dataviz = kendo.dataviz,
+
+        Chart = dataviz.ui.Chart,
+        ObservableArray = kendo.data.ObservableArray,
+        SharedTooltip = dataviz.SharedTooltip,
+
+        deepExtend = kendo.deepExtend,
+        isArray = $.isArray,
+        inArray = dataviz.inArray,
+        math = Math;
+
+    // Constants =============================================================
+    var CSS_PREFIX = "k-",
+        DEAULT_BAR_WIDTH = 150,
+        DEAULT_BULLET_WIDTH = 150,
+        BAR = "bar",
+        BULLET = "bullet",
+        PIE = "pie",
+        NO_CROSSHAIR = [BAR, BULLET];
+
+    // Sparkline =============================================================
+    var Sparkline = Chart.extend({
+        init: function(element, userOptions) {
+            var chart = this,
+                stage = chart.stage = $("<span />"),
+                options = userOptions || {};
+
+            element = $(element)
+                .addClass(CSS_PREFIX + "sparkline")
+                .empty().append(stage);
+
+            chart._initialWidth = math.floor(element.width());
+
+            options = wrapNumber(options);
+
+            if (isArray(options) || options instanceof ObservableArray) {
+                options = { seriesDefaults: { data: options } };
+            }
+
+            if (!options.series) {
+                options.series = [{ data: wrapNumber(options.data) }];
+            }
+
+            deepExtend(options, {
+                seriesDefaults: {
+                    type: options.type
+                }
+            });
+
+            if (inArray(options.series[0].type, NO_CROSSHAIR) ||
+                inArray(options.seriesDefaults.type, NO_CROSSHAIR)) {
+                options = deepExtend({}, {
+                        categoryAxis: {
+                            crosshair: {
+                                visible: false
+                            }
+                        }
+                    }, options);
+            }
+
+            Chart.fn.init.call(chart, element, options);
+        },
+
+        options: {
+            name: "Sparkline",
+            chartArea: {
+                margin: 2
+            },
+            axisDefaults: {
+                visible: false,
+                majorGridLines: {
+                    visible: false
+                },
+                valueAxis: {
+                    narrowRange: true
+                }
+            },
+            seriesDefaults: {
+                type: "line",
+                area: {
+                    line: {
+                        width: 0.5
+                    }
+                },
+                bar: {
+                    stack: true
+                },
+                width: 0.5,
+                overlay: {
+                    gradient: null
+                },
+                highlight: {
+                    visible: false
+                },
+                border: {
+                    width: 0
+                },
+                markers: {
+                    size: 2,
+                    visible: false
+                }
+            },
+            tooltip: {
+                visible: true,
+                shared: true
+            },
+            categoryAxis: {
+                crosshair: {
+                    visible: true,
+                    tooltip: {
+                        visible: false
+                    }
+                }
+            },
+            legend: {
+                visible: false
+            },
+            transitions: false,
+
+            pointWidth: 5
+        },
+
+        _applyDefaults: function(options) {
+            var chart = this,
+                view = dataviz.ViewFactory.current.create({}, options.renderAs);
+
+            if (dataviz.CanvasView && view instanceof dataviz.CanvasView) {
+                deepExtend(options, {
+                    categoryAxis: {
+                        crosshair: {
+                            visible: false
+                        }
+                    }
+                });
+            }
+
+            Chart.fn._applyDefaults.apply(chart, arguments);
+        },
+
+        _modelOptions: function() {
+            var chart = this,
+                chartOptions = chart.options,
+                options,
+                width = chart._initialWidth,
+                stage = chart.stage;
+
+            chart.stage[0].innerHTML = "&nbsp;";
+
+            options = deepExtend({
+                width: width ? width : chart._autoWidth(),
+                height: stage.height(),
+                transitions: chartOptions.transitions
+            }, chartOptions.chartArea, {
+                inline: true,
+                align: false
+            });
+
+            stage.css({
+                width: options.width,
+                height: options.height
+            });
+
+            return options;
+        },
+
+        _createTooltip: function() {
+            var chart = this,
+                options = chart.options,
+                element = chart.element,
+                tooltip;
+
+            if (chart._sharedTooltip()) {
+                tooltip = new SparklineSharedTooltip(element, chart._plotArea, options.tooltip);
+            } else {
+                tooltip = Chart.fn._createTooltip.call(chart);
+            }
+
+            return tooltip;
+        },
+
+        _renderView: function() {
+            var chart = this;
+            chart.element.empty().append(chart.stage);
+            return chart._view.renderTo(chart.stage[0]);
+        },
+
+        _autoWidth: function() {
+            var chart = this,
+                options = chart.options,
+                margin = dataviz.getSpacing(options.chartArea.margin),
+                series = options.series,
+                dsTotal = chart.dataSource.total(),
+                seriesTotal = 0,
+                width,
+                i,
+                currentSeries;
+
+            for (i = 0; i < series.length; i++) {
+                currentSeries = series[i];
+
+                if (currentSeries.type === BAR) {
+                    return DEAULT_BAR_WIDTH;
+                }
+
+                if (currentSeries.type === BULLET) {
+                    return DEAULT_BULLET_WIDTH;
+                }
+
+                if (currentSeries.type === PIE) {
+                    return chart.stage.height();
+                }
+
+                if (currentSeries.data) {
+                    seriesTotal = math.max(seriesTotal, currentSeries.data.length);
+                }
+            }
+
+            width = math.max(dsTotal, seriesTotal) * options.pointWidth;
+            if (width > 0) {
+                width += margin.left + margin.right;
+            }
+
+            return width;
+        }
+    });
+
+    var SparklineSharedTooltip = SharedTooltip.extend({
+        options: {
+            animation: {
+                duration: 0
+            }
+        },
+        _anchor: function(point, slot) {
+            var anchor = SharedTooltip.fn._anchor.call(this, point, slot);
+            anchor.y = -this.element.height() - this.options.offset;
+
+            return anchor;
+        },
+
+        _hideElement: function() {
+            this.element.hide();
+        }
+    });
+
+    function wrapNumber(x) {
+        return typeof x === "number" ? [x] : x;
+    }
+
+    // Exports ================================================================
+
+    dataviz.ui.plugin(Sparkline);
+
+    deepExtend(dataviz, {
+    });
+
+})(window.kendo.jQuery);
+
+kendo_module({
+    id: "dataviz.svg",
+    name: "Output: SVG",
+    description: "Support for SVG rendering",
+    category: "dataviz",
+    depends: [ "dataviz.core" ]
+});
+
 (function () {
 
     // Imports ================================================================
@@ -17374,6 +32395,7 @@ function pad(number) {
     var BUTT = "butt",
         CLIP = dataviz.CLIP,
         COORD_PRECISION = dataviz.COORD_PRECISION,
+        DASH_ARRAYS = dataviz.DASH_ARRAYS,
         DEFAULT_WIDTH = dataviz.DEFAULT_WIDTH,
         DEFAULT_HEIGHT = dataviz.DEFAULT_HEIGHT,
         DEFAULT_FONT = dataviz.DEFAULT_FONT,
@@ -17382,14 +32404,6 @@ function pad(number) {
         SOLID = "solid",
         SQUARE = "square",
         SVG_NS = "http://www.w3.org/2000/svg",
-        SVG_DASH_TYPE = {
-            dot: [1.5, 3.5],
-            dash: [4, 3.5],
-            longdash: [8, 3.5],
-            dashdot: [3.5, 3.5, 1.5, 3.5],
-            longdashdot: [8, 3.5, 1.5, 3.5],
-            longdashdotdot: [8, 3.5, 1.5, 3.5, 1.5, 3.5]
-        },
         TRANSPARENT = "transparent",
         UNDEFINED = "undefined";
 
@@ -17426,13 +32440,16 @@ function pad(number) {
                 );
             }
 
+            view.defsId = uniqueId();
             view.template = SVGView.template;
+            view.display = view.options.inline ? "inline" : "block";
+
             if (!view.template) {
                 view.template = SVGView.template = renderTemplate(
                     "<?xml version='1.0' ?>" +
                     "<svg xmlns='" + SVG_NS + "' version='1.1' " +
                     "width='#= d.options.width #px' height='#= d.options.height #px' " +
-                    "style='position: relative; display: block;'>" +
+                    "style='position: relative; display: #= d.display #;'>" +
                     "#= d.renderDefinitions() #" +
                     "#= d.renderContent() #</svg>"
                 );
@@ -17441,8 +32458,7 @@ function pad(number) {
 
         options: {
             width: DEFAULT_WIDTH,
-            height: DEFAULT_HEIGHT,
-            idPrefix: ""
+            height: DEFAULT_HEIGHT
         },
 
         renderTo: function(container) {
@@ -17462,23 +32478,33 @@ function pad(number) {
 
         renderDefinitions: function() {
             var view = this,
+                id = view.defsId,
                 output = ViewBase.fn.renderDefinitions.call(view);
 
-            return output.length > 0 ? "<defs>" + output + "</defs>" : "";
+            return "<defs id='" + id + "'>" + output + "</defs>";
         },
 
         renderElement: function(element) {
-            var container = doc.createElement("div"),
+            var view = this,
+                container = doc.createElement("div"),
+                defsCurrent = doc.getElementById(view.defsId),
+                defsElement,
                 domElement;
 
             dataviz.renderSVG(container,
                 "<?xml version='1.0' ?>" +
                 "<svg xmlns='" + SVG_NS + "' version='1.1'>" +
+                view.renderDefinitions() +
                 element.render() +
                 "</svg>"
             );
 
-            domElement = container.firstElementChild.firstChild;
+            defsElement = container.firstElementChild.firstChild;
+            domElement = container.firstElementChild.lastChild;
+
+            if (defsCurrent && defsCurrent.textContent !== defsElement.textContent) {
+                defsCurrent.parentNode.replaceChild(defsElement, defsCurrent);
+            }
 
             return domElement;
         },
@@ -17497,20 +32523,21 @@ function pad(number) {
 
         createRect: function(box, style) {
             return this.decorate(
-                new SVGLine(box.points(), true, style)
+                new SVGLine(box.points(), true, this.setDefaults(style))
             );
         },
 
+        // TODO: Refactor to (p1, p2, options)
         createLine: function(x1, y1, x2, y2, options) {
             return this.decorate(
                 new SVGLine([new Point2D(x1, y1),
-                             new Point2D(x2, y2)], false, options)
+                             new Point2D(x2, y2)], false, this.setDefaults(options))
             );
         },
 
         createPolyline: function(points, closed, options) {
             return this.decorate(
-                new SVGLine(points, closed, options)
+                new SVGLine(points, closed, this.setDefaults(options))
             );
         },
 
@@ -17570,18 +32597,6 @@ function pad(number) {
         }
     });
 
-    SVGView.fromModel = function(model) {
-        var view = new SVGView(model.options);
-        [].push.apply(view.children, model.getViewElements(view));
-
-        return view;
-    };
-
-    SVGView.available = dataviz.supportsSVG;
-    SVGView.preference = 100;
-
-    dataviz.ui.registerView(SVGView);
-
     var SVGText = ViewElement.extend({
         init: function(content, options) {
             var text = this;
@@ -17591,13 +32606,15 @@ function pad(number) {
             text.template = SVGText.template;
             if (!text.template) {
                 text.template = SVGText.template = renderTemplate(
-                    "<text #= d.renderAttr(\"id\", d.options.id) # " +
+                    "<text #= d.renderId() # " +
                     "#= d.renderDataAttributes() # " +
                     "x='#= Math.round(d.options.x) #' " +
                     "y='#= Math.round(d.options.y + d.options.baseline) #' " +
                     "fill-opacity='#= d.options.fillOpacity #' " +
                     "#= d.options.rotation ? d.renderRotation() : '' # " +
-                    "style='font: #= d.options.font #' fill='#= d.options.color #'>" +
+                    "style='font: #= d.options.font #; " +
+                    "#= d.renderCursor() #' " +
+                    "fill='#= d.options.color #'>" +
                     "#= d.content #</text>"
                 );
             }
@@ -17612,7 +32629,8 @@ function pad(number) {
                 width: 0,
                 height: 0
             },
-            fillOpacity: 1
+            fillOpacity: 1,
+            cursor: {}
         },
 
         refresh: function(domElement) {
@@ -17626,6 +32644,18 @@ function pad(number) {
         clone: function() {
             var text = this;
             return new SVGText(text.content, deepExtend({}, text.options));
+        },
+
+        // TODO: Extract in ViewElement
+        renderCursor: function() {
+            var options = this.options,
+                result = "";
+
+            if (defined(options.cursor.style)) {
+                result += "cursor: " + options.cursor.style + ";";
+            }
+
+            return result;
         },
 
         renderRotation: function() {
@@ -17652,7 +32682,9 @@ function pad(number) {
             path.template = SVGPath.template;
             if (!path.template) {
                 path.template = SVGPath.template = renderTemplate(
-                    "<path #= d.renderAttr(\"id\", d.options.id) #" +
+                    "<path #= d.renderId() #" +
+                    "style='display: #= d.renderDisplay() #; " +
+                    "#= d.renderCursor() #' " +
                     "#= d.renderDataAttributes() # " +
                     "d='#= d.renderPoints() #' " +
                     "#= d.renderAttr(\"stroke\", d.options.stroke) # " +
@@ -17671,7 +32703,10 @@ function pad(number) {
             fill: "",
             fillOpacity: 1,
             strokeOpacity: 1,
-            rotation: [0,0,0]
+            rotation: [0,0,0],
+            strokeLineCap: SQUARE,
+            visible: true,
+            cursor: {}
         },
 
         refresh: function(domElement) {
@@ -17681,16 +32716,26 @@ function pad(number) {
                 "d": this.renderPoints(),
                 "fill-opacity": options.fillOpacity,
                 "stroke-opacity": options.strokeOpacity
-            });
+            }).css("display", this.renderDisplay());
         },
 
         clone: function() {
-            var path = this;
-            return new SVGPath(deepExtend({}, path.options));
+            return new SVGPath(deepExtend({}, this.options));
         },
 
         renderPoints: function() {
             // Overriden by inheritors
+        },
+
+        renderCursor: function() {
+            var options = this.options,
+                result = "";
+
+            if (defined(options.cursor.style)) {
+                result += "cursor: " + options.cursor.style + ";";
+            }
+
+            return result;
         },
 
         renderDashType: function () {
@@ -17701,9 +32746,11 @@ function pad(number) {
         },
 
         renderLinecap: function() {
-            var dashType = this.options.dashType;
+            var options = this.options,
+                dashType = options.dashType,
+                strokeLineCap = options.strokeLineCap;
 
-            return (dashType && dashType != SOLID) ? BUTT : SQUARE;
+            return (dashType && dashType != SOLID) ? BUTT : strokeLineCap;
         },
 
         renderFill: function() {
@@ -17714,6 +32761,14 @@ function pad(number) {
             }
 
             return NONE;
+        },
+
+        renderDisplay: function() {
+            return this.options.visible ? "block" : "none";
+        },
+
+        destroy: function() {
+            // Expand animation should have this method
         }
     });
 
@@ -17729,23 +32784,23 @@ function pad(number) {
         renderPoints: function() {
             var line = this,
                 points = line.points,
+                rotation = line.options.rotation,
+                rCenter = new Point2D(rotation[1], rotation[2]),
+                rAmount = -rotation[0],
                 i,
-                count = points.length,
-                rotate = function(point) {
-                    var rotation = line.options.rotation;
-                    return rotatePoint(point.x, point.y, rotation[1], rotation[2], -rotation[0]);
-                },
-                result = "M" + line._print(rotate(points[0]));
+                result = [];
 
-            for (i = 1; i < count; i++) {
-                result += " " + line._print(rotate(points[i]));
+            for (i = 0; i < points.length; i++) {
+                result.push(line._print(
+                    points[i].clone().rotate(rCenter, rAmount)
+                ));
             }
 
             if (line.closed) {
-                result += " z";
+                result.push("z");
             }
 
-            return result;
+            return "M" + result.join(" ");
         },
 
         clone: function() {
@@ -17770,6 +32825,7 @@ function pad(number) {
     var SVGRing = SVGPath.extend({
         init: function(config, options) {
             var ring = this;
+
             SVGPath.fn.init.call(ring, options);
 
             ring.pathTemplate = SVGRing.pathTemplate;
@@ -17803,7 +32859,9 @@ function pad(number) {
                 secondOuterPoint,
                 secondInnerPoint;
 
-            endAngle = (endAngle - startAngle) === 360 ? endAngle - 0.002 : endAngle;
+            if (round(startAngle) % 360 === round(endAngle) % 360) {
+                endAngle -= 0.05;
+            }
             secondOuterPoint = ringConfig.point(endAngle);
             secondInnerPoint = ringConfig.point(endAngle, true);
 
@@ -17930,7 +32988,7 @@ function pad(number) {
             circle.template = SVGCircle.template;
             if (!circle.template) {
                 circle.template = SVGCircle.template = renderTemplate(
-                    "<circle #= d.renderAttr(\"id\", d.options.id) # " +
+                    "<circle #= d.renderId() # " +
                     "#= d.renderDataAttributes() #" +
                     "cx='#= d.c.x #' cy='#= d.c.y #' " +
                     "r='#= d.r #' " +
@@ -17975,7 +33033,7 @@ function pad(number) {
             if (!group.template) {
                 group.template = SVGGroup.template =
                 renderTemplate(
-                    "<g#= d.renderAttr(\"id\", d.options.id) #" +
+                    "<g#= d.renderId() #" +
                     "#= d.renderDataAttributes() #" +
                     "#= d.renderAttr(\"clip-path\", d.options.clipPath) #>" +
                     "#= d.renderContent() #</g>"
@@ -18178,7 +33236,6 @@ function pad(number) {
         getPaint: function(paint) {
             var decorator = this,
                 view = decorator.view,
-                baseUrl = decorator.baseUrl(),
                 definitions = view.definitions,
                 overlay,
                 overlayId,
@@ -18194,7 +33251,7 @@ function pad(number) {
                         definitions[overlayId] = gradient;
                     }
 
-                    return "url(" + baseUrl + "#" + gradient.options.id + ")";
+                    return "url(" + decorator.baseUrl() + "#" + gradient.options.id + ")";
                 } else {
                     return NONE;
                 }
@@ -18224,7 +33281,6 @@ function pad(number) {
     var SVGClipAnimationDecorator = Class.extend({
         init: function(view) {
             this.view = view;
-            this.clipId = uniqueId();
         },
 
         decorate: function(element) {
@@ -18234,10 +33290,15 @@ function pad(number) {
                 options = view.options,
                 animation = element.options.animation,
                 definitions = view.definitions,
-                clipPath = definitions[clipId],
+                clipPath,
                 clipRect;
 
             if (animation && animation.type === CLIP && options.transitions) {
+                if (!clipId) {
+                    decorator.clipId = clipId = uniqueId();
+                }
+
+                clipPath = definitions[clipId];
                 if (!clipPath) {
                     clipPath = new SVGClipPath({ id: clipId });
                     clipRect = view.createRect(
@@ -18269,10 +33330,10 @@ function pad(number) {
 
         dashType = dashType ? dashType.toLowerCase() : null;
 
-        if (dashType && dashType != SOLID && strokeWidth) {
-            dashTypeArray = SVG_DASH_TYPE[dashType];
+        if (dashType && dashType != SOLID) {
+            dashTypeArray = DASH_ARRAYS[dashType];
             for (i = 0; i < dashTypeArray.length; i++) {
-                result.push(dashTypeArray[i] * strokeWidth);
+                result.push(dashTypeArray[i] * (strokeWidth || 1));
             }
 
             return "stroke-dasharray='" + result.join(" ") + "' ";
@@ -18305,6 +33366,10 @@ function pad(number) {
     })();
 
     // Exports ================================================================
+    if (dataviz.supportsSVG()) {
+        dataviz.ViewFactory.current.register("svg", SVGView, 10);
+    }
+
     deepExtend(dataviz, {
         renderSVG: renderSVG,
         SVGCircle: SVGCircle,
@@ -18324,7 +33389,16 @@ function pad(number) {
         SVGView: SVGView
     });
 
-})(jQuery);
+})(window.kendo.jQuery);
+
+kendo_module({
+    id: "dataviz.vml",
+    name: "Output: VML",
+    description: "Support for VML rendering",
+    category: "dataviz",
+    depends: [ "dataviz.core" ]
+});
+
 (function () {
 
     // Imports ================================================================
@@ -18402,12 +33476,14 @@ function pad(number) {
             }
 
             view.template = VMLView.template;
+            view.tagName = view.options.inline ? "span" : "div";
+
             if (!view.template) {
                 view.template = VMLView.template = renderTemplate(
-                    "<div style='width:#= d.options.width #px; " +
+                    "<#= d.tagName # style='width:#= d.options.width #px; " +
                     "height:#= d.options.height #px; " +
                     "position: relative;'>" +
-                    "#= d.renderContent() #</div>"
+                    "#= d.renderContent() #</#= d.tagName #>"
                 );
             }
         },
@@ -18455,20 +33531,24 @@ function pad(number) {
 
         createRect: function(box, style) {
             return this.decorate(
-                new VMLLine(box.points(), true, style)
+                new VMLLine(
+                    box.points(), true, this.setDefaults(style)
+                )
             );
         },
 
         createLine: function(x1, y1, x2, y2, options) {
             return this.decorate(
-                new VMLLine([new Point2D(x1, y1),
-                    new Point2D(x2, y2)], false, options)
+                new VMLLine(
+                    [new Point2D(x1, y1), new Point2D(x2, y2)],
+                    false, this.setDefaults(options)
+                )
             );
         },
 
         createPolyline: function(points, closed, options) {
             return this.decorate(
-                new VMLLine(points, closed, options)
+                new VMLLine(points, closed, this.setDefaults(options))
             );
         },
 
@@ -18486,13 +33566,13 @@ function pad(number) {
 
         createRing: function(ring, options) {
             return this.decorate(
-                new VMLRing(ring, options)
+                new VMLRing(ring, this.setDefaults(options))
             );
         },
 
         createGroup: function(options) {
             return this.decorate(
-                new VMLGroup(options)
+                new VMLGroup(this.setDefaults(options))
             );
         },
 
@@ -18509,21 +33589,6 @@ function pad(number) {
         }
     });
 
-    VMLView.fromModel = function(model) {
-        var view = new VMLView(model.options);
-        [].push.apply(view.children, model.getViewElements(view));
-
-        return view;
-    };
-
-    VMLView.available = function() {
-        return kendo.support.browser.msie;
-    };
-
-    VMLView.preference = 50;
-
-    dataviz.ui.registerView(VMLView);
-
     // Primitives =============================================================
     var VMLText = ViewElement.extend({
         init: function(content, options) {
@@ -18534,12 +33599,13 @@ function pad(number) {
             text.template = VMLText.template;
             if (!text.template) {
                 text.template = VMLText.template = renderTemplate(
-                    "<kvml:textbox #= d.renderAttr(\"id\", d.options.id) # " +
+                    "<kvml:textbox #= d.renderId() # " +
                     "#= d.renderDataAttributes() #" +
                     "style='position: absolute; " +
                     "left: #= d.options.x #px; top: #= d.options.y #px; " +
                     "font: #= d.options.font #; color: #= d.options.color #; " +
-                    "visibility: #= d.renderVisibility() #; white-space: nowrap;'>" +
+                    "visibility: #= d.renderVisibility() #; white-space: nowrap;'" +
+                    "#= d.renderCursor() #>" +
                     "#= d.content #</kvml:textbox>"
                 );
             }
@@ -18550,7 +33616,8 @@ function pad(number) {
             y: 0,
             font: DEFAULT_FONT,
             color: BLACK,
-            fillOpacity: 1
+            fillOpacity: 1,
+            cursor: {}
         },
 
         refresh: function(domElement) {
@@ -18564,6 +33631,17 @@ function pad(number) {
 
         renderVisibility: function() {
             return this.options.fillOpacity > 0 ? "visible" : "hidden";
+        },
+
+        renderCursor: function() {
+            var options = this.options,
+                result = "";
+
+            if (defined(options.cursor.style)) {
+                result += "cursor: " + options.cursor.style + ";";
+            }
+
+            return result;
         }
     });
 
@@ -18576,7 +33654,7 @@ function pad(number) {
             text.template = VMLRotatedText.template;
             if (!text.template) {
                 text.template = VMLRotatedText.template = renderTemplate(
-                    "<kvml:shape #= d.renderAttr(\"id\", d.options.id) # " +
+                    "<kvml:shape #= d.renderId() # " +
                     "#= d.renderDataAttributes() #" +
                     "style='position: absolute; top: 0px; left: 0px; " +
                     "width: 1px; height: 1px;' stroked='false' coordsize='1,1'>" +
@@ -18625,7 +33703,7 @@ function pad(number) {
             stroke.template = VMLStroke.template;
             if (!stroke.template) {
                 stroke.template = VMLStroke.template = renderTemplate(
-                    "<kvml:stroke on='#= !!d.options.stroke #' " +
+                    "<kvml:stroke on='#= !!d.options.stroke && !!d.options.strokeWidth #' " +
                     "#= d.renderAttr(\"color\", d.options.stroke) #" +
                     "#= d.renderAttr(\"weight\", d.options.strokeWidth) #" +
                     "#= d.renderAttr(\"dashstyle\", d.options.dashType) #" +
@@ -18681,10 +33759,11 @@ function pad(number) {
             path.template = VMLPath.template;
             if (!path.template) {
                 path.template = VMLPath.template = renderTemplate(
-                    "<kvml:shape #= d.renderAttr(\"id\", d.options.id) # " +
+                    "<kvml:shape #= d.renderId() # " +
                     "#= d.renderDataAttributes() #" +
-                    "style='position:absolute; #= d.renderSize() #' " +
-                    "coordorigin='0 0' #= d.renderCoordsize() # >" +
+                    "style='position:absolute; #= d.renderSize() # display:#= d.renderDisplay() #;' " +
+                    "coordorigin='0 0' #= d.renderCoordsize() #" +
+                    "#= d.renderCursor() #>" +
                         "<kvml:path v='#= d.renderPoints() # e' />" +
                         "#= d.fill.render() + d.stroke.render() #" +
                     "</kvml:shape>"
@@ -18699,7 +33778,9 @@ function pad(number) {
             fill: "",
             fillOpacity: 1,
             strokeOpacity: 1,
-            rotation: [0,0,0]
+            rotation: [0,0,0],
+            visible: true,
+            cursor: {}
         },
 
         renderCoordsize: function() {
@@ -18718,6 +33799,10 @@ function pad(number) {
             path.stroke.options.strokeOpacity = path.options.strokeOpacity;
 
             return ViewElement.fn.render.call(path);
+        },
+
+        renderDisplay: function() {
+            return this.options.visible ? "block" : "none";
         },
 
         renderPoints: function() {
@@ -18742,9 +33827,22 @@ function pad(number) {
                 fill.refresh(element.find("fill")[0]);
                 stroke.refresh(element.find("stroke")[0]);
 
+                element.css("display", path.renderDisplay());
+
                 // Force redraw in order to remove artifacts in IE < 7
                 parentNode.style.cssText = parentNode.style.cssText;
             }
+        },
+
+        renderCursor: function() {
+            var options = this.options,
+                result = "";
+
+            if (defined(options.cursor.style)) {
+                result += "cursor: " + options.cursor.style + ";";
+            }
+
+            return result;
         }
     });
 
@@ -18920,7 +34018,7 @@ function pad(number) {
             circle.template = VMLCircle.template;
             if (!circle.template) {
                 circle.template = VMLCircle.template = renderTemplate(
-                    "<kvml:oval #= d.renderAttr(\"id\", d.options.id) # " +
+                    "<kvml:oval #= d.renderId() # " +
                             "#= d.renderDataAttributes() #" +
                             "style='position:absolute; " +
                             "width:#= d.r * 2 #px; height:#= d.r * 2 #px; " +
@@ -18936,7 +34034,8 @@ function pad(number) {
         },
 
         options: {
-            fill: ""
+            fill: "",
+            fillOpacity: 1
         },
 
         refresh: function(domElement) {
@@ -18972,13 +34071,14 @@ function pad(number) {
             var group = this;
             ViewElement.fn.init.call(group, options);
 
+            group.tagName = group.options.inline ? "span" : "div";
             group.template = VMLGroup.template;
             if (!group.template) {
                 group.template = VMLGroup.template = renderTemplate(
-                    "<div #= d.renderAttr(\"id\", d.options.id) #" +
+                    "<#= d.tagName # #= d.renderId() #" +
                     "#= d.renderDataAttributes() #" +
                     "style='position: absolute; white-space: nowrap;'>" +
-                    "#= d.renderContent() #</div>"
+                    "#= d.renderContent() #</#= d.tagName #>"
                 );
             }
         }
@@ -18989,17 +34089,18 @@ function pad(number) {
             var clipRect = this;
             ViewElement.fn.init.call(clipRect, options);
 
+            clipRect.tagName = clipRect.options.inline ? "span" : "div";
             clipRect.template = VMLClipRect.template;
             clipRect.clipTemplate = VMLClipRect.clipTemplate;
             if (!clipRect.template) {
                 clipRect.template = VMLClipRect.template = renderTemplate(
-                    "<div #= d.renderAttr(\"id\", d.options.id) #" +
+                    "<#= d.tagName # #= d.renderId() #" +
                         "style='position:absolute; " +
                         "width:#= d.box.width() #px; height:#= d.box.height() #px; " +
                         "top:#= d.box.y1 #px; " +
                         "left:#= d.box.x1 #px; " +
                         "clip:#= d._renderClip() #;' >" +
-                    "#= d.renderContent() #</div>"
+                    "#= d.renderContent() #</#= d.tagName #>"
                 );
 
                 clipRect.clipTemplate = VMLClipRect.clipTemplate = renderTemplate(
@@ -19022,11 +34123,17 @@ function pad(number) {
         },
 
         refresh: function(domElement) {
-            domElement.style.clip = this._renderClip();
+            if (domElement) {
+                domElement.style.clip = this._renderClip();
+            }
         },
 
         _renderClip: function() {
             return this.clipTemplate(this);
+        },
+
+        destroy: function() {
+            $("#" + this.options.id + ">*").unwrap();
         }
     });
 
@@ -19196,7 +34303,7 @@ function pad(number) {
             if (animation && animation.type === CLIP && options.transitions) {
                 clipRect = new VMLClipRect(
                     new Box2D(0, 0, options.width, options.height),
-                    { id: uniqueId() }
+                    { id: uniqueId(), inline: options.inline }
                 );
 
                 view.animations.push(
@@ -19252,6 +34359,11 @@ function pad(number) {
     }
 
     // Exports ================================================================
+
+    if (kendo.support.browser.msie) {
+        dataviz.ViewFactory.current.register("vml", VMLView, 20);
+    }
+
     deepExtend(dataviz, {
         VMLCircle: VMLCircle,
         VMLClipAnimationDecorator: VMLClipAnimationDecorator,
@@ -19274,4 +34386,552 @@ function pad(number) {
         blendGradient: blendGradient
     });
 
-})(jQuery);
+})(window.kendo.jQuery);
+
+kendo_module({
+    id: "dataviz.canvas",
+    name: "Output: Canvas",
+    description: "Support for Canvas rendering and image export",
+    category: "dataviz",
+    depends: [ "dataviz.core" ]
+});
+
+(function () {
+
+    // Imports ================================================================
+    var $ = jQuery,
+        math = Math,
+
+        kendo = window.kendo,
+        dataviz = kendo.dataviz,
+        Box2D = dataviz.Box2D,
+        Color = dataviz.Color,
+        Point2D = dataviz.Point2D,
+        Ring = dataviz.Ring,
+        ViewBase = dataviz.ViewBase,
+        ViewElement = dataviz.ViewElement,
+        deepExtend = kendo.deepExtend,
+        round = dataviz.round,
+        renderTemplate = dataviz.renderTemplate;
+
+    // Constants ==============================================================
+    var BUTT = "butt",
+        COORD_PRECISION = dataviz.COORD_PRECISION,
+        DASH_ARRAYS = dataviz.DASH_ARRAYS,
+        DEFAULT_WIDTH = dataviz.DEFAULT_WIDTH,
+        DEFAULT_HEIGHT = dataviz.DEFAULT_HEIGHT,
+        DEFAULT_FONT = dataviz.DEFAULT_FONT,
+        DEG_TO_RAD = math.PI / 180,
+        TWO_PI = math.PI * 2,
+        LINEAR = "linear",
+        RADIAL = "radial",
+        SOLID = "solid",
+        SQUARE = "square";
+
+    var CANVAS_TEMPLATE = renderTemplate(
+        "<canvas width='#= d.options.width #px' height='#= d.options.height #px' " +
+        "style='position: relative; display: #= d.display #;'></canvas>"
+    );
+
+    // View ===================================================================
+    var CanvasView = ViewBase.extend({
+        init: function(options) {
+            var view = this;
+
+            ViewBase.fn.init.call(view, options);
+
+            view.display = view.options.inline ? "inline" : "block";
+        },
+
+        options: {
+            width: DEFAULT_WIDTH,
+            height: DEFAULT_HEIGHT
+        },
+
+        renderTo: function(container) {
+            var view = this,
+                options = view.options,
+                canvas,
+                ctx;
+
+            canvas = container.firstElementChild;
+            if (!canvas || canvas.tagName.toLowerCase() !== "canvas") {
+                container.innerHTML = CANVAS_TEMPLATE(this);
+                canvas = container.firstElementChild;
+            } else {
+                $(canvas).siblings().remove();
+                canvas.width = options.width;
+                canvas.height = options.height;
+            }
+
+            view._ctx = ctx = canvas.getContext("2d");
+            view.renderContent(ctx);
+
+            return canvas;
+        },
+
+        replace: function(element, bbox) {
+            var view = this,
+                ctx = view._ctx;
+
+            ctx.clearRect(bbox.x1, bbox.y1, bbox.width(), bbox.height());
+            element.render(ctx);
+        },
+
+        destroy: function() {
+            var view = this;
+
+            ViewBase.fn.destroy.call(view);
+            view._ctx = null;
+        },
+
+        renderContent: function(context) {
+            var element = this,
+                sortedChildren = element.sortChildren(),
+                childrenCount = sortedChildren.length,
+                i;
+
+            for (i = 0; i < childrenCount; i++) {
+                sortedChildren[i].render(context);
+            }
+        },
+
+        createGroup: function(options) {
+            return new CanvasGroup(options);
+        },
+
+        createText: function(content, options) {
+            return new CanvasText(content, options);
+        },
+
+        createRect: function(box, style) {
+            return new CanvasLine(box.points(), true, this.setDefaults(style));
+        },
+
+        createLine: function(x1, y1, x2, y2, options) {
+            return new CanvasLine([new Point2D(x1, y1), new Point2D(x2, y2)],
+                false, this.setDefaults(options));
+        },
+
+        createPolyline: function(points, closed, options) {
+            return new CanvasLine(points, closed, this.setDefaults(options));
+        },
+
+        createCircle: function(center, radius, options) {
+            return new CanvasCircle(center, radius, options);
+        },
+
+        createSector: function(sector, options) {
+            return new CanvasRing(sector, options);
+        },
+
+        createRing: function(ring, options) {
+            return new CanvasRing(ring, options);
+        },
+
+        createPin: function(pin, options) {
+            return new CanvasPin(pin, options);
+        }
+    });
+
+    var CanvasGroup = ViewElement.extend({
+        render: function(context) {
+            this.renderContent(context);
+        },
+
+        renderContent: CanvasView.fn.renderContent
+    });
+
+    var CanvasPath = ViewElement.extend({
+        options: {
+            fillOpacity: 1,
+            strokeOpacity: 1,
+            strokeLineCap: SQUARE
+        },
+
+        render: function(ctx) {
+            var path = this,
+                options = path.options;
+
+            ctx.save();
+
+            ctx.beginPath();
+            path.renderPoints(ctx);
+
+            path.setLineDash(ctx);
+            path.setLineCap(ctx);
+
+            if (options.fill && options.fill !== "transparent") {
+                path.setFill(ctx);
+                ctx.globalAlpha = options.fillOpacity;
+                ctx.fill();
+            }
+
+            if (options.stroke && options.strokeWidth) {
+                ctx.strokeStyle = options.stroke;
+                ctx.lineWidth = options.strokeWidth;
+                ctx.lineJoin = "round";
+                ctx.globalAlpha = options.strokeOpacity;
+                ctx.stroke();
+            }
+
+            path.renderOverlay(ctx);
+
+            ctx.restore();
+        },
+
+        setLineDash: function(ctx) {
+            var dashType = this.options.dashType,
+                dashArray;
+
+            dashType = dashType ? dashType.toLowerCase() : null;
+            if (dashType && dashType != SOLID) {
+                dashArray = DASH_ARRAYS[dashType];
+                if (ctx.setLineDash) {
+                    ctx.setLineDash(dashArray);
+                } else {
+                    ctx.mozDash = dashArray;
+                    ctx.webkitLineDash = dashArray;
+                }
+            }
+        },
+
+        setLineCap: function(ctx) {
+            var options = this.options,
+                dashType = options.dashType;
+
+            ctx.lineCap = (dashType && dashType !== SOLID) ?
+                BUTT : options.strokeLineCap;
+        },
+
+        setFill: function(ctx) {
+            var options = this.options,
+                fill = options.fill;
+
+            ctx.fillStyle = fill;
+        },
+
+        renderOverlay: function(ctx) {
+            var options = this.options,
+                overlay = options.overlay,
+                gradient,
+                def;
+
+            if (overlay && overlay.gradient) {
+                def = dataviz.Gradients[overlay.gradient];
+                gradient = this.buildGradient(ctx, def);
+                if (gradient) {
+                    ctx.fillStyle = gradient;
+                    ctx.fill();
+                }
+            }
+        },
+
+        renderPoints: $.noop,
+        buildGradient: $.noop
+    });
+
+    var CanvasLine = CanvasPath.extend({
+        init: function(points, closed, options) {
+            var line = this;
+            CanvasPath.fn.init.call(line, options);
+
+            line.points = points;
+            line.closed = closed;
+        },
+
+        options: {
+            rotation: [0, 0, 0]
+        },
+
+        renderPoints: function(ctx) {
+            var line = this,
+                points = line.points,
+                i,
+                p,
+                options = line.options,
+                strokeWidth = options.strokeWidth,
+                shouldAlign = options.align !== false && strokeWidth && strokeWidth % 2 !== 0,
+                align = shouldAlign ? alignToPixel : round;
+
+            if (points.length === 0 || !(options.fill || options.stroke)) {
+                return;
+            }
+
+            if (options.rotation[0] !== 0) {
+                line.setRotation(ctx);
+            }
+
+            p = points[0];
+            ctx.moveTo(align(p.x, COORD_PRECISION), align(p.y, COORD_PRECISION));
+
+            for (i = 1; i < points.length; i++) {
+                p = points[i];
+                ctx.lineTo(align(p.x, COORD_PRECISION), align(p.y, COORD_PRECISION));
+            }
+
+            if (line.closed) {
+                ctx.closePath();
+            }
+        },
+
+        buildGradient: function(ctx, definition) {
+            var bbox = this.bbox(),
+                rotation = this.options.overlay.rotation,
+                x = bbox.x2,
+                y = bbox.y1,
+                gradient;
+
+            if (rotation === 90) {
+                x = bbox.x1;
+                y = bbox.y2;
+            }
+
+            if (definition && definition.type === LINEAR) {
+                gradient = ctx.createLinearGradient(bbox.x1, bbox.y1, x, y);
+                addGradientStops(gradient, definition.stops);
+            }
+
+            return gradient;
+        },
+
+        bbox: function() {
+            var points = this.points,
+                bbox = new Box2D(),
+                i;
+
+            if (points.length > 0) {
+                bbox.move(points[0].x, points[0].y);
+                for (i = 1; i < points.length; i++) {
+                    bbox.wrapPoint(points[i]);
+                }
+            }
+
+            return bbox;
+        },
+
+        setRotation: function(context) {
+            var text = this,
+                options = text.options,
+                rotation = options.rotation,
+                cx = rotation[1],
+                cy = rotation[2];
+
+            context.translate(cx, cy);
+            context.rotate(rotation[0] * DEG_TO_RAD);
+            context.translate(-cx, -cy);
+        }
+    });
+
+    var CanvasRing = CanvasPath.extend({
+        init: function(config, options) {
+            var ring = this;
+
+            CanvasPath.fn.init.call(ring, options);
+
+            ring.config = config || {};
+        },
+
+        options: {
+            strokeLineCap: SQUARE
+        },
+
+        renderPoints: function(ctx) {
+            var ring = this,
+                config = ring.config,
+                startAngle = config.startAngle,
+                endAngle = config.angle + startAngle,
+                r = math.max(config.r, 0),
+                ir = math.max(config.ir, 0),
+                c = config.c,
+                startRadians = toRadians(startAngle),
+                endRadians = toRadians(endAngle);
+
+            if (startRadians === endRadians) {
+                startAngle = 0;
+                endAngle = 360;
+                startRadians = 0;
+                endRadians = 2 * Math.PI;
+            }
+
+            var firstOuterPoint = config.point(startAngle),
+                secondInnerPoint = config.point(endAngle, true);
+
+            ctx.moveTo(firstOuterPoint.x, firstOuterPoint.y);
+            ctx.arc(c.x, c.y, r, startRadians, endRadians);
+
+            if (ir > 0) {
+                ctx.lineTo(secondInnerPoint.x, secondInnerPoint.y);
+                ctx.arc(c.x, c.y, ir, endRadians, startRadians, true);
+            } else {
+                ctx.lineTo(c.x, c.y);
+            }
+        },
+
+        buildGradient: function(ctx, definition) {
+            var config = this.config,
+                c = config.c,
+                gradient;
+
+            if (definition && definition.type === RADIAL) {
+                gradient = ctx.createRadialGradient(
+                    c.x, c.y, config.ir,
+                    c.x, c.y, config.r
+                );
+                addGradientStops(gradient, definition.stops);
+            }
+
+            return gradient;
+        }
+    });
+
+    var CanvasCircle = CanvasPath.extend({
+        init: function(c, r, options) {
+            var circle = this;
+            CanvasPath.fn.init.call(circle, options);
+
+            circle.config = new Ring(c, 0, r);
+        },
+
+        renderPoints: function(context) {
+            var config = this.config,
+                c = config.c;
+
+            context.arc(c.x, c.y, config.r, 0, TWO_PI, false);
+        },
+
+        buildGradient: CanvasRing.fn.buildGradient
+    });
+
+    var CanvasPin = CanvasPath.extend({
+        init: function(config, options) {
+            var pin = this;
+
+            CanvasPath.fn.init.call(pin, options);
+
+            pin.config = config;
+        },
+
+        renderPoints: function(context) {
+            var pin = this,
+                config = pin.config,
+                r = config.radius,
+                degrees = math.PI / 180,
+                arcAngle = config.arcAngle,
+                height = config.height - r * (1 - math.cos(arcAngle * degrees / 2)),
+                origin = config.origin;
+
+            var rotation = pin.options.rotation;
+            context.translate(rotation[1], rotation[2]);
+            context.rotate(toRadians(rotation[0]));
+            context.translate(rotation[1] - origin.x, rotation[2] - origin.y);
+            context.rotate(toRadians(-pin.config.rotation));
+
+            context.moveTo(0, 0);
+            context.arc(0, -height, r, toRadians(90 - arcAngle / 2), toRadians(90 + arcAngle / 2));
+            context.lineTo(0, 0);
+            context.closePath();
+        }
+    });
+
+    var CanvasText = ViewElement.extend({
+        init: function(content, options) {
+            var text = this;
+            ViewElement.fn.init.call(text, options);
+
+            text.content = content;
+        },
+
+        options: {
+            x: 0,
+            y: 0,
+            baseline: 0,
+            font: DEFAULT_FONT,
+            size: {
+                width: 0,
+                height: 0
+            },
+            fillOpacity: 1
+        },
+
+        render: function(context) {
+            var text = this,
+                options = text.options,
+                content = text.content,
+                x = options.x,
+                y = options.y + options.baseline;
+
+            context.save();
+
+            if (options.rotation !== 0) {
+                text.setRotation(context);
+            }
+
+            context.font = options.font;
+            context.fillStyle = options.color;
+            context.globalAlpha = options.fillOpacity;
+
+            context.fillText(content, x, y);
+
+            context.restore();
+        },
+
+        setRotation: function(context) {
+            var text = this,
+                options = text.options,
+                size = options.size,
+                cx = options.x + size.normalWidth / 2,
+                cy = options.y + size.normalHeight / 2,
+                rcx = options.x + size.width / 2,
+                rcy = options.y + size.height / 2,
+                offsetX = rcx - cx,
+                offsetY = rcy - cy;
+
+            context.translate(offsetX, offsetY);
+            context.translate(cx, cy);
+            context.rotate(options.rotation * DEG_TO_RAD);
+            context.translate(-cx, -cy);
+        }
+    });
+
+    // Helpers ================================================================
+    function toRadians(degrees) {
+        return ((degrees + 540) % 360) * DEG_TO_RAD;
+    }
+
+    function alignToPixel(coord) {
+        return math.round(coord) + 0.5;
+    }
+
+    function addGradientStops(gradient, stops) {
+        var i,
+            length = stops.length,
+            currentStop,
+            color;
+
+        for (i = 0; i < length; i++) {
+            currentStop = stops[i];
+            color = new Color(currentStop.color);
+            gradient.addColorStop(
+                currentStop.offset,
+                "rgba(" + color.r + "," + color.g + "," + color.b + "," + currentStop.opacity + ")"
+            );
+        }
+    }
+
+    // Exports ================================================================
+    if (dataviz.supportsCanvas()) {
+        dataviz.ViewFactory.current.register("canvas", CanvasView, 30);
+    }
+
+    deepExtend(dataviz, {
+        CanvasCircle: CanvasCircle,
+        CanvasGroup: CanvasGroup,
+        CanvasLine: CanvasLine,
+        CanvasPath: CanvasPath,
+        CanvasRing: CanvasRing,
+        CanvasText: CanvasText,
+        CanvasView: CanvasView
+    });
+
+})(window.kendo.jQuery);
