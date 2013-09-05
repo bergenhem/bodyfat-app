@@ -12,7 +12,9 @@ window.Dashboard = (function($){
 			url: '/bodyfat',
 			type: 'get',
 			contentType: "application/json"
-		}).done(_dashboardModule.createCharts)
+		}).done(function(data) {
+			_dashboardModule.createCharts(data.bodyFat);
+		})
 		.fail(function() {
 			console.log('fail');
 		});
