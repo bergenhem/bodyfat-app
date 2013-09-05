@@ -48,11 +48,13 @@ window.Settings = (function($){
 				type: 'get',
 				contentType: 'application/json'
 			}).done(function(userData) {
-				_settingsWindowModel.set('unit', userData.unit);
-				_settingsWindowModel.set('age', userData.age);
-				_settingsWindowModel.set('height', userData.height);
-				_settingsWindowModel.set('gender', userData.gender);
-				_settingsWindowModel.set('calipers', userData.calipers);
+				if(userData) { //did we actually save data?
+					_settingsWindowModel.set('unit', userData.unit);
+					_settingsWindowModel.set('age', userData.age);
+					_settingsWindowModel.set('height', userData.height);
+					_settingsWindowModel.set('gender', userData.gender);
+					_settingsWindowModel.set('calipers', userData.calipers);
+				}
 			});
 		}
 	});
