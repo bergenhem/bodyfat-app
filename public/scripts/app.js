@@ -82,7 +82,8 @@ window.FitnessApp = (function($){
 		});
 
 		_dashView = new kendo.View('dash-view', {
-			show: function() { window.Dashboard.init(); }
+			//model: window.Dashboard.getDashboardViewModel(),
+			show: function() { this.model.getDashboardData(); }
 		});
 
 		_loginView = new kendo.View('login-view', {

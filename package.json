@@ -1,9 +1,10 @@
 {
-	"name": "fitness",
-	"description": "Body Fat Percentage Tracker",
-	"version": "0.0.1",
-	"private": true,
-	"dependencies": {
-		"express": "3.x"
-	}
+  "name": "fitness",
+  "description": "Body Fat Percentage Tracker",
+  "version": "0.0.1",
+  "private": true,
+  "dependencies": {
+    "express": "^4.4.5",
+    "mongodb": "^1.4.7"
+  }
 }
