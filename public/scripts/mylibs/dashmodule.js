@@ -16,7 +16,7 @@ window.Dashboard = (function($){
 				console.log('fail');
 			});
 		},
-		createCharts = function(data) {
+		createCharts: function(data) {
 			$('#weightChart').kendoChart({
 				dataSource: {
 					data: data
