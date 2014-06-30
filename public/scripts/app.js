@@ -78,11 +78,12 @@ window.FitnessApp = (function($){
 		_settingsView = new kendo.View('settings-view', {
 			//temporary before RequireJS
 			model: window.Settings.getSettingsModel(),
-			show: function() { window.Settings.init(); }
+			show: function() { this.model.loadSettings(); }
 		});
 
 		_dashView = new kendo.View('dash-view', {
-			show: function() { window.Dashboard.init(); }
+			//model: window.Dashboard.getDashboardViewModel(),
+			show: function() { this.model.getDashboardData(); }
 		});
 
 		_loginView = new kendo.View('login-view', {
