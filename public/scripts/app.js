@@ -33,8 +33,11 @@ window.FitnessApp = (function($){
 		});
 
 		var	loginViewModel = kendo.observable({
-			userName: 'zeL',
+			userName: 'zel',
 			password: 'temp',
+			createdUserName: '',
+			createdPassword: '',
+			createdUserMessage: '',
 			login: function() {
 				var tempUser = {
 					userName: this.get('userName'),
@@ -42,17 +45,35 @@ window.FitnessApp = (function($){
 				};
 
 				var serializedUser = JSON.stringify(tempUser);
-				console.log(serializedUser);
 
 				$.ajax({
 					url: '/login',
 					type: 'put',
 					data: serializedUser,
-					contentType: "application/json"
+					contentType: 'application/json'
 				}).done(function() {
 					console.log('Logged in!');
 				}).fail(function() {
 					console.log('Login failed');
+				});
+			},
+			createUser: function() {
+				var tempUser = {
+					userName: this.get('createdUserName'),
+					password: this.get('createdPassword')
+				};
+
+				var serializedUser = JSON.stringify(tempUser);
+
+				$.ajax({
+					url: '/adduser',
+					type: 'put',
+					data: serializedUser,
+					contentType: 'application/json'
+				}).done(function() {
+					loginViewModel.set('createdUserMessage', 'Created user success!');
+				}).fail(function () {
+					loginViewModel.set('createdUserMessage', 'Created user failed!');
 				});
 			}
 		});

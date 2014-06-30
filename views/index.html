@@ -150,6 +150,14 @@
 	<!-- Login View -->
 	<script type="text/x-kendo-template" id="login-view">
 		<button id="login-button" class="k-button" data-bind="click: login">Login</button>
+		<div class="createAccount">
+		  <h3>Create Account</h3>
+		  <label>User Name <input class="k-input" data-bind="value: createdUserName" /></label>
+		  <label>Password <input class="k-input" data-bind="value: createdPassword" /></label>
+		  <button class="k-button" data-bind="click: createUser">Create</button>
+		  <br />
+		  <span data-bind="text: createdUserMessage"></span>
+		</div>
 	</script>
 
 	<!-- End Views -->

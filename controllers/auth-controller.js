@@ -31,6 +31,7 @@ exports.login = function(req, res) {
 			req.session.regenerate(function() {
 				req.session.user = currentUser;
 				req.session.success = 'Authenticated as ' + currentUser;
+				res.json('Successfully logged in');
 				res.writeHead(200, 'OK', {'content-type': 'application/json'});
 				res.end();
 			});
