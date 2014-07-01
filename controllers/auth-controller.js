@@ -26,22 +26,25 @@ function authenticate(name, passedPass, fn) {
 }
 
 exports.login = function(req, res) {
-	authenticate(req.body.userName, req.body.password, function(err, currentUser) {
-		if(currentUser) {
-			req.session.regenerate(function() {
-				req.session.user = currentUser;
-				req.session.success = 'Authenticated as ' + currentUser;
-				res.json('Successfully logged in');
-				res.writeHead(200, 'OK', {'content-type': 'application/json'});
+	console.log(req.session);
+	if(req.session === null) {
+		authenticate(req.body.userName, req.body.password, function(err, currentUser) {
+			if(currentUser) {
+				req.session.regenerate(function() {
+					req.session.user = currentUser;
+					req.session.success = 'Authenticated as ' + currentUser;
+					res.json('Successfully logged in');
+					res.writeHead(200, 'OK', {'content-type': 'application/json'});
+					res.end();
+				});
+			}
+			else {
+				req.session.error = 'Authentication Failed:\n' + err;
+				res.writeHead(401, 'Unauthorized', {'content-type': 'application/json'});
 				res.end();
-			});
-		}
-		else {
-			req.session.error = 'Authentication Failed:\n' + err;
-			res.writeHead(401, 'Unauthorized', {'content-type': 'application/json'});
-			res.end();
-		}
-	});
+			}
+		});
+	}
 }
 
 exports.logout = function(req, res) {

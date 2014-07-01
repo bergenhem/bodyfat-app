@@ -53,8 +53,10 @@ window.FitnessApp = (function($){
 					contentType: 'application/json'
 				}).done(function() {
 					console.log('Logged in!');
+					_fitnessApp.isUserLoggedIn = true;
 				}).fail(function() {
 					console.log('Login failed');
+					_fitnessApp.isUserLoggedIn = false;
 				});
 			},
 			createUser: function() {
@@ -112,7 +114,13 @@ window.FitnessApp = (function($){
 		});
 
 		_kendoRouter.route('/', function() {
-			_fitnessLayout.showIn('#content', _loginView);
+			console.log(_fitnessApp.isUserLoggedIn);
+			if(_fitnessApp.isUserLoggedIn === true) {
+				_fitnessLayout.showIn('#content', _dashView);
+			}
+			else {
+				_fitnessLayout.showIn('#content', _loginView);
+			}
 		});
 
 		_kendoRouter.route('/dash', function() {
