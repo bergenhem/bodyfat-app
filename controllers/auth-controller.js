@@ -1,22 +1,27 @@
 var UserModel = require('../models/users');
-var encryption = require('bcrypt');
+//var encryption = require('bcrypt');
+
+// Temporary to get the app to work with jsut a single user
+var USER_NAME = "zel";
 
 function authenticate(name, passedPass, fn) {
-	UserModel.findOne({ 'userName': name }, function(err, users) {
+	UserModel.findOne({ 'userName': USER_NAME }, function(err, user) {
 		if(err) {
 			return fn(err);
 		}
 		else {
 			if(users){
-				encryption.compare(passedPass, users.password, function(err, res) {
-					if(res == true) {
-						return fn(null, users);
-					}
-					else {
-						return fn(new Error('Incorrect Password'));
-					}
-				});
-				
+				// encryption.compare(passedPass, users.password, function(err, res) {
+				// 	if(res == true) {
+				// 		return fn(null, users);
+				// 	}
+				// 	else {
+				// 		return fn(new Error('Incorrect Password'));
+				// 	}
+				// });
+
+				return fn(null, user);
+
 			}
 			else {
 				return fn(new Error('No user found'));
@@ -51,13 +56,17 @@ exports.logout = function(req, res) {
 }
 
 exports.authed = function(req, res, next) {
-	if(req.session.user) {
-		//user is authenticated - let's move to the next function
-		next();
-	}
-	else {
-		req.session.error = 'Authentication Failed'
-		res.writeHead(401, 'Unauthorized', {'content-type': 'application/json'});
-		res.end();
-	}
+
+	// Temporary to get the app to work with just a single user
+	next();
+
+	// if(req.session.user) {
+	// 	//user is authenticated - let's move to the next function
+	// 	next();
+	// }
+	// else {
+	// 	req.session.error = 'Authentication Failed'
+	// 	res.writeHead(401, 'Unauthorized', {'content-type': 'application/json'});
+	// 	res.end();
+	// }
 }

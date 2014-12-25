@@ -2,6 +2,8 @@ var BodyFat = require('../models/bodyfat');
 var UserModel = require('../models/users');
 var moment = require('moment');
 
+var USER_NAME = 'zel';
+
 exports.addBodyFat = function(req, res) {
 	var itemToInsert = req.body;
 	var userName = req.session.user.userName;
@@ -73,7 +75,8 @@ exports.addBodyFat = function(req, res) {
 }
 
 exports.getAllBodyFat = function(req, res) {
-	var userName = req.session.user.userName;
+	//var userName = req.session.user.userName;
+	var userName = USER_NAME;
 
 	UserModel.findOne({ 'userName': userName }, 'bodyFat', function(err, foundUser) {
 		if(err) {
