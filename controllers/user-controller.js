@@ -2,6 +2,8 @@ var UserModel = require('../models/users');
 var encryption = require('bcrypt');
 var moment = require('moment');
 
+var USER_NAME = "zel";
+
 exports.addUser = function(req, res) {
 	var submittedUser = req.body;
 
@@ -11,7 +13,7 @@ exports.addUser = function(req, res) {
 		var userName = submittedUser.userName;
 		var userPass = submittedUser.password;
 
-		UserModel.findOne({ 'userName': userName }, 'userName', function(err, users) {
+		UserModel.findOne({ 'userName': USER_NAME }, 'userName', function(err, users) {
 			if(err) {
 				console.log('Error in finding unique user name:\n' + err);
 				res.writeHead(500, 'Internal Server Error', { 'content-type': 'application/json' });
@@ -62,9 +64,10 @@ exports.addUser = function(req, res) {
 
 exports.saveSettings = function(req, res) {
 	var passedSettings = req.body;
-	var currentUser = req.session.user.userName;
+	//var currentUser = req.session.user.userName;
+	var currentUser = USER_NAME;
 
-	UserModel.findOne({ 'userName': userName }, function(err, foundUser) {
+	UserModel.findOne({ 'userName': currentUser }, function(err, foundUser) {
 		if(err) {
 			console.log('Errr in finding user to save settings to:\n' + err);
 			res.writeHead(500, 'Internal Server Error', { 'content-type': 'application/json' });
@@ -100,7 +103,9 @@ exports.saveSettings = function(req, res) {
 }
 
 exports.loadSettings = function(req, res) {
-	var currentUser = req.session.user.userName;
+	//var currentUser = req.session.user.userName;
+
+	var currentUser = USER_NAME;
 
 	UserModel.findOne({ 'userName': currentUser }, function(err, foundUser) {
 		if(err) {
