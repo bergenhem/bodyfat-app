@@ -20,6 +20,7 @@ function authenticate(name, passedPass, fn) {
 				// 	}
 				// });
 
+        // temporary while we only work with a single user
 				return fn(null, user);
 
 			}
@@ -36,13 +37,18 @@ exports.login = function(req, res) {
 			req.session.regenerate(function() {
 				req.session.user = currentUser;
 				req.session.success = 'Authenticated as ' + currentUser;
-				res.writeHead(200, 'OK', {'content-type': 'application/json'});
+
+				console.log('Successfully logged in.')
+				res.writeHead(200, 'OK', { 'content-type' : 'application/json' });
+				res.write(JSON.stringify({ message: 'Successfully logged in.' }));
 				res.end();
 			});
 		}
 		else {
+			console.log('Unable to log in.');
 			req.session.error = 'Authentication Failed:\n' + err;
-			res.writeHead(401, 'Unauthorized', {'content-type': 'application/json'});
+			res.writeHead(401, 'Unauthorized', { 'content-type' : 'application/json' });
+			res.write(JSON.stringify({ message: 'Unable to log in.' }));
 			res.end();
 		}
 	});
@@ -50,7 +56,9 @@ exports.login = function(req, res) {
 
 exports.logout = function(req, res) {
 	req.session.destroy(function() {
-		res.writeHead(200, 'OK', {'content-type': 'application/json'});
+		console.log('Sucessfully logged out');
+		res.writeHead(200, 'OK', { 'content-type' : 'application/json' });
+		res.write(JSON.stringify({ message: 'Successfully logged out.' }));
 		res.end();
 	});
 }
