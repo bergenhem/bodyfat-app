@@ -29,13 +29,11 @@ window.Settings = (function($){
 
 			var serializedDataToPost = JSON.stringify(dataToPost);
 
-			console.log(serializedDataToPost);
-
 			$.ajax({
 				url: '/settings',
 				type: 'put',
 				data: serializedDataToPost,
-				contentType: "application/json"
+				contentType: 'application/json'
 			}).done(function() {
 				console.log('Settings saved!');
 			}).fail(function() {
@@ -46,8 +44,7 @@ window.Settings = (function($){
 			$.ajax({
 				url: '/settings',
 				type: 'get',
-				contentType: 'application/json',
-				dataType: 'application/json'
+				contentType: 'application/json'
 			}).done(function(userData) {
 				if(userData) { //did we actually save data?
 					_settingsViewModel.set('unit', userData.unit);
@@ -55,7 +52,11 @@ window.Settings = (function($){
 					_settingsViewModel.set('height', userData.height);
 					_settingsViewModel.set('gender', userData.gender);
 					_settingsViewModel.set('calipers', userData.calipers);
+
+					console.log('User settings successfully loaded!')
 				}
+			}).fail(function() {
+				console.log('Something went wrong while loading user settings.');
 			});
 		}
 	});

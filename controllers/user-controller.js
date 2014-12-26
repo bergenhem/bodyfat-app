@@ -122,7 +122,6 @@ exports.loadSettings = function(req, res) {
 					gender : foundUser.gender,
 					calipers : foundUser.calipers
 				}
-
 				res.writeHead(200, 'OK', {'content-type': 'application/json'});
 				res.write(JSON.stringify(settingsToReturn));
 				res.end();
