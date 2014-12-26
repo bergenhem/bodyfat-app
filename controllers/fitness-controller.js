@@ -6,7 +6,10 @@ var USER_NAME = 'zel';
 
 exports.addBodyFat = function(req, res) {
 	var itemToInsert = req.body;
-	var userName = req.session.user.userName;
+	//var userName = req.session.user.userName;
+
+	var userName = USER_NAME;
+
 	var createdBodyFat = new BodyFat();
 
 	if(itemToInsert.date) {
@@ -131,7 +134,9 @@ exports.getSingleBodyFat = function(req, res) {
 
 exports.updateSingleBodyFat = function(req, res) {
 	var itemToUpdate = req.body;
-	var userName = req.session.user.userName;
+	//var userName = req.session.user.userName;
+
+	var userName = USER_NAME;
 
 	if(itemToInsert.date) {
 		var formattedDate = moment(itemToInsert.date).format('YYYY-MM-DD');
