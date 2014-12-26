@@ -17,8 +17,9 @@ exports.addBodyFat = function(req, res) {
 
 		UserModel.findOne({ 'userName' : userName , 'bodyFat.date' : formattedDate }, function(err, userCheck) {
 			if(err) {
-				console.log('Error in checking for previous body fat entries: \n' + err);
-				res.writeHead(500, 'Internal Server Error', {'content-type': 'application/json'});
+				console.log('Error when checking for previous body fat entries: \n' + err);
+				res.writeHead(500, 'Internal Server Error', { 'content-type' : 'application/json' });
+				res.write(JSON.stringify({ message: 'Error when checking for previous body fat entries.' }));
 				res.end();
 			}
 			else {
@@ -26,7 +27,8 @@ exports.addBodyFat = function(req, res) {
 					UserModel.findOne({ 'userName': userName }, function(err, foundUser) {
 						if(err) {
 							console.log('Error in finding user when adding body fat:\n' + err);
-								res.writeHead(500, 'Internal Server Error', {'content-type': 'application/json'});
+								res.writeHead(500, 'Internal Server Error', { 'content-type' : 'application/json' });
+								res.write(JSON.stringify({ message: 'Error in finding user when adding body fat.' }));
 								res.end();
 						}
 						else {
@@ -47,12 +49,14 @@ exports.addBodyFat = function(req, res) {
 
 								foundUser.save(function(err, user) {
 									if(err) {
-										console.log('Error when saving bodyfat:\n' + err);
-										res.writeHead(500, 'Internal Server Error', {'content-type': 'application/json'});
+										console.log('Error when saving body fat values:\n' + err);
+										res.writeHead(500, 'Internal Server Error', { 'content-type' : 'application/json' });
+										res.write(JSON.stringify({ message: 'Error when saving body fat values.' }));
 										res.end();
 									}
 									else {
-										res.writeHead(201, 'Created', {'content-type': 'application/json'});
+										console.log('Successfully added body fat values to database.');
+										res.writeHead(201, 'Created', { 'content-type' : 'application/json' });
 										res.write(JSON.stringify(foundUser));
 										res.end();
 									}
@@ -62,7 +66,9 @@ exports.addBodyFat = function(req, res) {
 					});
 				}
 				else {
-					res.writeHead(409, 'Conflict', {'content-type': 'application/json'});
+					console.log('Attempted to add a new body fat entry where one already existed.');
+					res.writeHead(409, 'Conflict', { 'content-type' : 'application/json' });
+					res.write(JSON.stringify({ message: 'Attempted to add a new body fat entry where one already existed.' }));
 					res.end();
 				}
 			}
@@ -72,7 +78,9 @@ exports.addBodyFat = function(req, res) {
 
 	//Invalid request - invalid date or no date provided
 	else {
-		res.writeHead(500, 'Internal Server Error', {'content-type': 'application/json'});
+		console.log('Invalid request. Invalid date or no date provided in request.')
+		res.writeHead(500, 'Internal Server Error', { 'content-type' : 'application/json' });
+		res.write(JSON.stringify({ message: 'Invalid request. Invalid date or no date provided in request.' }));
 		res.end();
 	}
 }
@@ -83,17 +91,21 @@ exports.getAllBodyFat = function(req, res) {
 
 	UserModel.findOne({ 'userName': userName }, 'bodyFat', function(err, foundUser) {
 		if(err) {
-			console.log('Error in getting all items:\n' + err);
-			res.writeHead(404, 'Not Found', {'content-type': 'application/json'});
+			console.log('Error in getting all body fat entries:\n' + err);
+			res.writeHead(404, 'Not Found', { 'content-type' : 'application/json' });
+			res.write(JSON.stringify({ message: 'Error in getting all body fat entries.' }));
 			res.end();
 		}
 		else {
 			if(foundUser.length == 0) {
-				res.writeHead(404, 'Not Found', {'content-type': 'application/json'});
+				console.log('User not found when retrieving all body fat entries.')
+				res.writeHead(404, 'Not Found', { 'content-type' : 'application/json' });
+				res.write(JSON.stringify({ message: 'User not found when retrieving all body fat entries.' }));
 				res.end();
 			}
 			else {
-				res.writeHead(200, 'OK', {'content-type': 'application/json'});
+				console.log('Retrieving all body fat entries for "' + userName + '".');
+				res.writeHead(200, 'OK', { 'content-type' : 'application/json' });
 				res.write(JSON.stringify(foundUser));
 				res.end();
 			}
@@ -110,16 +122,20 @@ exports.getSingleBodyFat = function(req, res) {
 		UserModel.findOne({ 'userName' : userName }, { 'bodyFat' : { $elemMatch : { 'date' : formatPassedDate } } }, function(err, returnedBodyFat) {
 			if(err) {
 				console.log('Error in getting single item:\n' + err);
-				res.writeHead(404, 'Not Found', {'content-type': 'application/json'});
+				res.writeHead(404, 'Not Found', { 'content-type' : 'application/json' });
+				res.write(JSON.stringify({ message: 'Error in getting single item.' }));
 				res.end();
 			}
 			else {
 				if(!returnedBodyFat || returnedBodyFat.bodyFat == undefined) {
-					res.writeHead(404, 'Not Found', {'content-type': 'application/json'});
+					console.log('Did not find a body fat entry with the associated date');
+					res.writeHead(404, 'Not Found', { 'content-type' : 'application/json' });
+					res.write(JSON.stringify({ message: 'Did not find a body fat e ntry with the associated date.' }));
 					res.end();
 				}
 				else {
-					res.writeHead(200, 'OK', {'content-type': 'application/json'});
+					console.log('Returning a single body fat entry.');
+					res.writeHead(200, 'OK', { 'content-type' : 'application/json' });
 					res.write(JSON.stringify(returnedBodyFat));
 					res.end();
 				}
@@ -127,7 +143,9 @@ exports.getSingleBodyFat = function(req, res) {
 		});
 	}
 	else {
-		res.writeHead(404, 'Not Found', {'content-type': 'application/json'});
+		console.log('Invalid request. Either an invalid date or no date was passed.');
+		res.writeHead(404, 'Not Found', { 'content-type' : 'application/json' });
+		res.write(JSON.stringify({ message: 'Invalid date. Either an invalid date or no date was passed.' }));
 		res.end();
 	}
 }
@@ -144,19 +162,23 @@ exports.updateSingleBodyFat = function(req, res) {
 		UserModel.findOne({ 'userName' : userName }, { 'bodyFat' : { $elemMatch : { 'date' : formatPassedDate } } }, function(err, returnedBodyFat) {
 			if(err) {
 				console.log('Error in checking for previous body fat entries: \n' + err);
-				res.writeHead(500, 'Internal Server Error', {'content-type': 'application/json'});
+				res.writeHead(500, 'Internal Server Error', { 'content-type' : 'application/json' });
+				res.write(JSON.stringify({ message: 'Error in checking for previous body fat entries.' }));
 				res.end();
 			}
 			else {
 				if(!returnedBodyFat || returnedBodyFat.bodyFat == undefined) {
-						res.writeHead(404, 'Not Found', {'content-type': 'application/json'});
+					  console.log('No body fat entry found for the given date.')
+						res.writeHead(404, 'Not Found', { 'content-type' : 'application/json' });
+						res.write(JSON.stringify({ message: 'No body fat entry found for the given date.' }));
 						res.end();
 				}
 				else {
 					UserModel.findOne({ 'userName': userName }, function(err, foundUser) {
 						if(err) {
-							console.log('Error in finding user\n' + err);
-							res.writeHead(404, 'Not Found', {'content-type': 'application/json'});
+							console.log('Error in finding user when updating single body fat entry:\n' + err);
+							res.writeHead(404, 'Not Found', { 'content-type' : 'application/json' });
+							res.write(JSON.stringify({ message: 'Error in finding user when updating single body fat entry.' }));
 							res.end();
 						}
 						else {
@@ -174,12 +196,14 @@ exports.updateSingleBodyFat = function(req, res) {
 
 							foundUser.save(function(err, user) {
 								if(err) {
-									console.log('Error when saving bodyfat:\n' + err);
-									res.writeHead(500, 'Internal Server Error', {'content-type': 'application/json'});
+									console.log('Error when saving updated body fat entry:\n' + err);
+									res.writeHead(500, 'Internal Server Error', { 'content-type' : 'application/json' });
+									res.write(JSON.stringify({ message: 'Error when saving updated body fat entry.' }));
 									res.end();
 								}
 								else {
-									res.writeHead(201, 'Created', {'content-type': 'application/json'});
+									console.log('Sucessfully updated single body fat entry');
+									res.writeHead(201, 'Created', { 'content-type' : 'application/json' });
 									res.write(JSON.stringify(foundUser));
 									res.end();
 								}
@@ -194,7 +218,9 @@ exports.updateSingleBodyFat = function(req, res) {
 
 	//Invalid request - invalid date or no date provided
 	else {
-		res.writeHead(404, 'Not Found', {'content-type': 'application/json'});
+		console.log('Invalid request. Either an invalid date or no date was passed.')
+		res.writeHead(404, 'Not Found', { 'content-type' : 'application/json' });
+		res.write(JSON.stringify({ message: 'Invalid request. Either an invalid date or no date was passed.' }));
 		res.end();
 	}
 }

@@ -10,13 +10,14 @@ exports.addUser = function(req, res) {
 	if(submittedUser) {
 		var newUser = new UserModel();
 
-		var userName = submittedUser.userName;
+		//var userName = submittedUser.userName;
+		var userName = USER_NAME;
 		var userPass = submittedUser.password;
 
 		UserModel.findOne({ 'userName': USER_NAME }, 'userName', function(err, users) {
 			if(err) {
 				console.log('Error in finding user by name:\n' + err);
-				res.writeHead(500, 'Internal Server Error', { 'content-type': 'application/json' });
+				res.writeHead(500, 'Internal Server Error', { 'content-type' : 'application/json' });
 				res.write(JSON.stringify({ message: 'Error in finding user by name.' }));
 				res.end();
 			}
@@ -26,7 +27,7 @@ exports.addUser = function(req, res) {
 					encryption.genSalt(10, function(err, salt) {
 						if(err) {
 							console.log('Error in generating salt:\n' + err);
-							res.writeHead(500, 'Internal Server Error', { 'content-type': 'application/json' });
+							res.writeHead(500, 'Internal Server Error', { 'content-type' : 'application/json' });
 							res.write(JSON.stringify({ message: 'Error in generating salt' }));
 							res.end();
 						}
@@ -44,12 +45,13 @@ exports.addUser = function(req, res) {
 								newUser.save(function(err, user) {
 									if(err) {
 										console.log('Error when saving user:\n' + err);
-										res.writeHead(500, 'Internal Server Error', {'content-type': 'application/json'});
+										res.writeHead(500, 'Internal Server Error', { 'content-type' : 'application/json' });
 										res.write(JSON.stringify({ message: 'Error when saving user.' }));
 										res.end();
 									}
 									else {
-										res.writeHead(201, 'Created', {'content-type': 'application/json'});
+										console.log('Successfully added new user: ' + userName);
+										res.writeHead(201, 'Created', { 'content-type' : 'application/json' });
 										res.write(JSON.stringify(newUser));
 										res.end();
 									}
@@ -59,7 +61,8 @@ exports.addUser = function(req, res) {
 								});
 				}
 				else { //username already exists
-					res.writeHead(409, 'Conflict', {'content-type': 'application/json'});
+					console.log('Username "' + userName + '" already exists.');
+					res.writeHead(409, 'Conflict', { 'content-type' : 'application/json' });
 					res.write(JSON.stringify({ message: 'Username already exists.' }));
 					res.end();
 				}
@@ -76,7 +79,7 @@ exports.saveSettings = function(req, res) {
 	UserModel.findOne({ 'userName': currentUser }, function(err, foundUser) {
 		if(err) {
 			console.log('Error in finding user to save settings to:\n' + err);
-			res.writeHead(500, 'Internal Server Error', { 'content-type': 'application/json' });
+			res.writeHead(500, 'Internal Server Error', { 'content-type' : 'application/json' });
 			res.write(JSON.stringify({ message: 'Error when finding user to save settings to.' }));
 			res.end();
 		}
@@ -91,13 +94,13 @@ exports.saveSettings = function(req, res) {
 				foundUser.save(function(err, user) {
 					if(err) {
 						console.log('Error when saving user settings:\n' + err);
-						res.writeHead(500, 'Internal Server Error', {'content-type': 'application/json' });
+						res.writeHead(500, 'Internal Server Error', { 'content-type' : 'application/json' });
 						res.write(JSON.stringify({ message: 'Error when saving user settings.' }));
 						res.end();
 					}
 					else {
 						console.log('Successfully saving user settings for:\n' + currentUser);
-						res.writeHead(200, 'OK', { 'content-type': 'application/json' });
+						res.writeHead(200, 'OK', { 'content-type' : 'application/json' });
 						res.write(JSON.stringify({ message: 'Settings saved successfully' }));
 						res.end();
 					}
@@ -105,7 +108,7 @@ exports.saveSettings = function(req, res) {
 			}
 			else {
 				console.log('Did not find a user when saving settings');
-				res.writeHead(500, 'Internal Server Error', { 'content-type': 'application/json' });
+				res.writeHead(500, 'Internal Server Error', { 'content-type' : 'application/json' });
 				res.write(JSON.stringify({ message: 'Unable to find user when saving settings' }));
 				res.end();
 			}
@@ -121,7 +124,7 @@ exports.loadSettings = function(req, res) {
 	UserModel.findOne({ 'userName': currentUser }, function(err, foundUser) {
 		if(err) {
 			console.log('Error in finding user when loading settings:\n' + err);
-			res.writeHead(500, 'Internal Server Error', { 'content-type': 'application/json' });
+			res.writeHead(500, 'Internal Server Error', { 'content-type' : 'application/json' });
 			res.write(JSON.stringify({ message: 'Error in finding user when loading settings.' }));
 			res.end();
 		}
@@ -134,13 +137,14 @@ exports.loadSettings = function(req, res) {
 					gender : foundUser.gender,
 					calipers : foundUser.calipers
 				}
-				res.writeHead(200, 'OK', {'content-type': 'application/json'});
+				console.log('Loading settings for "' + currentUser + '" from the database.');
+				res.writeHead(200, 'OK', { 'content-type' : 'application/json' });
 				res.write(JSON.stringify(settingsToReturn));
 				res.end();
 			}
 			else {
-				console.log('Did not find a user when loading settings');
-				res.writeHead(500, 'Internal Server Error', { 'content-type': 'application/json' });
+				console.log('Did not find a user when loading settings.');
+				res.writeHead(500, 'Internal Server Error', { 'content-type' : 'application/json' });
 				res.write(JSON.stringify({ message: 'No user exists with that user name.' }));
 				res.end();
 			}
