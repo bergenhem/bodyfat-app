@@ -56,7 +56,7 @@ window.FitnessApp = (function($){
 				});
 			}
 		});
-		
+
 		_caliperWindowView = new kendo.View('caliper-window-view', {
 			model: caliperWindowModel,
 			show: function() {
@@ -82,16 +82,16 @@ window.FitnessApp = (function($){
 		});
 
 		_dashView = new kendo.View('dash-view', {
-			//model: window.Dashboard.getDashboardViewModel(),
+			model: window.Dashboard.getDashboardViewModel(),
 			show: function() { this.model.getDashboardData(); }
 		});
 
-		_loginView = new kendo.View('login-view', {
-			model: loginViewModel
-		});
+		// _loginView = new kendo.View('login-view', {
+		// 	model: loginViewModel
+		// });
 
 		_kendoRouter.route('/', function() {
-			_fitnessLayout.showIn('#content', _loginView);
+			_fitnessLayout.showIn('#content', _dashView);
 		});
 
 		_kendoRouter.route('/dash', function() {
