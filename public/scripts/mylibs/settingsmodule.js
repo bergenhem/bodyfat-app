@@ -46,7 +46,8 @@ window.Settings = (function($){
 			$.ajax({
 				url: '/settings',
 				type: 'get',
-				contentType: 'application/json'
+				contentType: 'application/json',
+				dataType: 'application/json'
 			}).done(function(userData) {
 				if(userData) { //did we actually save data?
 					_settingsViewModel.set('unit', userData.unit);

@@ -89,7 +89,7 @@ exports.saveSettings = function(req, res) {
 					}
 					else {
 						res.writeHead(200, 'OK', {'content-type': 'application/json'});
-						res.end();
+						res.end(JSON.stringify({ message: 'Settings saved successfully' }));
 					}
 				});
 			}
