@@ -1,9 +1,9 @@
-var express 			= require('express'),
-    bodyParser          = require('body-parser'),
-    cookieParser        = require('cookie-parser'),
-    session             = require('express-session'),
-    mongoose 			= require('mongoose'),
-    mongoStore 			= require('connect-mongo')(session),
+var express           = require('express'),
+    bodyParser        = require('body-parser'),
+    //cookieParser      = require('cookie-parser'),
+    //session           = require('express-session'),
+    mongoose 			    = require('mongoose'),
+    //mongoStore 			  = require('connect-mongo')(session),
     fitnessController	= require('./controllers/fitness-controller'),
     authController 		= require('./controllers/auth-controller'),
     userController		= require('./controllers/user-controller');
@@ -22,16 +22,16 @@ app.use(bodyParser.urlencoded({
   extended: true
 }));
 
-app.use(cookieParser());
-app.use(session({
-    saveUninitialized: true,
-    resave: true,
-    cookie: {
-      maxAge: 1000 * 60 * 60 * 24 * 3 //session lasts for 3 days
-    },
-    secret: 'sup3rbl4dd3rw4rr10r',
-    store: new mongoStore({ mongoose_connection: mongoose.connections[0] })
-}));
+//app.use(cookieParser());
+// app.use(session({
+//     saveUninitialized: true,
+//     resave: true,
+//     cookie: {
+//       maxAge: 1000 * 60 * 60 * 24 * 3 //session lasts for 3 days
+//     },
+//     secret: 'sup3rbl4dd3rw4rr10r',
+//     store: new mongoStore({ mongoose_connection: mongoose.connections[0] })
+// }));
 
 //define a place for our CSS and JS files
 app.use(express.static(__dirname + '/public'));

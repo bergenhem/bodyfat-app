@@ -1,9 +1,9 @@
 window.Settings = (function($){
 	var _settingsModule = {};
-	var _settingsWindowModel = {};
+	var _settingsViewModel = {};
 
 	//temporary before RequireJS
-	_settingsWindowModel = kendo.observable({
+	_settingsViewModel = kendo.observable({
 		unit: '',
 		age: 0,
 		height: 0,
@@ -29,13 +29,11 @@ window.Settings = (function($){
 
 			var serializedDataToPost = JSON.stringify(dataToPost);
 
-			console.log(serializedDataToPost);
-
 			$.ajax({
 				url: '/settings',
 				type: 'put',
 				data: serializedDataToPost,
-				contentType: "application/json"
+				contentType: 'application/json'
 			}).done(function() {
 				console.log('Settings saved!');
 			}).fail(function() {
@@ -49,18 +47,22 @@ window.Settings = (function($){
 				contentType: 'application/json'
 			}).done(function(userData) {
 				if(userData) { //did we actually save data?
-					_settingsWindowModel.set('unit', userData.unit);
-					_settingsWindowModel.set('age', userData.age);
-					_settingsWindowModel.set('height', userData.height);
-					_settingsWindowModel.set('gender', userData.gender);
-					_settingsWindowModel.set('calipers', userData.calipers);
+					_settingsViewModel.set('unit', userData.unit);
+					_settingsViewModel.set('age', userData.age);
+					_settingsViewModel.set('height', userData.height);
+					_settingsViewModel.set('gender', userData.gender);
+					_settingsViewModel.set('calipers', userData.calipers);
+
+					console.log('User settings successfully loaded!')
 				}
+			}).fail(function() {
+				console.log('Something went wrong while loading user settings.');
 			});
 		}
 	});
 
 	_settingsModule.getSettingsModel = function() {
-		return _settingsWindowModel;
+		return _settingsViewModel;
 	}
 
 	return _settingsModule;
