@@ -27,7 +27,12 @@ window.Dashboard = (function($){
 					labels: {
 						visible: true,
 						background: '#ebebeb',
-						padding: 1.5,
+						padding: {
+							top: 1.5,
+							bottom: 1.5,
+							left: 4,
+							right: 4
+						},
 						margin: {
 							bottom: 0
 						}
@@ -86,7 +91,12 @@ window.Dashboard = (function($){
 					labels: {
 						visible: true,
 						background: '#E0E0E0',
-						padding: 1.5,
+						padding: {
+							top: 1.5,
+							bottom: 1.5,
+							left: 4,
+							right: 4
+						},
 						margin: {
 							bottom: 0
 						}
@@ -145,7 +155,12 @@ window.Dashboard = (function($){
 					labels: {
 						visible: true,
 						background: '#ebebeb',
-						padding: 1.5,
+						padding: {
+							top: 1.5,
+							bottom: 1.5,
+							left: 4,
+							right: 4
+						},
 						margin: {
 							bottom: 0
 						}
