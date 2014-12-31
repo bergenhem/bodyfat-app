@@ -32,30 +32,30 @@ window.FitnessApp = (function($){
 			}
 		});
 
-		var	loginViewModel = kendo.observable({
-			userName: 'zeL',
-			password: 'temp',
-			login: function() {
-				var tempUser = {
-					userName: this.get('userName'),
-					password: this.get('password')
-				};
-
-				var serializedUser = JSON.stringify(tempUser);
-				console.log(serializedUser);
-
-				$.ajax({
-					url: '/login',
-					type: 'put',
-					data: serializedUser,
-					contentType: "application/json"
-				}).done(function() {
-					console.log('Logged in!');
-				}).fail(function() {
-					console.log('Login failed');
-				});
-			}
-		});
+		// var	loginViewModel = kendo.observable({
+		// 	userName: 'zeL',
+		// 	password: 'temp',
+		// 	login: function() {
+		// 		var tempUser = {
+		// 			userName: this.get('userName'),
+		// 			password: this.get('password')
+		// 		};
+		//
+		// 		var serializedUser = JSON.stringify(tempUser);
+		// 		console.log(serializedUser);
+		//
+		// 		$.ajax({
+		// 			url: '/login',
+		// 			type: 'put',
+		// 			data: serializedUser,
+		// 			contentType: "application/json"
+		// 		}).done(function() {
+		// 			console.log('Logged in!');
+		// 		}).fail(function() {
+		// 			console.log('Login failed');
+		// 		});
+		// 	}
+		// });
 
 		_caliperWindowView = new kendo.View('caliper-window-view', {
 			model: caliperWindowModel,
@@ -106,9 +106,9 @@ window.FitnessApp = (function($){
 			_fitnessLayout.showIn('#content', _settingsView);
 		});
 
-		_kendoRouter.route('/login', function() {
-			_fitnessLayout.showIn('#content', _loginView);
-		});
+		// _kendoRouter.route('/login', function() {
+		// 	_fitnessLayout.showIn('#content', _loginView);
+		// });
 	}
 
 	//start our router and render our initial view
