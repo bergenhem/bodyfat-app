@@ -24,6 +24,7 @@
 * {
 	margin: 0px;
 	padding: 0px;
+  overflow: hidden;
 }
 
 body {
@@ -32,7 +33,7 @@ body {
 	font-size: 12px;
 }
 
-header, #content, footer { 
+header, #content, footer {
 	position: absolute;
 	left: 0px;
 	width: 100%;
@@ -46,7 +47,7 @@ header, footer {
 header {
 	height: 100px;
 	top: 0px;
-	
+
 	border-bottom-color: #ffffff;
 	border-bottom-style: solid;
 	border-bottom-width: 1px;
@@ -97,6 +98,10 @@ header div#navigation li a {
 	display: inline-block;
 	height: 100px;
 	width: 100px;
+}
+
+.menu-selected {
+  background-color: #000000;
 }
 
 section#content {
@@ -166,7 +171,7 @@ section#content div.view-content div.dashSectionAlt {
 section#content div.view-content div.chartArea {
 	height: 350px;
 	width: 500px;
-	margin: 0px auto;
+	margin: 20px auto;
 }
 
 section#content div.view-content div.chartArea h2 {
@@ -273,16 +278,16 @@ section#content div.view-content div.input-form input[type="checkbox"] + label {
 	float: left;
 }
 
+section#content div.view-content div.input-form button {
+  height: 50px;
+  font-size: 1.5em;
+}
+
 section#content div.view-content h1 {
 	font-size: 3em;
 	text-align: center;
 
 	margin: 30px auto 30px auto;
-}
-
-button#calculate-button {
-	height: 50px;
-	font-size: 1.5em;
 }
 
 footer a,
