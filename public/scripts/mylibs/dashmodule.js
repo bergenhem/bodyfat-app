@@ -26,8 +26,10 @@ window.Dashboard = (function($){
 					type: 'line',
 					labels: {
 						visible: true,
+						background: '#ebebeb',
+						padding: 1.5,
 						margin: {
-							bottom: -3
+							bottom: 0
 						}
 					},
 					markers: {
@@ -50,6 +52,9 @@ window.Dashboard = (function($){
 					field: 'date',
 					majorGridLines: {
 						visible: false
+					},
+					labels: {
+						font: 'bold 12px Arial,Helvetica,sans-serif'
 					}
 				},
 				valueAxis: {
