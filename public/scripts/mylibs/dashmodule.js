@@ -25,7 +25,10 @@ window.Dashboard = (function($){
 				seriesDefaults: {
 					type: 'line',
 					labels: {
-						visible: true
+						visible: true,
+						margin: {
+							bottom: -3
+						}
 					},
 					markers: {
 						background: 'transparent'
@@ -44,13 +47,31 @@ window.Dashboard = (function($){
 					name: 'Lean Mass'
 				}],
 				categoryAxis: {
-					field: 'date'
+					field: 'date',
+					majorGridLines: {
+						visible: false
+					}
+				},
+				valueAxis: {
+					line: {
+						visible: false
+					}
+				},
+				legend: {
+					margin: {
+						top: 20
+					},
+					position: 'bottom'
 				},
 				chartArea: {
 					background: '#ebebeb'
 				},
 			  plotArea: {
-					background: '#ebebeb'
+					background: '#ebebeb',
+					border: {
+						width: 0,
+						color: 'red'
+					}
 				}
 			});
 
