@@ -32,7 +32,7 @@ body {
 	font-size: 12px;
 }
 
-header, #content, footer { 
+header, #content, footer {
 	position: absolute;
 	left: 0px;
 	width: 100%;
@@ -46,7 +46,7 @@ header, footer {
 header {
 	height: 100px;
 	top: 0px;
-	
+
 	border-bottom-color: #ffffff;
 	border-bottom-style: solid;
 	border-bottom-width: 1px;
@@ -166,7 +166,7 @@ section#content div.view-content div.dashSectionAlt {
 section#content div.view-content div.chartArea {
 	height: 350px;
 	width: 500px;
-	margin: 0px auto;
+	margin: 20px auto;
 }
 
 section#content div.view-content div.chartArea h2 {

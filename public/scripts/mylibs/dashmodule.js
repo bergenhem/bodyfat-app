@@ -72,11 +72,7 @@ window.Dashboard = (function($){
 					background: '#ebebeb'
 				},
 			  plotArea: {
-					background: '#ebebeb',
-					border: {
-						width: 0,
-						color: 'red'
-					}
+					background: '#ebebeb'
 				}
 			});
 
@@ -88,7 +84,15 @@ window.Dashboard = (function($){
 				seriesDefaults: {
 					type: 'line',
 					labels: {
-						visible: true
+						visible: true,
+						background: '#E0E0E0',
+						padding: 1.5,
+						margin: {
+							bottom: 0
+						}
+					},
+					markers: {
+						background: 'transparent'
 					}
 				},
 				series: [{
@@ -104,7 +108,30 @@ window.Dashboard = (function($){
 					name: 'Thigh'
 				}],
 				categoryAxis: {
-					field: 'date'
+					field: 'date',
+					majorGridLines: {
+						visible: false
+					},
+					labels: {
+						font: 'bold 12px Arial,Helvetica,sans-serif'
+					}
+				},
+				valueAxis: {
+					line: {
+						visible: false
+					}
+				},
+				legend: {
+					margin: {
+						top: 20
+					},
+					position: 'bottom'
+				},
+				chartArea: {
+					background: '#E0E0E0'
+				},
+				plotArea: {
+					background: '#E0E0E0'
 				}
 			});
 
@@ -116,7 +143,15 @@ window.Dashboard = (function($){
 				seriesDefaults: {
 					type: 'line',
 					labels: {
-						visible: true
+						visible: true,
+						background: '#ebebeb',
+						padding: 1.5,
+						margin: {
+							bottom: 0
+						}
+					},
+					markers: {
+						background: 'transparent'
 					}
 				},
 				series: [{
@@ -128,7 +163,30 @@ window.Dashboard = (function($){
 					name: 'FFMI'
 				}],
 				categoryAxis: {
-					field: 'date'
+					field: 'date',
+					majorGridLines: {
+						visible: false
+					},
+					labels: {
+						font: 'bold 12px Arial,Helvetica,sans-serif'
+					}
+				},
+				valueAxis: {
+					line: {
+						visible: false
+					}
+				},
+				legend: {
+					margin: {
+						top: 20
+					},
+					position: 'bottom'
+				},
+				chartArea: {
+					background: '#ebebeb'
+				},
+				plotArea: {
+					background: '#ebebeb'
 				}
 			});
 		}
