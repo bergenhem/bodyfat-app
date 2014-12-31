@@ -20,13 +20,18 @@ window.FitnessApp = (function($){
 
 		_recordingView = new kendo.View('recording-view', {
 			model: window.Record.getRecordViewModel(),
-			show: function() { window.Record.init(); this.model.updateWeight(); }
+			show: function() {
+				this.model.viewInit();
+				this.model.updateWeight();
+				}
 		});
 
 		_settingsView = new kendo.View('settings-view', {
 			//temporary before RequireJS
 			model: window.Settings.getSettingsModel(),
-			show: function() { this.model.loadSettings(); }
+			show: function() {
+				this.model.loadSettings();
+			}
 		});
 
 		_dashView = new kendo.View('dash-view', {

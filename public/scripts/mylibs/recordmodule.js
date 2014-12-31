@@ -3,10 +3,6 @@ window.Record = (function($){
 	var _recordViewModel = {};
 	var _settingsViewModel = {};
 
-	_record.init = function(){
-		_settingsViewModel = window.Settings.getSettingsModel();
-	}
-
 	_recordViewModel = kendo.observable({
 		weight: null,
 		chest: null,
@@ -90,6 +86,9 @@ window.Record = (function($){
 			}).fail(function() {
 				console.log('fail');
 			});
+		},
+		viewInit: function() {
+			_settingsViewModel = window.Settings.getSettingsModel();
 		}
 	});
 
