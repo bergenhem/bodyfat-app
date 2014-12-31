@@ -26,6 +26,9 @@ window.Dashboard = (function($){
 					type: 'line',
 					labels: {
 						visible: true
+					},
+					markers: {
+						background: 'transparent'
 					}
 				},
 				series: [{
@@ -42,6 +45,12 @@ window.Dashboard = (function($){
 				}],
 				categoryAxis: {
 					field: 'date'
+				},
+				chartArea: {
+					background: '#ebebeb'
+				},
+			  plotArea: {
+					background: '#ebebeb'
 				}
 			});
 
