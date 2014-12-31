@@ -99,6 +99,10 @@ header div#navigation li a {
 	width: 100px;
 }
 
+header div#navigation li.menu-selected {
+  background-color: #000000;
+}
+
 section#content {
 	top: 100px;
 	bottom: 50px;

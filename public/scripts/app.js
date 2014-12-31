@@ -3,7 +3,6 @@ window.FitnessApp = (function($){
 	var _fitnessApp = {};
 	var _kendoRouter = {};
 	var _fitnessLayout = {};
-	var _caliperWindowView = {};
 	var _recordingView = {};
 	var _settingsView = {};
 	var _loginView = {};
@@ -15,22 +14,6 @@ window.FitnessApp = (function($){
 		_fitnessLayout = new kendo.Layout('fitness-layout-template');
 
 		_kendoRouter = new kendo.Router();
-
-		var caliperWindowModel = kendo.observable({
-			bmiClick: function(e){
-				e.preventDefault();
-				$('#caliperWindow').data('kendoWindow').close();
-				_kendoRouter.navigate('/bmi');
-			},
-			bfClick: function(e){
-				e.preventDefault();
-				$('#caliperWindow').data('kendoWindow').close();
-				_kendoRouter.navigate('/bodyfat');
-			},
-			explanationClick: function(e){
-				e.preventDefault();
-			}
-		});
 
 		// var	loginViewModel = kendo.observable({
 		// 	userName: 'zeL',
@@ -56,19 +39,6 @@ window.FitnessApp = (function($){
 		// 		});
 		// 	}
 		// });
-
-		_caliperWindowView = new kendo.View('caliper-window-view', {
-			model: caliperWindowModel,
-			show: function() {
-				//center window and hide close button
-				$('#caliperWindow').data('kendoWindow').center().element.parent().find(".k-window-action").css("visibility", "hidden");;
-				$('#caliperExplanation').kendoTooltip({
-					content: kendo.template($('#tooltipTemplate').html()),
-					position: "right",
-					width: 300
-				});
-			}
-		});
 
 		_recordingView = new kendo.View('recording-view', {
 			model: window.Record.getRecordViewModel(),
