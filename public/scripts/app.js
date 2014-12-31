@@ -14,6 +14,9 @@ window.FitnessApp = (function($){
 		_fitnessLayout = new kendo.Layout('fitness-layout-template');
 
 		_kendoRouter = new kendo.Router();
+		_kendoRouter.bind('change', function(e) {
+			_fitnessApp.selectMenuItem();
+		});
 
 		// var	loginViewModel = kendo.observable({
 		// 	userName: 'zeL',
@@ -53,7 +56,9 @@ window.FitnessApp = (function($){
 
 		_dashView = new kendo.View('dash-view', {
 			model: window.Dashboard.getDashboardViewModel(),
-			show: function() { this.model.getDashboardData(); }
+			show: function() {
+				this.model.getDashboardData();
+			}
 		});
 
 		// _loginView = new kendo.View('login-view', {
@@ -87,10 +92,35 @@ window.FitnessApp = (function($){
 		_fitnessLayout.render('#main');
 	}
 
+  //really just used for the main menu
+	_fitnessApp.wireEvents = function() {
+
+		//highlight what view we are currently on
+		$('#navigation li').on('click', function(e) {
+			$('#navigation li a.menu-selected').removeClass('menu-selected')
+			$(e.target).addClass('menu-selected');
+		});
+	}
+
+	_fitnessApp.selectMenuItem = function() {
+		//this can vary depending on where a user enters the application
+		var currentView = document.URL.split('#/')[1];
+
+		$('#navigation li a.menu-selected').removeClass('menu-selected')
+
+		if(currentView === undefined || currentView === '') {
+			$('#navigation li a[href="/#/dash"]').addClass('menu-selected');
+		}
+		else {
+			$('#navigation li a[href="/#/' + currentView + '"]').addClass('menu-selected');
+		}
+	}
+
 	//start the app
 	_fitnessApp.startApp = function () {
 		this.initSPA();
 		this.startSPA();
+		this.selectMenuItem();
 	}
 
 	return _fitnessApp;
