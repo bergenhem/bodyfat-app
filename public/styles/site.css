@@ -278,16 +278,16 @@ section#content div.view-content div.input-form input[type="checkbox"] + label {
 	float: left;
 }
 
+section#content div.view-content div.input-form button {
+  height: 50px;
+  font-size: 1.5em;
+}
+
 section#content div.view-content h1 {
 	font-size: 3em;
 	text-align: center;
 
 	margin: 30px auto 30px auto;
-}
-
-button#calculate-button {
-	height: 50px;
-	font-size: 1.5em;
 }
 
 footer a,
