@@ -18,31 +18,6 @@ window.FitnessApp = (function($){
 			_fitnessApp.selectMenuItem();
 		});
 
-		// var	loginViewModel = kendo.observable({
-		// 	userName: 'zeL',
-		// 	password: 'temp',
-		// 	login: function() {
-		// 		var tempUser = {
-		// 			userName: this.get('userName'),
-		// 			password: this.get('password')
-		// 		};
-		//
-		// 		var serializedUser = JSON.stringify(tempUser);
-		// 		console.log(serializedUser);
-		//
-		// 		$.ajax({
-		// 			url: '/login',
-		// 			type: 'put',
-		// 			data: serializedUser,
-		// 			contentType: "application/json"
-		// 		}).done(function() {
-		// 			console.log('Logged in!');
-		// 		}).fail(function() {
-		// 			console.log('Login failed');
-		// 		});
-		// 	}
-		// });
-
 		_recordingView = new kendo.View('recording-view', {
 			model: window.Record.getRecordViewModel(),
 			show: function() { window.Record.init(); this.model.updateWeight(); }
@@ -61,10 +36,6 @@ window.FitnessApp = (function($){
 			}
 		});
 
-		// _loginView = new kendo.View('login-view', {
-		// 	model: loginViewModel
-		// });
-
 		_kendoRouter.route('/', function() {
 			_fitnessLayout.showIn('#content', _dashView);
 		});
@@ -80,10 +51,6 @@ window.FitnessApp = (function($){
 		_kendoRouter.route('/settings', function() {
 			_fitnessLayout.showIn('#content', _settingsView);
 		});
-
-		// _kendoRouter.route('/login', function() {
-		// 	_fitnessLayout.showIn('#content', _loginView);
-		// });
 	}
 
 	//start our router and render our initial view
