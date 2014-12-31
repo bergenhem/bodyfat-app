@@ -18,6 +18,7 @@ window.Dashboard = (function($){
 		},
 		createCharts: function(data) {
 			$('#weightChart').kendoChart({
+				theme: 'flat',
 				dataSource: {
 					data: data
 				},
@@ -45,6 +46,7 @@ window.Dashboard = (function($){
 			});
 
 			$('#caliperChart').kendoChart({
+				theme: 'flat',
 				dataSource: {
 					data: data
 				},
@@ -72,6 +74,7 @@ window.Dashboard = (function($){
 			});
 
 			$('#indexChart').kendoChart({
+				theme: 'flat',
 				dataSource: {
 					data: data
 				},
