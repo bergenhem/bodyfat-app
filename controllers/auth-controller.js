@@ -1,5 +1,4 @@
 var UserModel = require('../models/users');
-//var encryption = require('bcrypt');
 
 // Temporary to get the app to work with jsut a single user
 var USER_NAME = "zel";
@@ -11,14 +10,6 @@ function authenticate(name, passedPass, fn) {
 		}
 		else {
 			if(users){
-				// encryption.compare(passedPass, users.password, function(err, res) {
-				// 	if(res == true) {
-				// 		return fn(null, users);
-				// 	}
-				// 	else {
-				// 		return fn(new Error('Incorrect Password'));
-				// 	}
-				// });
 
         // temporary while we only work with a single user
 				return fn(null, user);
@@ -67,14 +58,4 @@ exports.authed = function(req, res, next) {
 
 	// Temporary to get the app to work with just a single user
 	next();
-
-	// if(req.session.user) {
-	// 	//user is authenticated - let's move to the next function
-	// 	next();
-	// }
-	// else {
-	// 	req.session.error = 'Authentication Failed'
-	// 	res.writeHead(401, 'Unauthorized', {'content-type': 'application/json'});
-	// 	res.end();
-	// }
 }

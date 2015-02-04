@@ -1,5 +1,4 @@
 var UserModel = require('../models/users');
-var encryption = require('bcrypt');
 var moment = require('moment');
 
 var USER_NAME = "zel";
@@ -23,42 +22,7 @@ exports.addUser = function(req, res) {
 			}
 			else {
 				if(!users) { //username is unique
-
-					encryption.genSalt(10, function(err, salt) {
-						if(err) {
-							console.log('Error in generating salt:\n' + err);
-							res.writeHead(500, 'Internal Server Error', { 'content-type' : 'application/json' });
-							res.write(JSON.stringify({ message: 'Error in generating salt' }));
-							res.end();
-						}
-						else {
-							encryption.hash(userPass, salt, function(err, hash) {
-								if(submittedUser.userName) newUser.userName = userName;
-								if(submittedUser.password) newUser.password = hash;
-								if(submittedUser.gender) newUser.gender = submittedUser.gender;
-								if(submittedUser.dateOfBirth) newUser.dateOfBirth = moment(submittedUser.dateOfBirth).format('YYYY-MM-DD');
-								if(submittedUser.age) newUser.age = submittedUser.age;
-								if(submittedUser.height) newUser.height = submittedUser.height;
-								if(submittedUser.unit) newUser.unit = submittedUser.unit;
-								if(submittedUser.calipers) newUser.calipers = submittedUser.calipers;
-
-								newUser.save(function(err, user) {
-									if(err) {
-										console.log('Error when saving user:\n' + err);
-										res.writeHead(500, 'Internal Server Error', { 'content-type' : 'application/json' });
-										res.write(JSON.stringify({ message: 'Error when saving user.' }));
-										res.end();
-									}
-									else {
-										console.log('Successfully added new user: ' + userName);
-										res.writeHead(201, 'Created', { 'content-type' : 'application/json' });
-										res.write(JSON.stringify(newUser));
-										res.end();
-									}
-								});
-										});
-									}
-								});
+					//TODO: implement the ability to add users with password hashes and such
 				}
 				else { //username already exists
 					console.log('Username "' + userName + '" already exists.');
